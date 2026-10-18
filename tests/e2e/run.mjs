@@ -223,6 +223,12 @@ await shot(adm, '26-admin-groups');
 await adm.click('.nav >> text=백업·복구'); await wait(500);
 await shot(adm, '27-admin-backup');
 
+// 나가기 → 처음 화면
+await A.click('.modal-x').catch(() => {}); await wait(200);
+await A.click('.nav >> text=나가기'); await wait(1500);
+if (!(await A.$('.group-btn'))) errors.push('나가기 후 처음 화면이 아님');
+await shot(A, '28-after-leave');
+
 console.log('ERRORS:', errors.length ? '\n' + errors.join('\n') : 'none');
 await browser.close();
 process.exit(0);

@@ -118,7 +118,7 @@ create table if not exists priv.pairing_requests (
 create table if not exists priv.materials (
   id      text primary key,
   part    text not null,   -- sole | body | insole | lace
-  tier    text not null,   -- cheap | normal | eco | premium | eco_premium
+  tier    text not null,   -- cheap | shiny | normal | natural | eco | premium | eco_premium | limited
   name    text not null,
   price   int  not null,
   env     int  not null,
@@ -150,6 +150,24 @@ insert into priv.materials(id, part, tier, name, price, env, unlock, texture, de
  ('M19','lace','premium','형광 끈',130,-3,'research','sparkle','어둠 속에서도 빛나요',4),
  ('M20','lace','eco_premium','유기농 면 끈',160,2,'eco_research','knit','농약 없이 기른 면이에요',5)
 on conflict (id) do nothing;
+-- 재료 추가(부위당 3개): 반짝 저가(함정) · 천연 · 한정판
+insert into priv.materials(id, part, tier, name, price, env, unlock, texture, descr, sort) values
+ ('M21','sole','shiny','반짝 젤리 밑창',60,-3,'none','sparkle','말랑하고 반짝여요. 값도 싸요',2),
+ ('M22','sole','natural','천연 고무 밑창',100,0,'none','speckle','고무나무 수액으로 만들었어요',4),
+ ('M23','sole','limited','에어쿠션 한정판 밑창',190,-4,'research','sparkle','공기가 든 투명 쿠션, 딱 한정 수량!',8),
+ ('M24','body','shiny','반짝이 PVC 몸체',60,-3,'none','sparkle','반짝반짝 눈에 띄는 싼 소재예요',2),
+ ('M25','body','natural','면 캔버스 몸체',100,0,'none','speckle','튼튼한 면으로 짠 천이에요',4),
+ ('M26','body','limited','메탈릭 한정판 몸체',190,-4,'research','sparkle','금속처럼 빛나는 최고급 한정판',8),
+ ('M27','insole','shiny','젤리 깔창',60,-3,'none','sparkle','말랑말랑 색깔 젤리 깔창',2),
+ ('M28','insole','natural','대나무 숯 깔창',100,0,'none','speckle','냄새를 잡아 주는 숯 깔창',4),
+ ('M29','insole','limited','메모리폼 한정판 깔창',190,-4,'research','sparkle','발 모양을 기억하는 특별 깔창',8),
+ ('M30','lace','shiny','비즈 반짝이 끈',60,-3,'none','sparkle','구슬이 달린 반짝이 끈',2),
+ ('M31','lace','natural','삼베 끈',100,0,'none','speckle','삼베로 꼰 소박한 끈',4),
+ ('M32','lace','limited','LED 한정판 끈',190,-4,'research','sparkle','밤에도 빛나는 한정판 끈',8)
+on conflict (id) do nothing;
+-- 카드 순서: 저가 · 반짝 · 일반 · 천연 · 재활용 · 고급 · 친환경 고급 · 한정판
+update priv.materials set sort = case tier when 'cheap' then 1 when 'shiny' then 2 when 'normal' then 3 when 'natural' then 4
+  when 'eco' then 5 when 'premium' then 6 when 'eco_premium' then 7 when 'limited' then 8 else sort end where true;
 
 create table if not exists priv.products (
   id         serial primary key,
@@ -523,6 +541,23 @@ begin
   insert into priv.pairing_requests(student_id, uid, avatar) values (s.id, auth.uid(), p_avatar);
   perform priv.bump_game();
   return jsonb_build_object('status', 'pending');
+end $$;
+
+-- 이 기기에서 나가기 (이름 연결 해제 → 다시 이름을 골라야 함)
+create or replace function public.leave_student() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare s priv.students;
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', true); end if;
+  select * into s from priv.students where uid = auth.uid();
+  if found then
+    delete from priv.slot_locks where student_id = s.id;
+    update priv.students set uid = null where id = s.id;
+    perform priv.bump(s.group_id);
+  end if;
+  delete from priv.pairing_requests where uid = auth.uid() and status = 'pending';
+  perform priv.bump_game();
+  return jsonb_build_object('ok', true);
 end $$;
 
 -- 내가 누구인지 (자동 재입장용)
@@ -1296,7 +1331,7 @@ begin
              'product_save','product_cancel','product_retire','invest','market','votes_submit','report',
              'principle_submit','my_principles','get_board','admin_login','admin_check','admin_state','admin_set_phase',
              'admin_force_phase','admin_flags','admin_roster_import','admin_set_label','admin_set_leader',
-             'admin_reset_binding','admin_approve','admin_approve_group','admin_reject','admin_event','admin_undo_event','admin_grant',
+             'leave_student','admin_reset_binding','admin_approve','admin_approve_group','admin_reject','admin_event','admin_undo_event','admin_grant',
              'admin_notice','admin_reset_game','admin_export') loop
     begin execute 'grant execute on function ' || f.sig || ' to anon, authenticated'; exception when others then null; end;
   end loop;

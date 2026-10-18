@@ -72,6 +72,14 @@ ok((await rpc(newDevice, 'get_me')).student_id === students[0].id, '교사 승�
 ok((await rpc(students[0].uid, 'get_me')).status === 'none', '예전 기기는 연결 해제');
 students[0].uid = newDevice;
 await rpc(ADMIN, 'admin_flags', JSON.stringify({ require_approval: false }));
+// 이 기기에서 나가기 → 같은 기기로 다시 입장
+{
+  const lv = students[2];
+  await rpc(lv.uid, 'leave_student');
+  ok((await rpc(lv.uid, 'get_me')).status === 'none', '나가기 후 연결 해제');
+  ok((await rpc(lv.uid, 'join_student', lv.id, 'girl')).status === 'joined', '나간 기기로 다시 입장');
+}
+ok((await db.query(`select count(*) c from priv.materials`)).rows[0].c == 32, '재료 32종(부위당 8개)');
 
 // 모둠장
 const leaders = {};
