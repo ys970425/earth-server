@@ -250,7 +250,7 @@
       if (pr) {
         const qty = opts.cartQty ? opts.cartQty(pr) : 0;
         if (qty) el.appendChild(h('span', { class: 'cart-n' }, qty));
-        el.appendChild(h('img', { class: 'shoe', src: P.shoeDataUrl(pr, materials, 4), alt: '신발', draggable: 'false' }));
+        el.appendChild(P.shoeArt(pr, materials, 'shoe'));
         el.appendChild(h('div', { class: 'pedestal' }));
         const tag = sp.slot + '번 · ' + (P.SHAPES.find(s => s.id === pr.shape) || {}).name;
         el.appendChild(h('div', { class: 'tag' }, tag, pr.stars ? h('span', { class: 'stars' }, '★'.repeat(pr.stars)) : null));
@@ -430,7 +430,7 @@
     return {
       slot,
       shape: pr ? pr.shape : 'lowtop',
-      colors: Object.assign({ body: 'blue', lace: 'ivory' }, pr ? pr.colors : {}),
+      colors: { way: pr ? P.colorWay(pr) : 0 },
       parts: Object.assign({}, pr ? pr.parts : DEFAULT_PARTS),
       original: pr || null
     };
@@ -488,21 +488,21 @@
     // 왼쪽: 미리보기
     const left = h('div', { class: 'panel col' });
     left.appendChild(tabs);
-    const cv = h('canvas', { class: 'pixel' });
-    P.drawShoe(cv, ed, st.materials, 8);
-    left.appendChild(h('div', { class: 'preview' }, cv));
+    const LOOK_NAME = { plain: '저가 느낌', basic: '기본 느낌', natural: '내추럴 느낌', flashy: '화려한 느낌', eco_luxe: '친환경 고급 느낌' };
+    left.appendChild(h('div', { class: 'preview' }, P.shoeArt(ed, st.materials),
+      h('span', { class: 'look-tag' }, LOOK_NAME[P.shoeLook(ed.parts, st.materials)])));
+    left.appendChild(h('div', { class: 'mat-strip' }, P.shoeParts(ed, st.materials).map(x => x.mat ? h('span', { title: x.label + ': ' + x.mat.name }, matPic(x.mat)) : null)));
     if (lockOther) left.appendChild(h('div', { class: 'hint' }, lockOther.name + ' 학생이 이 신발을 고치는 중이에요.'));
     left.appendChild(h('div', { class: 'field-label' }, '모양'));
     left.appendChild(h('div', { class: 'shape-row' }, P.SHAPES.map(s => h('button', {
       class: ed.shape === s.id ? 'on' : '', onclick: () => { ed.shape = s.id; renderView(); }
     }, s.name))));
-    ['body', 'lace'].forEach(k => {
-      left.appendChild(h('div', { class: 'field-label' }, k === 'body' ? '몸체 색 · 무료' : '포인트 색 (끈·줄무늬) · 무료'));
-      left.appendChild(h('div', { class: 'swatches' }, P.PALETTE.map(c => h('button', {
-        class: 'swatch ' + (ed.colors[k] === c.id ? 'on' : ''), title: c.name, 'aria-label': c.name, style: { background: c.hex },
-        onclick: () => { ed.colors[k] = c.id; renderView(); }
-      }))));
-    });
+    left.appendChild(h('div', { class: 'field-label' }, '색상 · 무료'));
+    left.appendChild(h('div', { class: 'way-row' }, P.COLORWAYS.map(c => h('button', {
+      class: ed.colors.way === c.id ? 'on' : '', 'aria-label': c.name,
+      onclick: () => { ed.colors = { way: c.id }; renderView(); }
+    }, h('img', { src: P.shoeSrc(ed, st.materials, c.id), alt: '' }), c.name))));
+    left.appendChild(h('div', { class: 'muted', style: { fontSize: '13px' } }, '신발 모습은 고른 재료에 따라 바뀌어요. 몸체 재료가 가장 크게 영향을 줘요.'));
     const cp = costPreview(ed);
     const after = st.wallet - (cp.pay > 0 ? cp.pay : 0) + (cp.pay < 0 ? -cp.pay : 0);
     left.appendChild(h('div', { class: 'cost-box' },
@@ -610,27 +610,28 @@
 
   // 마을 지도: 그림 좌표 기준. 화면은 16:9 카메라가 캐릭터를 따라감
   const MAP = {
-    src: 'img/village.webp', w: 1448, h: 1086,
+    src: 'img/village2.webp', w: 1672, h: 941,
     houses: [
-      { gid: 1, cx: 323, sx: 330, sy: 175, doorY: 293, top: true },
-      { gid: 2, cx: 725, sx: 726, sy: 175, doorY: 293, top: true },
-      { gid: 3, cx: 1105, sx: 1104, sy: 175, doorY: 293, top: true },
-      { gid: 4, cx: 330, sx: 334, sy: 737, doorY: 856 },
-      { gid: 5, cx: 726, sx: 726, sy: 739, doorY: 856 },
-      { gid: 6, cx: 1108, sx: 1105, sy: 737, doorY: 856 }
+      { gid: 1, cx: 457, sx: 458, sy: 180, doorY: 274, top: true },
+      { gid: 2, cx: 841, sx: 841, sy: 180, doorY: 274, top: true },
+      { gid: 3, cx: 1225, sx: 1225, sy: 180, doorY: 274, top: true },
+      { gid: 4, cx: 454, sx: 454, sy: 684, doorY: 776 },
+      { gid: 5, cx: 841, sx: 841, sy: 684, doorY: 776 },
+      { gid: 6, cx: 1225, sx: 1225, sy: 684, doorY: 776 }
     ],
-    houseRect: hs => hs.top ? { x: hs.cx - 150, y: 30, w: 300, h: 260 } : { x: hs.cx - 150, y: 610, w: 300, h: 242 },
-    fountain: { x: 725, y: 490, rx: 150, ry: 92 },
-    sign: { x: 726, y: 399 },
-    spawn: { x: 540, y: 470 },
-    bounds: { x0: 70, x1: 1380, y0: 110, y1: 1010 }
+    houseRect: hs => hs.top ? { x: hs.cx - 118, y: 40, w: 236, h: 232 } : { x: hs.cx - 118, y: 575, w: 236, h: 199 },
+    fountain: { x: 840, y: 452, rx: 128, ry: 96 },
+    spawn: { x: 620, y: 455 },
+    bounds: { x0: 255, x1: 1640, y0: 40, y1: 915 },
+    avatarScale: 4,
+    fountainAnim: false
   };
   const VW = MAP.w, VH = MAP.h, CW = 1600, CH = 900;
   const VIMG = new Image();
   VIMG.src = MAP.src;
   const HOUSES = MAP.houses;
   const houseRect = MAP.houseRect;
-  const doorRect = hs => ({ x: hs.cx - 26, y: hs.doorY - 22, w: 52, h: 32 });
+  const doorRect = hs => ({ x: hs.cx - 24, y: hs.doorY - 20, w: 48, h: 30 });
   const FOUNTAIN = MAP.fountain;
   const SPAWN = MAP.spawn;
   const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -667,6 +668,9 @@
       vw.appendChild(h('div', { class: 'fast' }, m.groups.filter(g => g.id !== m.my_group).map(g =>
         h('button', { class: 'small', style: { '--gc': groupColor(g.id) }, onclick: () => enterHouse(g.id) }, h('i'), g.company_name || g.label))));
     }
+    const gv = S.st && S.st.revealed ? S.st.gauge : null;
+    vw.appendChild(h('div', { class: 'v-gauge' }, h('span', { class: 'ico earth' }), '지구 게이지', h('b', {}, gv === null ? '???' : gv + '%'),
+      gv !== null ? h('span', { class: 'gauge-mini' }, h('i', { style: { width: gv + '%', background: gaugeColor(gv) } })) : null));
     wrap.appendChild(vw);
     cv.addEventListener('click', e => {
       const r = cv.getBoundingClientRect();
@@ -700,23 +704,15 @@
     HOUSES.forEach(hs => {
       const g = m.groups.find(gg => gg.id === hs.gid) || {};
       const name = g.company_name || g.label || (hs.gid + '모둠');
-      let size = 30;
-      do { ctx.font = size + 'px Jua, sans-serif'; size -= 1; } while (ctx.measureText(name).width > 172 && size > 14);
+      rrect(ctx, hs.sx - 86, hs.sy - 20, 172, 40, 10, '#FFF9EE', '#6E4A2B');
+      let size = 26;
+      do { ctx.font = size + 'px Jua, sans-serif'; size -= 1; } while (ctx.measureText(name).width > 156 && size > 12);
       ctx.fillStyle = '#2A2350'; ctx.fillText(name, hs.sx, hs.sy + 2);
       if (hs.gid === m.my_group) {
-        rrect(ctx, hs.sx - 50, hs.sy - 58, 100, 30, 10, '#FFC83D', '#7A4F05');
-        ctx.font = '20px Jua, sans-serif'; ctx.fillStyle = '#3A2600'; ctx.fillText('우리 회사', hs.sx, hs.sy - 42);
+        rrect(ctx, hs.sx - 48, hs.sy - 50, 96, 28, 10, '#FFC83D', '#7A4F05');
+        ctx.font = '18px Jua, sans-serif'; ctx.fillStyle = '#3A2600'; ctx.fillText('우리 회사', hs.sx, hs.sy - 35);
       }
     });
-    // 광장 안내판 (지구 게이지)
-    const sg = MAP.sign;
-    rrect(ctx, sg.x - 90, sg.y - 33, 180, 66, 12, '#8A5A33', '#3E2412');
-    rrect(ctx, sg.x - 82, sg.y - 26, 164, 52, 8, '#F7E7C4', null);
-    ctx.fillStyle = '#5A3A1E'; ctx.font = '17px Jua, sans-serif'; ctx.fillText('지구 게이지', sg.x, sg.y - 11);
-    const gv = st && st.revealed ? st.gauge : null;
-    ctx.font = '24px "Black Han Sans", Jua, sans-serif';
-    ctx.fillStyle = gv === null ? '#7A739C' : gv >= 60 ? '#1E9E63' : gv >= 40 ? '#C98A12' : '#D83A52';
-    ctx.fillText(gv === null ? '???' : gv + '%', sg.x, sg.y + 11);
     return c;
   }
 
@@ -766,7 +762,7 @@
           if (hs) {
             entering = true;
             Object.keys(keys).forEach(k => keys[k] = false);
-            p.y = hs.doorY + 44; p.x = hs.cx; p.dir = 'down';
+            p.y = hs.doorY + 40; p.x = hs.cx; p.dir = 'down';
             if (hs.gid === S.market.my_group) { go('lobby'); return; }
             enterHouse(hs.gid); return;
           }
@@ -778,7 +774,7 @@
       ctx.imageSmoothingEnabled = true;
       ctx.setTransform(cam.s, 0, 0, cam.s, -cam.x * cam.s, -cam.y * cam.s);
       ctx.drawImage(base, 0, 0);
-      drawFountain(ctx, t);
+      if (MAP.fountainAnim) drawFountain(ctx, t);
       drawPlayer(ctx, p);
       loopId = requestAnimationFrame(tick);
     };
@@ -809,14 +805,15 @@
   }
 
   function drawPlayer(ctx, p) {
-    const sc = 5;
+    const sc = MAP.avatarScale || 5;
     ctx.fillStyle = 'rgba(20,20,40,.25)';
-    ctx.beginPath(); ctx.ellipse(p.x, p.y + 2, 24, 8, 0, 0, Math.PI * 2); ctx.fill();
-    P.drawAvatar(ctx, S.me.avatar || 'boy', p.x - 30, p.y - 80, sc, p.dir, Math.floor(p.step / 6) % 2);
-    ctx.font = '24px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const nm = S.me.name, tw = ctx.measureText(nm).width + 22;
-    rrect(ctx, p.x - tw / 2, p.y - 122, tw, 34, 10, '#FFF9EE', '#2A2350');
-    ctx.fillStyle = '#2A2350'; ctx.fillText(nm, p.x, p.y - 104);
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 2, sc * 5, sc * 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.imageSmoothingEnabled = false;
+    P.drawAvatar(ctx, S.me.avatar || 'boy', p.x - sc * 6, p.y - sc * 16, sc, p.dir, Math.floor(p.step / 6) % 2);
+    ctx.font = '22px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const nm = S.me.name, tw = ctx.measureText(nm).width + 20, ty = p.y - sc * 16 - 38;
+    rrect(ctx, p.x - tw / 2, ty, tw, 32, 10, '#FFF9EE', '#2A2350');
+    ctx.fillStyle = '#2A2350'; ctx.fillText(nm, p.x, ty + 17);
   }
 
   function enterHouse(gid) {
@@ -850,8 +847,8 @@
 
   function shoeModal(g, pr) {
     const m = S.market;
-    const cv = h('canvas', { class: 'pixel', style: { width: '100%', maxWidth: '380px' } });
-    P.drawShoe(cv, pr, m.materials, 8);
+    const cv = P.shoeArt(pr, m.materials);
+    cv.style.maxWidth = '380px';
     const env = shoeEnv(pr, m.materials);
     const shape = (P.SHAPES.find(s => s.id === pr.shape) || {}).name || '';
     const body = h('div', { class: 'col' },
@@ -911,7 +908,7 @@
     box.appendChild(h('div', { class: 'muted', style: { fontSize: '13px' } }, '남은 표 ' + (m.votes_total - used) + ' / ' + m.votes_total + ' · 한 회사에 ' + m.max_per_group + '표까지'));
     Object.entries(c).forEach(([pid, x]) => {
       box.appendChild(h('div', { class: 'item' },
-        h('img', { src: P.shoeDataUrl(x.shoe, m.materials, 2), alt: '' }),
+        h('img', { src: P.shoeDataUrl(x.shoe, m.materials), alt: '' }),
         h('span', { class: 'grow' }, x.name + ' × ' + x.qty),
         h('button', { class: 'small', 'aria-label': '하나 빼기', onclick: () => { const cc = getCart(); cc[pid].qty -= 1; if (cc[pid].qty <= 0) delete cc[pid]; setCart(cc); renderCart(); if (S.view === 'house') renderView(); } }, '−')));
     });
@@ -962,7 +959,7 @@
         body.appendChild(h('table', { class: 't' }, h('tr', {}, h('th', {}, '차수'), h('th', {}, '신발'), h('th', {}, '팔린 수'), h('th', {}, '한 켤레'), h('th', {}, '합계')),
           r.detail.map(d => h('tr', {},
             h('td', {}, d.round + '차'),
-            h('td', {}, h('img', { class: 'pixel', style: { width: '64px' }, src: P.shoeDataUrl(d, S.st.materials, 2), alt: '' })),
+            h('td', {}, h('img', { style: { width: '72px' }, src: P.shoeDataUrl(d, S.st.materials), alt: '' })),
             h('td', {}, d.votes),
             h('td', { class: envClass(d.env) }, envText(d.env)),
             h('td', { class: envClass(d.env * d.votes) }, envText(d.env * d.votes))))));
