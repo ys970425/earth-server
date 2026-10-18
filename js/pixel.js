@@ -14,12 +14,31 @@
   ];
 
   const TIERS = {
-    cheap:       { label: '저가', color: '#9AA0A6' },
-    normal:      { label: '일반', color: '#6C8EBF' },
-    eco:         { label: '친환경', color: '#4CAF50' },
-    premium:     { label: '고급 합성', color: '#C58AF9' },
-    eco_premium: { label: '친환경 고급', color: '#2E7D32' }
+    cheap:       { label: '저가', color: '#9AA0A6', look: 'plain' },
+    shiny:       { label: '반짝', color: '#E866B5', look: 'flashy' },
+    normal:      { label: '일반', color: '#6C8EBF', look: 'basic' },
+    natural:     { label: '천연', color: '#9C7A45', look: 'natural' },
+    eco:         { label: '친환경', color: '#4CAF50', look: 'natural' },
+    premium:     { label: '고급 합성', color: '#B57BEA', look: 'flashy' },
+    eco_premium: { label: '친환경 고급', color: '#2E7D32', look: 'eco_luxe' },
+    limited:     { label: '한정판', color: '#D4961A', look: 'flashy' }
   };
+
+  // 완성 신발의 느낌: 재료 느낌별 점수(몸체 2배)가 가장 높은 것, 같으면 몸체 느낌
+  const LOOKS = ['plain', 'basic', 'natural', 'flashy', 'eco_luxe'];
+  function shoeLook(parts, materials) {
+    const w = { sole: 1, body: 2, insole: 0.5, lace: 1 };
+    const score = {}; let bodyLook = 'basic';
+    for (const k of Object.keys(w)) {
+      const m = matOf(materials, (parts || {})[k]);
+      const look = m && TIERS[m.tier] ? TIERS[m.tier].look : 'basic';
+      score[look] = (score[look] || 0) + w[k];
+      if (k === 'body') bodyLook = look;
+    }
+    let best = bodyLook;
+    for (const l of LOOKS) if ((score[l] || 0) > (score[best] || 0)) best = l;
+    return best;
+  }
 
   const PART_LABEL = { sole: '밑창', body: '몸체', insole: '깔창', lace: '끈·포인트' };
   const SHAPES = [
@@ -30,9 +49,9 @@
   ];
 
   // 밑창·중창·깔창은 재료 등급에 따라 색이 정해짐
-  const SOLE_COLOR = { cheap: '#5B5F66', normal: '#34343A', eco: '#7A5C3E', premium: '#E9F4FF', eco_premium: '#B88A52' };
-  const TRIM_COLOR = { cheap: '#C9CCD1', normal: '#F4F1EA', eco: '#E6D5B3', premium: '#FFFFFF', eco_premium: '#F1E3BE' };
-  const INSOLE_COLOR = { cheap: '#D9D2C5', normal: '#4A4A52', eco: '#D8C7A3', premium: '#6FC8F5', eco_premium: '#C08A4E' };
+  const SOLE_COLOR = { cheap: '#5B5F66', shiny: '#F7A8DA', normal: '#34343A', natural: '#8C6A43', eco: '#7A5C3E', premium: '#E9F4FF', eco_premium: '#B88A52', limited: '#BFE6FF' };
+  const TRIM_COLOR = { cheap: '#C9CCD1', shiny: '#FFE3F4', normal: '#F4F1EA', natural: '#EADBC0', eco: '#E6D5B3', premium: '#FFFFFF', eco_premium: '#F1E3BE', limited: '#FFF4C8' };
+  const INSOLE_COLOR = { cheap: '#D9D2C5', shiny: '#FF8FCB', normal: '#4A4A52', natural: '#3A3A3A', eco: '#D8C7A3', premium: '#6FC8F5', eco_premium: '#C08A4E', limited: '#F4D35E' };
   const PAD_X = 6, PAD_Y = 5; // 반짝이·잎 효과가 들어갈 여백
 
   function hexToRgb(h) {
@@ -83,7 +102,7 @@
   // 재료 등급 → 신발 등급 효과
   function auraOf(ms) {
     const n = t => ms.filter(m => m && m.tier === t).length;
-    return { sparkle: n('premium') >= 2, sparkleBig: n('premium') >= 4, leaf: n('eco_premium') >= 2, leafBig: n('eco_premium') >= 4, sprout: n('eco') >= 3 };
+    return { sparkle: n('premium') + n('limited') >= 2, sparkleBig: n('premium') + n('limited') >= 4, leaf: n('eco_premium') >= 2, leafBig: n('eco_premium') >= 4, sprout: n('eco') >= 3 };
   }
 
   const SPARK = ['..w..', '..w..', 'wwWww', '..w..', '..w..'];
@@ -138,7 +157,7 @@
       }
     }
 
-    const eyelet = mLace && (mLace.tier === 'premium' || mLace.tier === 'eco_premium') ? [232, 197, 71] : [52, 52, 60];
+    const eyelet = mLace && ['premium', 'eco_premium', 'limited'].includes(mLace.tier) ? [232, 197, 71] : [52, 52, 60];
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const ch = rows[y][x];
@@ -236,5 +255,5 @@
     return c.toDataURL();
   }
 
-  window.Pixel = { PALETTE, TIERS, PART_LABEL, SHAPES, drawShoe, shoeDataUrl, shoeParts, drawAvatar, avatarDataUrl, matOf, auraOf };
+  window.Pixel = { PALETTE, TIERS, LOOKS, PART_LABEL, SHAPES, drawShoe, shoeDataUrl, shoeParts, shoeLook, drawAvatar, avatarDataUrl, matOf, auraOf };
 })();

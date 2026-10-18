@@ -158,7 +158,8 @@
     const navs = [['lobby', '우리 로비'], ['workshop', '제작방'], ['village', '마을 · 구매'], ['report', '성적표']];
     if (st.phase >= 10) navs.push(['principle', '경영 원칙']);
     root.appendChild(h('div', { class: 'nav' }, navs.map(([v, label]) =>
-      h('button', { class: S.view === v || (v === 'village' && S.view === 'house') ? 'on' : '', onclick: () => go(v) }, h('span', { class: 'dot' }), label))));
+      h('button', { class: S.view === v || (v === 'village' && S.view === 'house') ? 'on' : '', onclick: () => go(v) }, h('span', { class: 'dot' }), label)),
+      h('button', { class: 'leave small ghost', title: '이 기기에서 나가고 처음 화면으로', onclick: leaveDevice }, '나가기')));
     root.appendChild(h('div', { id: 'page', class: 'page' }));
     renderTopbar();
     renderView();
@@ -181,6 +182,12 @@
     bar.appendChild(h('span', { class: 'me-chip' }, h('img', { src: P.avatarDataUrl(S.me.avatar || 'boy', 2), alt: '' }), S.me.name,
       S.me.is_leader ? h('span', { class: 'lead' }, '모둠장') : null));
     bar.appendChild(h('span', { class: 'phase-badge' }, h('span', { class: 'n' }, st.phase), PHASES[st.phase].name));
+  }
+
+  async function leaveDevice() {
+    if (!confirm('이 기기에서 나갈까요?\n다시 들어오려면 모둠과 이름을 다시 골라야 해요.')) return;
+    try { await releaseLock(); await rpc('leave_student'); } catch (e) { /* 그래도 처음 화면으로 */ }
+    location.reload();
   }
 
   function go(v) {
@@ -260,6 +267,16 @@
     return frame;
   }
 
+  // 재료 그림 (아직 그림이 없으면 등급 색 칸)
+  function matPic(m) {
+    const img = h('img', { src: matImg(m.id), alt: '', loading: 'lazy' });
+    img.addEventListener('error', () => {
+      const t = P.TIERS[m.tier] || {};
+      img.replaceWith(h('div', { class: 'noimg', style: { '--tc': t.color || '#999' } }, P.PART_LABEL[m.part] || ''));
+    });
+    return img;
+  }
+
   // 신발에 마우스를 올리면 재료 설명
   let tipEl = null;
   function hideTip() { if (tipEl) { tipEl.remove(); tipEl = null; } }
@@ -268,7 +285,7 @@
       const m = x.mat;
       const tier = m ? P.TIERS[m.tier] : null;
       return h('div', { class: 'part-line' },
-        m ? h('img', { src: matImg(m.id), alt: '' }) : h('span'),
+        m ? matPic(m) : h('span'),
         h('div', {}, h('div', { class: 'pl' }, x.label), h('div', { class: 'pn' }, m ? m.name : '-')),
         tier ? h('span', { class: 'chip', style: { background: tier.color } }, tier.label) : h('span'));
     });
@@ -523,7 +540,7 @@
           disabled: !ok, title: ok ? m.descr : '',
           onclick: () => { if (!ok) return; ed.parts[part] = m.id; renderView(); }
         },
-          h('div', { class: 'thumb' }, h('img', { src: matImg(m.id), alt: '', loading: 'lazy' }), h('span', { class: 'chip', style: { background: tier.color } }, tier.label)),
+          h('div', { class: 'thumb', style: { '--tc': tier.color } }, matPic(m), h('span', { class: 'chip', style: { background: tier.color } }, tier.label)),
           h('div', { class: 'info' },
             h('span', { class: 'nm' }, m.name),
             h('span', { class: 'price' }, m.price + '코인'),
@@ -591,24 +608,35 @@
     try { S.market = await rpc('market'); } catch (e) { toast(e.message, 'error'); }
   }
 
-  // 마을 지도: 그림 좌표(1448×1086) 기준
-  const VW = 1448, VH = 1086;
+  // 마을 지도: 그림 좌표 기준. 화면은 16:9 카메라가 캐릭터를 따라감
+  const MAP = {
+    src: 'img/village.webp', w: 1448, h: 1086,
+    houses: [
+      { gid: 1, cx: 323, sx: 330, sy: 175, doorY: 293, top: true },
+      { gid: 2, cx: 725, sx: 726, sy: 175, doorY: 293, top: true },
+      { gid: 3, cx: 1105, sx: 1104, sy: 175, doorY: 293, top: true },
+      { gid: 4, cx: 330, sx: 334, sy: 737, doorY: 856 },
+      { gid: 5, cx: 726, sx: 726, sy: 739, doorY: 856 },
+      { gid: 6, cx: 1108, sx: 1105, sy: 737, doorY: 856 }
+    ],
+    houseRect: hs => hs.top ? { x: hs.cx - 150, y: 30, w: 300, h: 260 } : { x: hs.cx - 150, y: 610, w: 300, h: 242 },
+    fountain: { x: 725, y: 490, rx: 150, ry: 92 },
+    sign: { x: 726, y: 399 },
+    spawn: { x: 540, y: 470 },
+    bounds: { x0: 70, x1: 1380, y0: 110, y1: 1010 }
+  };
+  const VW = MAP.w, VH = MAP.h, CW = 1600, CH = 900;
   const VIMG = new Image();
-  VIMG.src = 'img/village.webp';
-  const HOUSES = [
-    { gid: 1, cx: 323, sx: 330, sy: 175, doorY: 293, top: true },
-    { gid: 2, cx: 725, sx: 726, sy: 175, doorY: 293, top: true },
-    { gid: 3, cx: 1105, sx: 1104, sy: 175, doorY: 293, top: true },
-    { gid: 4, cx: 330, sx: 334, sy: 737, doorY: 856 },
-    { gid: 5, cx: 726, sx: 726, sy: 739, doorY: 856 },
-    { gid: 6, cx: 1108, sx: 1105, sy: 737, doorY: 856 }
-  ];
-  const houseRect = hs => hs.top ? { x: hs.cx - 150, y: 30, w: 300, h: 260 } : { x: hs.cx - 150, y: 610, w: 300, h: 242 };
+  VIMG.src = MAP.src;
+  const HOUSES = MAP.houses;
+  const houseRect = MAP.houseRect;
   const doorRect = hs => ({ x: hs.cx - 26, y: hs.doorY - 22, w: 52, h: 32 });
-  const FOUNTAIN = { x: 725, y: 490, rx: 150, ry: 92 };
-  const SPAWN = { x: 540, y: 470 };
+  const FOUNTAIN = MAP.fountain;
+  const SPAWN = MAP.spawn;
   const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   const feet = (x, y) => ({ x: x - 14, y: y - 10, w: 28, h: 12 });
+  const SHOW_DPAD = false; // 패드로 수업할 때 true
+  const cam = { x: 0, y: 0, s: 1, vw: VW, vh: VH };
 
   function villageView() {
     const m = S.market;
@@ -616,23 +644,25 @@
     if (!m) { wrap.appendChild(h('p', { class: 'hint' }, '마을 불러오는 중...')); return wrap; }
     let hint;
     if (m.market_round) hint = m.voted ? '이번 시장 구매를 마쳤어요. 다른 회사 전시장 구경은 계속할 수 있어요.'
-      : '방향키나 화면의 십자 버튼으로 걸어가 다른 회사 집 문으로 들어가요. 마음에 드는 신발을 담고 마지막에 「구매 확정」!';
-    else hint = '지금은 시장이 열려 있지 않아요. 다른 회사 전시장을 구경할 수 있어요.';
+      : '방향키(또는 W·A·S·D)로 걸어가 다른 회사 집 문으로 들어가요. 마음에 드는 신발을 담고 마지막에 「구매 확정」!';
+    else hint = '지금은 시장이 열려 있지 않아요. 방향키로 걸어 다니며 다른 회사 전시장을 구경할 수 있어요.';
     wrap.appendChild(h('div', { class: 'hint' }, hint));
-    const cv = h('canvas', { class: 'village' });
-    cv.width = VW; cv.height = VH;
+    const cv = h('canvas', { class: 'village', tabindex: '0', 'aria-label': '마을 지도. 방향키로 움직여요' });
+    cv.width = CW; cv.height = CH;
     const vw = h('div', { class: 'village-wrap' }, cv);
-    const dp = h('div', { class: 'dpad' });
-    const mk = (label, dir, col, row, aria) => {
-      const b = h('button', { style: { gridColumn: col, gridRow: row }, 'aria-label': aria }, label);
-      const on = e => { e.preventDefault(); keys[dir] = true; };
-      const off = () => { keys[dir] = false; };
-      b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
-      b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
-      return b;
-    };
-    dp.append(mk('▲', 'up', 2, 1, '위로'), mk('◀', 'left', 1, 2, '왼쪽으로'), mk('▶', 'right', 3, 2, '오른쪽으로'), mk('▼', 'down', 2, 3, '아래로'));
-    vw.appendChild(dp);
+    if (SHOW_DPAD) {
+      const dp = h('div', { class: 'dpad' });
+      const mk = (label, dir, col, row, aria) => {
+        const b = h('button', { style: { gridColumn: col, gridRow: row }, 'aria-label': aria }, label);
+        const on = e => { e.preventDefault(); keys[dir] = true; };
+        const off = () => { keys[dir] = false; };
+        b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
+        b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+        return b;
+      };
+      dp.append(mk('▲', 'up', 2, 1, '위로'), mk('◀', 'left', 1, 2, '왼쪽으로'), mk('▶', 'right', 3, 2, '오른쪽으로'), mk('▼', 'down', 2, 3, '아래로'));
+      vw.appendChild(dp);
+    }
     if (m.fast_travel) {
       vw.appendChild(h('div', { class: 'fast' }, m.groups.filter(g => g.id !== m.my_group).map(g =>
         h('button', { class: 'small', style: { '--gc': groupColor(g.id) }, onclick: () => enterHouse(g.id) }, h('i'), g.company_name || g.label))));
@@ -640,7 +670,7 @@
     wrap.appendChild(vw);
     cv.addEventListener('click', e => {
       const r = cv.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width * VW, y = (e.clientY - r.top) / r.height * VH;
+      const x = cam.x + (e.clientX - r.left) / r.width * cam.vw, y = cam.y + (e.clientY - r.top) / r.height * cam.vh;
       const hs = HOUSES.find(hs => overlap({ x, y, w: 1, h: 1 }, houseRect(hs)));
       if (!hs) return;
       if (hs.gid === m.my_group) return go('lobby');
@@ -652,7 +682,7 @@
   }
 
   const keys = {};
-  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
+  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right', 'ㅈ': 'up', 'ㄴ': 'down', 'ㅁ': 'left', 'ㅇ': 'right' };
   window.addEventListener('keydown', e => {
     const k = KEYMAP[e.key];
     if (k && S.view === 'village' && !/INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || '')) { keys[k] = true; e.preventDefault(); }
@@ -679,13 +709,14 @@
       }
     });
     // 광장 안내판 (지구 게이지)
-    rrect(ctx, 636, 366, 180, 66, 12, '#8A5A33', '#3E2412');
-    rrect(ctx, 644, 373, 164, 52, 8, '#F7E7C4', null);
-    ctx.fillStyle = '#5A3A1E'; ctx.font = '17px Jua, sans-serif'; ctx.fillText('지구 게이지', 726, 388);
+    const sg = MAP.sign;
+    rrect(ctx, sg.x - 90, sg.y - 33, 180, 66, 12, '#8A5A33', '#3E2412');
+    rrect(ctx, sg.x - 82, sg.y - 26, 164, 52, 8, '#F7E7C4', null);
+    ctx.fillStyle = '#5A3A1E'; ctx.font = '17px Jua, sans-serif'; ctx.fillText('지구 게이지', sg.x, sg.y - 11);
     const gv = st && st.revealed ? st.gauge : null;
     ctx.font = '24px "Black Han Sans", Jua, sans-serif';
     ctx.fillStyle = gv === null ? '#7A739C' : gv >= 60 ? '#1E9E63' : gv >= 40 ? '#C98A12' : '#D83A52';
-    ctx.fillText(gv === null ? '???' : gv + '%', 726, 410);
+    ctx.fillText(gv === null ? '???' : gv + '%', sg.x, sg.y + 11);
     return c;
   }
 
@@ -701,13 +732,19 @@
   function startLoop(cv) {
     cancelAnimationFrame(loopId);
     const ctx = cv.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
     const base = buildBase();
+    cam.s = Math.max(CW / VW, CH / VH); cam.vw = CW / cam.s; cam.vh = CH / cam.s;
+    const camTarget = () => ({
+      x: Math.max(0, Math.min(VW - cam.vw, p.x - cam.vw / 2)),
+      y: Math.max(0, Math.min(VH - cam.vh, p.y - 40 - cam.vh / 2))
+    });
     if (!S.player) S.player = { x: SPAWN.x, y: SPAWN.y, dir: 'down', step: 0 };
     const p = S.player;
+    { const t0 = camTarget(); cam.x = t0.x; cam.y = t0.y; }
     let entering = false, t = 0;
     const free = (x, y) => {
-      if (x < 70 || x > 1380 || y < 110 || y > 1010) return false;
+      const b = MAP.bounds;
+      if (x < b.x0 || x > b.x1 || y < b.y0 || y > b.y1) return false;
       const fx = (x - FOUNTAIN.x) / FOUNTAIN.rx, fy = (y - FOUNTAIN.y) / FOUNTAIN.ry;
       if (fx * fx + fy * fy < 1) return false;
       const box = feet(x, y);
@@ -735,6 +772,11 @@
           }
         }
       }
+      const tg = camTarget();
+      cam.x += (tg.x - cam.x) * 0.15; cam.y += (tg.y - cam.y) * 0.15;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.setTransform(cam.s, 0, 0, cam.s, -cam.x * cam.s, -cam.y * cam.s);
       ctx.drawImage(base, 0, 0);
       drawFountain(ctx, t);
       drawPlayer(ctx, p);
@@ -744,7 +786,7 @@
   }
 
   function drawFountain(ctx, t) {
-    const cx = FOUNTAIN.x, cy = 478;
+    const cx = FOUNTAIN.x, cy = FOUNTAIN.y - 12;
     for (let k = 0; k < 3; k++) {
       const r = (t * 0.5 + k * 22) % 66;
       ctx.strokeStyle = `rgba(255,255,255,${(0.75 * (1 - r / 66)).toFixed(2)})`;
