@@ -207,15 +207,35 @@
     return canvas;
   }
 
-  const urlCache = new Map();
-  function shoeDataUrl(shoe, materials, scale) {
-    const key = [shoe.shape, JSON.stringify(shoe.colors || {}), JSON.stringify(shoe.parts || {}), scale].join('|');
-    if (urlCache.has(key)) return urlCache.get(key);
-    const u = drawShoe(document.createElement('canvas'), shoe, materials, scale).toDataURL();
-    if (urlCache.size > 400) urlCache.clear();
-    urlCache.set(key, u);
-    return u;
+  // ---- 완성 신발 그림 (GPT 그림: 모양 × 느낌 × 색상 3종) ----
+  const COLORWAYS = [{ id: 0, name: '밝은색' }, { id: 1, name: '어두운색' }, { id: 2, name: '포인트색' }];
+  const BAKED_FX = { oxford: true }; // 그림에 반짝이·잎이 이미 그려진 모양
+  function colorWay(shoe) {
+    const c = shoe.colors || {};
+    if (c.way === 0 || c.way === 1 || c.way === 2) return c.way;
+    if (!c.body || c.body === 'ivory') return 0;      // 예전 8색 데이터 호환
+    if (c.body === 'black') return 1;
+    return 2;
   }
+  function shoeSrc(shoe, materials, way) {
+    const w = way === undefined ? colorWay(shoe) : way;
+    return 'img/shoes/' + (SHAPES.some(s => s.id === shoe.shape) ? shoe.shape : 'lowtop') + '-' + shoeLook(shoe.parts, materials) + '-' + w + '.webp';
+  }
+  // 그림 + 느낌별 효과(반짝이·잎)를 담은 요소
+  function shoeArt(shoe, materials, cls) {
+    const look = shoeLook(shoe.parts, materials);
+    const el = document.createElement('div');
+    el.className = 'shoe-art look-' + look + (BAKED_FX[shoe.shape] ? ' baked' : '') + (cls ? ' ' + cls : '');
+    const img = new Image();
+    img.src = shoeSrc(shoe, materials); img.alt = '신발'; img.draggable = false;
+    el.appendChild(img);
+    if (!BAKED_FX[shoe.shape] && (look === 'flashy' || look === 'eco_luxe')) {
+      for (let i = 0; i < 5; i++) { const f = document.createElement('i'); f.className = 'fx fx' + i; el.appendChild(f); }
+    }
+    return el;
+  }
+  // 예전 함수 이름 호환: 이제 그림 주소를 돌려줌
+  function shoeDataUrl(shoe, materials) { return shoeSrc(shoe, materials); }
 
   // 신발 설명(재료 목록)
   function shoeParts(shoe, materials) {
@@ -255,5 +275,5 @@
     return c.toDataURL();
   }
 
-  window.Pixel = { PALETTE, TIERS, LOOKS, PART_LABEL, SHAPES, drawShoe, shoeDataUrl, shoeParts, shoeLook, drawAvatar, avatarDataUrl, matOf, auraOf };
+  window.Pixel = { PALETTE, TIERS, LOOKS, PART_LABEL, SHAPES, COLORWAYS, drawShoe, shoeDataUrl, shoeSrc, shoeArt, colorWay, shoeParts, shoeLook, drawAvatar, avatarDataUrl, matOf, auraOf };
 })();

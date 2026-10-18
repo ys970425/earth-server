@@ -149,7 +149,7 @@
       const sp = stands.find(s => s.slot === i) || { x: Math.round(100 / (g.slot_count + 1) * i), y: 68 };
       const pr = g.products.find(p => p.slot === i);
       const el = h('div', { class: 'stand static', style: { left: sp.x + '%', top: sp.y + '%' } });
-      if (pr) el.append(h('img', { class: 'shoe', src: P.shoeDataUrl(pr, st.materials, 3) }), h('div', { class: 'pedestal' }),
+      if (pr) el.append(P.shoeArt(pr, st.materials, 'shoe'), h('div', { class: 'pedestal' }),
         h('div', { class: 'tag' }, i + '번 · ', h('span', { class: envClass(pr.env) }, envText(pr.env))));
       else el.append(h('div', { class: 'empty' }, i + '번 빈 칸'), h('div', { class: 'pedestal' }));
       lobby.appendChild(el);
@@ -169,7 +169,7 @@
       h('div', { class: 'col' }, lobbyFrame,
         h('div', { class: 'panel' }, h('h3', { style: { marginTop: 0 } }, '신발'),
           g.products.length ? h('table', { class: 't' }, g.products.map(p => h('tr', {},
-            h('td', {}, h('img', { class: 'pixel', style: { width: '80px' }, src: P.shoeDataUrl(p, st.materials, 2) })),
+            h('td', {}, h('img', { style: { width: '90px' }, src: P.shoeDataUrl(p, st.materials) })),
             h('td', {}, p.slot + '번 · ' + (p.status === 'listed' ? '판매중' : '제작됨') + (p.locked_by ? ' · ✏ ' + p.locked_by + ' 수정 중' : '')),
             h('td', {}, ['sole', 'body', 'insole', 'lace'].map(k => { const m = P.matOf(st.materials, p.parts[k]); return m ? h('div', { style: { fontSize: '13px' } }, m.name) : null; })),
             h('td', { class: envClass(p.env) }, envText(p.env))))) : h('p', { class: 'muted' }, '아직 없어요.')))));
@@ -193,7 +193,7 @@
           const g = st.groups.find(x => x.id === s.group_id);
           const total = s.student_votes + s.event_votes;
           return h('tr', {}, h('td', {}, g.label + (g.company_name ? ' · ' + g.company_name : '')),
-            h('td', {}, h('img', { class: 'pixel', style: { width: '72px' }, src: P.shoeDataUrl(s, st.materials, 2) }), ' ' + s.slot + '번'),
+            h('td', {}, h('img', { style: { width: '80px' }, src: P.shoeDataUrl(s, st.materials) }), ' ' + s.slot + '번'),
             h('td', {}, h('b', {}, s.student_votes)), h('td', {}, s.event_votes),
             h('td', { class: envClass(s.env) }, envText(s.env)), h('td', { class: envClass(s.env * total) }, envText(s.env * total)));
         })));
