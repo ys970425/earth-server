@@ -138,7 +138,7 @@ textarea { width: 100%; min-height: 96px; resize: vertical; }
 .group-btn .roof img { height: 38px; width: auto; max-width: 80%; object-fit: contain; filter: drop-shadow(0 2px 0 rgba(0,0,0,.3)); position: relative; z-index: 1; }
 .group-btn .gname { padding: 12px 14px 2px; font-family: var(--font-display); font-size: 26px; }
 .group-btn .gco { padding: 0 14px 14px; color: var(--muted); font-size: 15px; min-height: 22px; }
-.teacher-link { position: fixed; right: 14px; bottom: 12px; font-size: 13px; z-index: 5; }
+.teacher-link { position: fixed; right: 16px; top: 16px; z-index: 5; }
 .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin: 16px 0 26px; }
 .roster button { padding: 16px 10px; font-size: 21px; }
 .roster button small { display: block; font-size: 13px; color: var(--muted); }
@@ -201,7 +201,7 @@ textarea { width: 100%; min-height: 96px; resize: vertical; }
 .page { padding: 8px 16px 60px; max-width: 1320px; margin: 0 auto; }
 
 /* ---------- 로비 ---------- */
-.lobby-frame { --gc: var(--g1); max-width: max(620px, calc((100vh - 330px) * 1.778)); margin: 0 auto; border: 3px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--paper); box-shadow: 0 8px 0 rgba(0,0,0,.35); }
+.lobby-frame { --gc: var(--g1); width: 100%; max-width: max(620px, calc((100vh - 330px) * 1.778)); margin: 0 auto; border: 3px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--paper); box-shadow: 0 8px 0 rgba(0,0,0,.35); }
 .logo-band {
   position: relative; height: 128px; display: flex; align-items: center; justify-content: center;
   background: var(--gc);
@@ -332,7 +332,7 @@ textarea { width: 100%; min-height: 96px; resize: vertical; }
 .house-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .house-head .hint { margin: 0; flex: 1; }
 .cart {
-  position: fixed; right: 16px; bottom: 16px; z-index: 30; width: 290px;
+  position: fixed; right: 16px; bottom: 64px; z-index: 30; width: 290px;
   background: var(--paper); border: 3px solid var(--line); border-radius: var(--r-lg); padding: 14px; box-shadow: 0 8px 0 rgba(0,0,0,.35);
 }
 .cart h4 { margin: 0 0 8px; font-family: var(--font-display); font-size: 19px; display: flex; justify-content: space-between; align-items: center; }
@@ -383,21 +383,7 @@ table.t th { background: var(--paper-2); }
 
 /* ---------- 완성 신발 그림 ---------- */
 .shoe-art { position: relative; width: 100%; }
-.shoe-art img { display: block; width: 100%; height: auto; }
-.shoe-art.look-plain img { filter: saturate(.55) brightness(.96) sepia(.12) contrast(.95); }
-.shoe-art.look-flashy:not(.baked) img { filter: drop-shadow(0 0 5px rgba(150,215,255,.95)) drop-shadow(0 0 12px rgba(200,150,255,.55)); }
-.shoe-art.look-eco_luxe:not(.baked) img { filter: drop-shadow(0 0 5px rgba(255,214,90,.9)) drop-shadow(0 0 12px rgba(150,230,120,.5)); }
-.shoe-art .fx { position: absolute; width: 11%; aspect-ratio: 1; pointer-events: none; animation: twinkle 1.8s ease-in-out infinite; }
-.look-flashy .fx { background: radial-gradient(circle, #fff 0 18%, transparent 19%), conic-gradient(from 45deg, transparent 0 20%, #fff 20% 30%, transparent 30% 45%, #fff 45% 55%, transparent 55% 70%, #fff 70% 80%, transparent 80% 95%, #fff 95%); clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%); background: linear-gradient(135deg, #FFFFFF, #BFE6FF 60%, #E4C8FF); }
-.look-eco_luxe .fx { background: linear-gradient(135deg, #9BE07A, #3E9A4C); border-radius: 0 70% 0 70%; width: 9%; animation-name: leaf; }
-.look-eco_luxe .fx2, .look-eco_luxe .fx4 { background: linear-gradient(135deg, #FFF3B0, #FFC83D); border-radius: 0; clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%); width: 8%; animation-name: twinkle; }
-.fx0 { left: 4%; top: 14%; animation-delay: 0s; }
-.fx1 { right: 6%; top: 6%; animation-delay: .5s; }
-.fx2 { right: 2%; top: 52%; animation-delay: 1s; width: 8%; }
-.fx3 { left: 14%; bottom: 8%; animation-delay: 1.3s; width: 7%; }
-.fx4 { left: 48%; top: 0; animation-delay: .8s; width: 7%; }
-@keyframes twinkle { 0%, 100% { transform: scale(.5) rotate(0); opacity: .4; } 50% { transform: scale(1) rotate(20deg); opacity: 1; } }
-@keyframes leaf { 0%, 100% { transform: translateY(0) rotate(-10deg); opacity: .75; } 50% { transform: translateY(-6px) rotate(12deg); opacity: 1; } }
+.shoe-art img { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
 .look-tag { position: absolute; left: 10px; top: 10px; background: var(--paper); border: 2px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 13px; }
 .mat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .mat-strip span { aspect-ratio: 1; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }

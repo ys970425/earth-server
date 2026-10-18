@@ -40,6 +40,7 @@
   }
 
   async function dashboard() {
+    await P.ready;
     await load();
     subscribe({ game: () => loadSoon(), tick: () => loadSoon(), notice: n => toast('[공지] ' + n.message) });
     A.timer = setInterval(load, 5000);
