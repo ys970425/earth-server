@@ -1,7 +1,7 @@
 // 교사 관제실
 (function () {
   const { rpc, ensureSession, subscribe, PHASES } = window.API;
-  const { $, h, toast, modal, envText, envClass, fmt, debounce } = window.UI;
+  const { $, h, toast, modal, envText, envClass, fmt, debounce, groupColor } = window.UI;
   const P = window.Pixel;
   const root = document.getElementById('app');
   const A = { st: null, tab: 'progress', group: 1, timer: null };
@@ -81,11 +81,11 @@
     const joined = st.students.filter(s => s.bound).length;
     const online = st.students.filter(s => s.online).length;
     bar.innerHTML = '';
-    bar.append(...[h('span', { class: 'company' }, '🛰 관제실'),
+    bar.append(...[h('span', { class: 'company' }, '관제실'),
       h('span', { class: 'stat' }, '단계', h('b', {}, g.phase + '. ' + PHASES[g.phase].name)),
       h('span', { class: 'stat' }, '입장', h('b', {}, joined + '/' + st.students.length)),
       h('span', { class: 'stat' }, '접속 중', h('b', {}, online)),
-      h('span', { class: 'stat' }, '🌏 게이지', h('b', {}, st.gauge + '%'), g.env_revealed ? '' : ' (학생에겐 ???)'),
+      h('span', { class: 'stat' }, '지구 게이지', h('b', {}, st.gauge + '%'), g.env_revealed ? '' : ' (학생에겐 ???)'),
       st.market_round ? h('span', { class: 'stat' }, '구매 확정', h('b', {}, st.students.filter(s => s.voted).length + '/' + joined)) : null,
       st.pairings.length ? h('span', { class: 'phase', style: { background: '#E05A4F', color: '#fff' } }, '연결 승인 대기 ' + st.pairings.length) : null].filter(Boolean));
   }
@@ -135,20 +135,22 @@
   function tabGroups(page) {
     const st = A.st;
     page.appendChild(h('div', { class: 'row', style: { marginBottom: '10px' } }, st.groups.map(g =>
-      h('button', { class: A.group === g.id ? 'warn' : '', onclick: () => { A.group = g.id; render(); } }, g.label + (g.company_name ? ' · ' + g.company_name : '')))));
+      h('button', { class: A.group === g.id ? 'warn' : '', style: { borderLeft: '10px solid ' + groupColor(g.id) }, onclick: () => { A.group = g.id; render(); } }, g.label + (g.company_name ? ' · ' + g.company_name : '')))));
     const g = st.groups.find(x => x.id === A.group);
     const studs = st.students.filter(s => s.group_id === g.id);
-    const lobby = h('div', { class: 'lobby ' + (g.bg_url ? '' : 'bg-' + (g.bg_preset || 0)), style: { maxHeight: '320px' } });
+    const lobbyFrame = h('div', { class: 'lobby-frame', style: { '--gc': groupColor(g.id) } },
+      h('div', { class: 'logo-band', style: { height: '90px' } }, g.logo_url ? h('img', { src: g.logo_url, alt: '', style: { maxHeight: '70px' } }) : h('div', { class: 'logo-text', style: { fontSize: '30px' } }, g.company_name || g.label)));
+    const lobby = h('div', { class: 'lobby ' + (g.bg_url ? '' : 'bg-' + (g.bg_preset || 0)) });
     if (g.bg_url) lobby.style.backgroundImage = `url("${g.bg_url}")`;
-    if (g.logo_url) lobby.appendChild(h('img', { class: 'lobby-logo', src: g.logo_url }));
-    lobby.appendChild(h('div', { class: 'lobby-name' }, g.company_name || g.label));
+    lobby.appendChild(h('div', { class: 'name-tag' }, g.company_name || g.label));
+    lobbyFrame.appendChild(lobby);
     const stands = (Array.isArray(g.stands) && g.stands.length ? g.stands : []);
     for (let i = 1; i <= g.slot_count; i++) {
       const sp = stands.find(s => s.slot === i) || { x: Math.round(100 / (g.slot_count + 1) * i), y: 68 };
       const pr = g.products.find(p => p.slot === i);
       const el = h('div', { class: 'stand static', style: { left: sp.x + '%', top: sp.y + '%' } });
       if (pr) el.append(h('img', { class: 'shoe', src: P.shoeDataUrl(pr, st.materials, 3) }), h('div', { class: 'pedestal' }),
-        h('div', { class: 'tag' }, i + '번 · ' + envText(pr.env)));
+        h('div', { class: 'tag' }, i + '번 · ', h('span', { class: envClass(pr.env) }, envText(pr.env))));
       else el.append(h('div', { class: 'empty' }, i + '번 빈 칸'), h('div', { class: 'pedestal' }));
       lobby.appendChild(el);
     }
@@ -164,7 +166,7 @@
           h('td', {}, h('button', { class: 'small', onclick: () => act('admin_set_leader', { p_student: s.id, p_on: !s.is_leader }, s.is_leader ? '모둠장 해제' : '모둠장 지정') }, s.is_leader ? '모둠장 해제' : '모둠장'),
             ' ', s.bound ? h('button', { class: 'small', onclick: () => { if (confirm(s.name + ' 학생의 기기 연결을 풀까요?')) act('admin_reset_binding', { p_student: s.id }, '초기화했어요'); } }, '연결 초기화') : null)))),
         g.company_principle ? h('div', { class: 'hint' }, '기업 원칙: ' + g.company_principle) : null),
-      h('div', { class: 'col' }, lobby,
+      h('div', { class: 'col' }, lobbyFrame,
         h('div', { class: 'panel' }, h('h3', { style: { marginTop: 0 } }, '신발'),
           g.products.length ? h('table', { class: 't' }, g.products.map(p => h('tr', {},
             h('td', {}, h('img', { class: 'pixel', style: { width: '80px' }, src: P.shoeDataUrl(p, st.materials, 2) })),
@@ -269,14 +271,32 @@
         h('td', {}, e.message || ''), h('td', {}, e.status === 'active' ? h('button', { class: 'small', onclick: () => confirm('이 이벤트를 취소할까요?') && act('admin_undo_event', { p_event: e.id }, '취소했어요') }, '취소') : '취소됨')))));
   }
 
+  async function approveGroup(gid) {
+    const r = await act('admin_approve_group', { p_group: gid });
+    if (r) toast((gid ? gid + '모둠 ' : '전체 ') + r.approved + '명 승인' + (r.skipped ? ' · 중복 ' + r.skipped + '건은 직접 골라 주세요' : ''));
+  }
+
   // ------------------------------------------------------------------
   function tabRoster(page) {
     const st = A.st;
     if (st.pairings.length) {
-      page.appendChild(h('div', { class: 'panel', style: { marginBottom: '12px' } }, h('h3', { style: { marginTop: 0 } }, '연결 승인 대기'),
-        st.pairings.map(p => h('div', { class: 'row', style: { margin: '4px 0' } }, p.group_id + '모둠 ' + p.name,
-          h('button', { class: 'small primary', onclick: () => act('admin_approve', { p_request: p.id }, '승인') }, '승인'),
-          h('button', { class: 'small', onclick: () => act('admin_reject', { p_request: p.id }, '거절') }, '거절')))));
+      const box = h('div', { class: 'panel', style: { marginBottom: '14px' } },
+        h('div', { class: 'panel-title' }, '연결 승인 대기 ' + st.pairings.length + '명',
+          h('button', { class: 'primary', onclick: () => approveGroup(null) }, '전체 일괄 승인')),
+        h('div', { class: 'muted', style: { marginBottom: '8px' } }, '각 모둠 학생이 자기 이름을 골랐는지 눈으로 확인한 뒤 모둠별로 승인하세요. 한 이름에 요청이 두 개 이상이면 일괄 승인에서 빠지니 직접 골라 주세요.'));
+      const groups = [...new Set(st.pairings.map(p => p.group_id))].sort((a, b) => a - b);
+      groups.forEach(gid => {
+        const list = st.pairings.filter(p => p.group_id === gid);
+        const dup = name => list.filter(x => x.student_id === name).length > 1;
+        box.appendChild(h('div', { style: { borderTop: '2px dashed #EADFC9', padding: '8px 0' } },
+          h('div', { class: 'row', style: { marginBottom: '6px' } }, h('b', { style: { fontFamily: 'var(--font-display)', fontSize: '18px', color: groupColor(gid) } }, gid + '모둠'),
+            h('button', { class: 'small primary', onclick: () => approveGroup(gid) }, gid + '모둠 일괄 승인')),
+          h('div', { class: 'row' }, list.map(p => h('span', { class: 'row', style: { gap: '4px', background: dup(p.student_id) ? '#FFE1E6' : '#F6EBD6', borderRadius: '999px', padding: '3px 6px 3px 12px' } },
+            p.name + (dup(p.student_id) ? ' (중복!)' : ''),
+            h('button', { class: 'small primary', onclick: () => act('admin_approve', { p_request: p.id }, p.name + ' 승인') }, '승인'),
+            h('button', { class: 'small', onclick: () => act('admin_reject', { p_request: p.id }, '거절') }, '거절'))))));
+      });
+      page.appendChild(box);
     }
     const ta = h('textarea', { style: { minHeight: '260px', fontFamily: 'monospace' }, placeholder: '모둠,번호,이름\n1,1,김민준\n1,2,이서연\n...' },
       st.students.map(s => s.group_id + ',' + (s.no || '') + ',' + s.name).join('\n'));

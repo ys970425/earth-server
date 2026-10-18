@@ -17,7 +17,7 @@ create table if not exists priv.settings (
 );
 
 insert into priv.settings(key, value, note) values
-  ('initial_wallet',   900, '기업 초기 자본'),
+  ('initial_wallet',   600, '기업 초기 자본'),
   ('vote_income',      100, '1표당 판매 수입'),
   ('env_mult',          15, '환경점수 환산 배율'),
   ('grant_env',        500, '7단계 환경 전환 지원금'),
@@ -43,6 +43,8 @@ insert into priv.settings(key, value, note) values
   ('slots_factory',      4, '공장 확장 후 전시 칸'),
   ('lock_seconds',     180, '신발 편집 잠금 시간(초)')
 on conflict (key) do nothing;
+-- 초기 자본 조정(900 → 600): 이미 만든 DB도 바뀌게
+update priv.settings set value = 600 where key = 'initial_wallet' and value = 900;
 
 -- ---------------------------------------------------------------------
 -- 2. 테이블
@@ -1148,6 +1150,25 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- 모둠 일괄 승인 (p_group이 null이면 전체). 한 이름에 요청이 여러 개면 건너뜀(교사가 직접 확인)
+create or replace function public.admin_approve_group(p_group int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare r record; n int := 0; skipped int := 0;
+begin
+  perform priv.need_admin();
+  for r in
+    select max(q.id) as id, q.student_id, count(*) as cnt
+    from priv.pairing_requests q join priv.students s on s.id = q.student_id
+    where q.status = 'pending' and (p_group is null or s.group_id = p_group)
+    group by q.student_id
+  loop
+    if r.cnt > 1 then skipped := skipped + 1;
+    else perform public.admin_approve(r.id); n := n + 1;
+    end if;
+  end loop;
+  return jsonb_build_object('ok', true, 'approved', n, 'skipped', skipped);
+end $$;
+
 create or replace function public.admin_reject(p_request int) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
 begin
@@ -1275,7 +1296,7 @@ begin
              'product_save','product_cancel','product_retire','invest','market','votes_submit','report',
              'principle_submit','my_principles','get_board','admin_login','admin_check','admin_state','admin_set_phase',
              'admin_force_phase','admin_flags','admin_roster_import','admin_set_label','admin_set_leader',
-             'admin_reset_binding','admin_approve','admin_reject','admin_event','admin_undo_event','admin_grant',
+             'admin_reset_binding','admin_approve','admin_approve_group','admin_reject','admin_event','admin_undo_event','admin_grant',
              'admin_notice','admin_reset_game','admin_export') loop
     begin execute 'grant execute on function ' || f.sig || ' to anon, authenticated'; exception when others then null; end;
   end loop;

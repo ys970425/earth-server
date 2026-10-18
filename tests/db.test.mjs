@@ -90,20 +90,21 @@ const cheap = P('M01', 'M06', 'M11', 'M16');    // 160, env -8
 const eco = P('M03', 'M08', 'M13', 'M18');      // 480, env +4
 const prem = P('M04', 'M09', 'M14', 'M19');     // 520, env -12
 const ecoP = P('M05', 'M10', 'M15', 'M20');     // 640, env +8
+const ecoLite = P('M03', 'M08', 'M13', 'M16'); // 400, env +1 (1차 예산 600 안에서 친환경 위주)
 await fails(member(1), 'product_save', [1, 'lowtop', '{}', prem], 'LOCKED_MATERIAL', '연구 전 고급 재료 차단');
 await fails(member(1), 'product_save', [3, 'lowtop', '{}', normal], 'BAD_SLOT', '없는 칸 차단');
 for (let g = 1; g <= 6; g++) {
-  const a = g === 3 ? eco : g === 1 ? cheap : normal;
+  const a = g === 3 ? ecoLite : g === 1 ? cheap : normal;
   await rpc(member(g), 'product_save', 1, 'lowtop', JSON.stringify({ body: 2 }), a);
-  await rpc(leaders[g], 'product_save', 2, 'hightop', '{}', g === 3 ? normal : cheap);
+  await rpc(leaders[g], 'product_save', 2, 'hightop', '{}', cheap);
 }
 const s1 = await rpc(member(1), 'my_state');
-ok(s1.wallet === 900 - 160 - 160, '1모둠 지갑 580 (저가 2켤레)');
+ok(s1.wallet === 600 - 160 - 160, '1모둠 지갑 280 (저가 2켤레)');
 ok(s1.materials.every(m => m.env === null), '환경점수 비공개 (재료)');
 ok(s1.score === null && s1.gauge === null, '성적표·게이지 비공개');
 // 판매 전 수정: 저가→일반 (추가 120)
 await rpc(member(1), 'product_save', 1, 'lowtop', '{}', normal);
-ok((await rpc(member(1), 'my_state')).wallet === 460, '판매 전 수정 시 차액만 결제');
+ok((await rpc(member(1), 'my_state')).wallet === 160, '판매 전 수정 시 차액만 결제');
 // 편집 잠금
 await rpc(member(2), 'slot_lock', 1);
 await fails(leaders[2], 'product_save', [1, 'clog', '{}', normal], 'LOCKED', '다른 학생이 고치는 중이면 차단');
@@ -143,7 +144,7 @@ await rpc(ADMIN, 'admin_event', 'practical', prodOf(mk, 6), 5, 0, '실용 신발
 // 단계 3: 1차 정산
 await rpc(ADMIN, 'admin_set_phase', 3);
 const a3 = await rpc(ADMIN, 'admin_state');
-const revenueSum = a3.groups.reduce((t, g) => t + (g.wallet - 900), 0);
+const revenueSum = a3.groups.reduce((t, g) => t + (g.wallet - 600), 0);
 const spent = (await db.query(`select -sum(amount) s from priv.ledger where kind in ('design','refund','swap')`)).rows[0].s;
 ok(Number(revenueSum) === (totalVotes1 + 5) * 100 - Number(spent), '1차 정산 금액 = (학생표 75 + 가상주문 5) × 100 − 제작비');
 await db.query(`select priv.settle(1)`);
@@ -155,6 +156,7 @@ await fails(ADMIN, 'admin_undo_event', [a3.events.find(e => e.status === 'active
 await rpc(ADMIN, 'admin_set_phase', 4);
 await fails(member(1), 'invest', ['research'], 'LEADER_ONLY', '모둠장 아닌 학생 투자 차단');
 await fails(leaders[1], 'invest', ['eco_research'], 'PHASE', '2차에 친환경 연구 차단');
+await rpc(ADMIN, 'admin_grant', 1, 600, '테스트: 1모둠 투자 여력 보정');
 await rpc(leaders[1], 'invest', 'research');
 await rpc(leaders[1], 'invest', 'factory');
 await fails(leaders[1], 'invest', ['factory'], 'ALREADY', '같은 투자 중복 차단');
@@ -235,7 +237,7 @@ ok((await rpc(member(1), 'my_principles')).personal !== null, '개인 한 문장
 // 초기화
 await fails(ADMIN, 'admin_reset_game', ['아니'], 'CONFIRM', '초기화 확인 문구');
 await rpc(ADMIN, 'admin_reset_game', '초기화');
-ok((await rpc(member(1), 'my_state')).wallet === 900, '초기화 후 지갑 900, 명단·연결 유지');
+ok((await rpc(member(1), 'my_state')).wallet === 600, '초기화 후 지갑 600, 명단·연결 유지');
 
 console.log(failures ? `\n실패 ${failures}건` : '\n전체 통과');
 process.exit(failures ? 1 : 0);

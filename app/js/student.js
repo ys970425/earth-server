@@ -1,7 +1,7 @@
 // 학생 화면
 (function () {
   const { rpc, ensureSession, uploadImage, subscribe, PHASES } = window.API;
-  const { $, h, toast, modal, envText, envClass, fmt, debounce } = window.UI;
+  const { $, h, toast, modal, envText, envClass, fmt, debounce, groupColor, gaugeColor, matImg } = window.UI;
   const P = window.Pixel;
   const root = document.getElementById('app');
 
@@ -14,8 +14,14 @@
   // ------------------------------------------------------------------
   // 시작
   // ------------------------------------------------------------------
+  function entryShell(...kids) {
+    root.innerHTML = '';
+    root.appendChild(h('div', { class: 'entry-bg' }));
+    root.appendChild(h('div', { class: 'entry' }, ...kids));
+  }
+
   async function start() {
-    root.innerHTML = '<div class="entry"><h1>지구 서버</h1><p class="sub">접속 중...</p></div>';
+    entryShell(h('h1', { class: 'title' }, '지구 서버'), h('p', { class: 'title-sub' }, '접속하는 중...'));
     try {
       await ensureSession();
       const me = await rpc('get_me');
@@ -23,62 +29,56 @@
       if (me.status === 'pending') return pendingView();
       entryView();
     } catch (e) {
-      root.innerHTML = '';
-      root.appendChild(h('div', { class: 'entry' }, h('h1', {}, '지구 서버'),
-        h('p', { class: 'bad' }, e.message), h('button', { onclick: start }, '다시 시도')));
+      entryShell(h('h1', { class: 'title' }, '지구 서버'),
+        h('p', { class: 'title-sub' }, e.message), h('div', {}, h('button', { class: 'gold big', onclick: start }, '다시 접속하기')));
     }
   }
 
   async function entryView() {
     const pub = await rpc('get_public');
-    root.innerHTML = '';
     const grid = h('div', { class: 'group-grid' });
-    pub.groups.forEach(g => grid.appendChild(h('button', { class: 'group-btn', onclick: () => rosterView(g) },
-      g.logo_url ? h('img', { src: g.logo_url, alt: '' }) : null,
-      g.label, g.company_name ? h('small', {}, g.company_name) : null)));
-    root.appendChild(h('div', { class: 'entry' },
-      h('h1', {}, '지구 서버'),
-      h('p', { class: 'sub' }, '신발 기업 경영 시뮬레이터 · 우리 모둠을 눌러 주세요'),
-      grid));
-    root.appendChild(h('button', { class: 'teacher-link', onclick: () => location.href = 'admin.html' }, '교사'));
+    pub.groups.forEach(g => grid.appendChild(h('button', { class: 'group-btn', style: { '--gc': groupColor(g.id) }, onclick: () => rosterView(g) },
+      h('div', { class: 'roof' }, g.logo_url ? h('img', { src: g.logo_url, alt: '' }) : null),
+      h('div', { class: 'gname' }, g.label),
+      h('div', { class: 'gco' }, g.company_name || '기업 이름을 기다리는 중'))));
+    entryShell(h('h1', { class: 'title' }, '지구 서버'),
+      h('p', { class: 'title-sub' }, '신발 기업 경영 시뮬레이터 · 우리 모둠을 골라 입장해요'), grid);
+    root.appendChild(h('button', { class: 'teacher-link small ghost', onclick: () => location.href = 'admin.html' }, '교사'));
   }
 
   async function rosterView(g) {
     const list = await rpc('get_roster', { p_group: g.id });
-    root.innerHTML = '';
     const box = h('div', { class: 'roster' });
-    if (!list.length) box.appendChild(h('p', { class: 'muted' }, '아직 명단이 없어요. 선생님께 말해 주세요.'));
+    if (!list.length) box.appendChild(h('p', {}, '아직 명단이 없어요. 선생님께 말해 주세요.'));
     list.forEach(s => box.appendChild(h('button', {
       disabled: s.taken, onclick: () => avatarView(g, s)
-    }, (s.no ? s.no + '번 ' : '') + s.name, s.taken ? h('div', { class: 'muted', style: { fontSize: '13px' } }, '이미 들어옴') : null)));
-    root.appendChild(h('div', { class: 'entry' },
-      h('h1', {}, g.label), h('p', { class: 'sub' }, '내 이름을 눌러 주세요'), box,
-      h('button', { onclick: entryView }, '← 모둠 다시 고르기')));
+    }, (s.no ? s.no + '번 ' : '') + s.name, s.taken ? h('small', {}, '이미 들어왔어요') : null)));
+    entryShell(h('h1', {}, g.label + (g.company_name ? ' · ' + g.company_name : '')),
+      h('p', { class: 'sub' }, '내 이름을 눌러 주세요'), box,
+      h('button', { class: 'ghost', onclick: entryView }, '모둠 다시 고르기'));
   }
 
   function avatarView(g, s) {
-    root.innerHTML = '';
     let pick = 'boy';
     const btns = ['boy', 'girl'].map(k => h('button', { class: k === pick ? 'on' : '', onclick: e => {
       pick = k; btns.forEach(b => b.classList.toggle('on', b === e.currentTarget));
     } }, h('img', { class: 'pixel', src: P.avatarDataUrl(k, 8), alt: '' }), k === 'boy' ? '캐릭터 1' : '캐릭터 2'));
-    const go = h('button', { class: 'primary', onclick: async () => {
+    const go = h('button', { class: 'primary big', onclick: async () => {
       go.disabled = true;
       try {
         const r = await rpc('join_student', { p_student: s.id, p_avatar: pick });
         if (r.status === 'joined') enterGame(); else pendingView();
       } catch (e) { toast(e.message, 'error'); go.disabled = false; }
     } }, '입장하기');
-    root.appendChild(h('div', { class: 'entry' },
-      h('h1', {}, s.name), h('p', { class: 'sub' }, '마을에서 쓸 캐릭터를 골라요'),
-      h('div', { class: 'avatar-pick' }, btns), go, h('div', { style: { height: '14px' } }),
-      h('button', { onclick: () => rosterView(g) }, '← 이름 다시 고르기')));
+    entryShell(h('h1', {}, s.name), h('p', { class: 'sub' }, '마을에서 쓸 캐릭터를 골라요'),
+      h('div', { class: 'avatar-pick' }, btns), go, h('div', { style: { height: '18px' } }),
+      h('button', { class: 'ghost', onclick: () => rosterView(g) }, '이름 다시 고르기'));
   }
 
   function pendingView() {
-    root.innerHTML = '';
-    root.appendChild(h('div', { class: 'entry' }, h('h1', {}, '잠깐만요!'),
-      h('p', {}, '선생님이 연결을 확인하고 있어요. 이 화면을 켜 둔 채로 기다려 주세요.')));
+    entryShell(h('h1', {}, '잠깐만요!'),
+      h('p', { class: 'sub' }, '선생님이 내 기기를 확인하고 있어요. 이 화면을 켜 둔 채로 기다려 주세요.'),
+      h('div', { class: 'waiting-dots' }, h('i'), h('i'), h('i')));
     const t = setInterval(async () => {
       try {
         const me = await rpc('get_me');
@@ -151,13 +151,14 @@
   }
 
   function renderShell() {
+    hideTip();
     root.innerHTML = '';
     root.appendChild(h('div', { id: 'topbar', class: 'topbar' }));
     const st = S.st;
-    const navs = [['lobby', '우리 로비'], ['workshop', '제작방'], ['village', '마을 (구매)'], ['report', '성적표']];
+    const navs = [['lobby', '우리 로비'], ['workshop', '제작방'], ['village', '마을 · 구매'], ['report', '성적표']];
     if (st.phase >= 10) navs.push(['principle', '경영 원칙']);
     root.appendChild(h('div', { class: 'nav' }, navs.map(([v, label]) =>
-      h('button', { class: S.view === v || (v === 'village' && S.view === 'house') ? 'on' : '', onclick: () => go(v) }, label))));
+      h('button', { class: S.view === v || (v === 'village' && S.view === 'house') ? 'on' : '', onclick: () => go(v) }, h('span', { class: 'dot' }), label))));
     root.appendChild(h('div', { id: 'page', class: 'page' }));
     renderTopbar();
     renderView();
@@ -168,15 +169,18 @@
     if (!bar) return;
     const g = st.group;
     bar.innerHTML = '';
-    if (g.logo_url) bar.appendChild(h('img', { class: 'logo', src: g.logo_url, alt: '' }));
-    bar.appendChild(h('span', { class: 'company' }, g.company_name || g.label));
-    bar.appendChild(h('span', { class: 'stat' }, '👛 지갑', h('b', {}, fmt(st.wallet))));
-    bar.appendChild(h('span', { class: 'stat' }, '📋 성적표', h('b', {}, st.revealed ? fmt(st.score) : '???')));
-    const gauge = h('span', { class: 'stat' }, '🌏 지구 게이지', h('b', {}, st.revealed ? st.gauge + '%' : '???'));
-    if (st.revealed) gauge.appendChild(h('span', { class: 'gauge-mini' }, h('i', { style: { width: st.gauge + '%', background: st.gauge >= 60 ? '#6FD08C' : st.gauge >= 40 ? '#F2C230' : '#E05A4F' } })));
+    bar.style.setProperty('--gc', groupColor(g.id));
+    bar.appendChild(h('div', { class: 'brand' },
+      g.logo_url ? h('img', { class: 'logo', src: g.logo_url, alt: '' }) : h('div', { class: 'logo-empty' }, String(g.id)),
+      h('div', { class: 'company' }, g.company_name || g.label, h('small', {}, g.company_name ? g.label : '기업 이름을 정해 주세요'))));
+    bar.appendChild(h('span', { class: 'stat' }, h('span', { class: 'ico coin' }, 'C'), '지갑', h('b', {}, fmt(st.wallet))));
+    bar.appendChild(h('span', { class: 'stat' }, h('span', { class: 'ico card' }), '성적표', h('b', {}, st.revealed ? fmt(st.score) : '???')));
+    const gauge = h('span', { class: 'stat' }, h('span', { class: 'ico earth' }), '지구 게이지', h('b', {}, st.revealed ? st.gauge + '%' : '???'));
+    if (st.revealed) gauge.appendChild(h('span', { class: 'gauge-mini' }, h('i', { style: { width: st.gauge + '%', background: gaugeColor(st.gauge) } })));
     bar.appendChild(gauge);
-    bar.appendChild(h('span', { class: 'stat' }, S.me.name + (S.me.is_leader ? ' (모둠장)' : '')));
-    bar.appendChild(h('span', { class: 'phase' }, PHASES[st.phase].name));
+    bar.appendChild(h('span', { class: 'me-chip' }, h('img', { src: P.avatarDataUrl(S.me.avatar || 'boy', 2), alt: '' }), S.me.name,
+      S.me.is_leader ? h('span', { class: 'lead' }, '모둠장') : null));
+    bar.appendChild(h('span', { class: 'phase-badge' }, h('span', { class: 'n' }, st.phase), PHASES[st.phase].name));
   }
 
   function go(v) {
@@ -191,6 +195,7 @@
   function renderView() {
     const page = $('#page');
     if (!page) return;
+    hideTip();
     page.innerHTML = '';
     if (S.view === 'lobby') page.appendChild(lobbyView());
     else if (S.view === 'workshop') page.appendChild(workshopView());
@@ -219,21 +224,31 @@
     return base.map(b => saved.find(s => s.slot === b.slot) || b);
   }
 
+  // 로비 = 로고 칸 + 16:9 전시장
   function lobbyBox(g, products, materials, opts) {
+    const frame = h('div', { class: 'lobby-frame', style: { '--gc': groupColor(g.id) } });
+    const band = h('div', { class: 'logo-band' });
+    if (g.logo_url) band.appendChild(h('img', { src: g.logo_url, alt: (g.company_name || g.label) + ' 로고' }));
+    else if (opts.mine) band.appendChild(h('div', { class: 'logo-empty' }, '우리 기업 로고 자리예요' + (S.me.is_leader ? ' · 아래에서 올려 주세요' : '')));
+    else if (g.company_name) band.appendChild(h('div', { class: 'logo-text' }, g.company_name));
+    else band.appendChild(h('div', { class: 'logo-none' }, '로고 준비 중'));
+    frame.appendChild(band);
     const box = h('div', { class: 'lobby ' + (g.bg_url ? '' : 'bg-' + (g.bg_preset || 0)) });
     if (g.bg_url) box.style.backgroundImage = `url("${g.bg_url}")`;
-    if (g.logo_url) box.appendChild(h('img', { class: 'lobby-logo', src: g.logo_url, alt: '' }));
-    box.appendChild(h('div', { class: 'lobby-name' }, g.company_name || g.label));
+    box.appendChild(h('div', { class: 'name-tag' }, g.company_name || g.label, g.company_name ? h('small', {}, g.label) : null));
     standsOf(g).forEach(sp => {
       const pr = products.find(p => p.slot === sp.slot);
-      const el = h('div', { class: 'stand ' + (opts.drag ? '' : 'static'), style: { left: sp.x + '%', top: sp.y + '%' } });
+      const el = h('div', { class: 'stand ' + (opts.drag ? '' : 'static ') + (pr && opts.onShoe ? 'buyable' : ''), style: { left: sp.x + '%', top: sp.y + '%' } });
       el.dataset.slot = sp.slot;
       if (pr) {
+        const qty = opts.cartQty ? opts.cartQty(pr) : 0;
+        if (qty) el.appendChild(h('span', { class: 'cart-n' }, qty));
         el.appendChild(h('img', { class: 'shoe', src: P.shoeDataUrl(pr, materials, 4), alt: '신발', draggable: 'false' }));
         el.appendChild(h('div', { class: 'pedestal' }));
-        let tag = sp.slot + '번 · ' + (P.SHAPES.find(s => s.id === pr.shape) || {}).name;
-        el.appendChild(h('div', { class: 'tag' }, tag, pr.stars ? h('span', { class: 'stars' }, ' ' + '★'.repeat(pr.stars)) : null));
-        if (opts.onShoe) el.addEventListener('click', () => opts.onShoe(pr));
+        const tag = sp.slot + '번 · ' + (P.SHAPES.find(s => s.id === pr.shape) || {}).name;
+        el.appendChild(h('div', { class: 'tag' }, tag, pr.stars ? h('span', { class: 'stars' }, '★'.repeat(pr.stars)) : null));
+        if (opts.onShoe) el.addEventListener('click', () => { hideTip(); opts.onShoe(pr); });
+        attachTip(el, g, pr, materials, opts.onShoe ? opts.tipFoot : null);
       } else {
         el.appendChild(h('div', { class: 'empty' }, sp.slot + '번 빈 칸'));
         el.appendChild(h('div', { class: 'pedestal' }));
@@ -241,7 +256,55 @@
       if (opts.drag) enableDrag(el, box);
       box.appendChild(el);
     });
-    return box;
+    frame.appendChild(box);
+    return frame;
+  }
+
+  // 신발에 마우스를 올리면 재료 설명
+  let tipEl = null;
+  function hideTip() { if (tipEl) { tipEl.remove(); tipEl = null; } }
+  function partLines(pr, materials) {
+    return P.shoeParts(pr, materials).map(x => {
+      const m = x.mat;
+      const tier = m ? P.TIERS[m.tier] : null;
+      return h('div', { class: 'part-line' },
+        m ? h('img', { src: matImg(m.id), alt: '' }) : h('span'),
+        h('div', {}, h('div', { class: 'pl' }, x.label), h('div', { class: 'pn' }, m ? m.name : '-')),
+        tier ? h('span', { class: 'chip', style: { background: tier.color } }, tier.label) : h('span'));
+    });
+  }
+  function shoeEnv(pr, materials) {
+    const ms = P.shoeParts(pr, materials).map(x => x.mat);
+    if (ms.some(m => !m || m.env === null || m.env === undefined)) return null;
+    return ms.reduce((t, m) => t + m.env, 0);
+  }
+  function tipContent(g, pr, materials, foot) {
+    const shape = (P.SHAPES.find(s => s.id === pr.shape) || {}).name || '';
+    const env = shoeEnv(pr, materials);
+    const price = P.shoeParts(pr, materials).reduce((t, x) => t + (x.mat ? x.mat.price : 0), 0);
+    return [
+      h('h4', {}, h('span', {}, pr.slot + '번 ' + shape), pr.stars ? h('span', { class: 'stars' }, '★'.repeat(pr.stars)) : null),
+      ...partLines(pr, materials),
+      h('div', { class: 'foot' }, '재료값 ' + price + '코인', env !== null ? h('span', { class: envClass(env) }, ' · ' + envText(env)) : null,
+        foot ? h('div', {}, foot) : null)
+    ];
+  }
+  function attachTip(el, g, pr, materials, foot) {
+    el.addEventListener('pointerenter', e => {
+      if (e.pointerType === 'touch' || S.dragging) return;
+      hideTip();
+      tipEl = h('div', { class: 'tip' }, ...tipContent(g, pr, materials, foot));
+      document.body.appendChild(tipEl);
+      const r = el.getBoundingClientRect(), tw = 290, th = tipEl.offsetHeight;
+      let x = r.right + 12;
+      if (x + tw > window.innerWidth - 8) x = r.left - tw - 12;
+      if (x < 8) x = Math.max(8, Math.min(window.innerWidth - tw - 8, r.left));
+      const y = Math.max(8, Math.min(window.innerHeight - th - 8, r.top + r.height / 2 - th / 2));
+      tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+      requestAnimationFrame(() => tipEl && tipEl.classList.add('on'));
+    });
+    el.addEventListener('pointerleave', hideTip);
+    el.addEventListener('pointerdown', hideTip);
   }
 
   function enableDrag(el, box) {
@@ -272,45 +335,45 @@
   function lobbyView() {
     const st = S.st, g = st.group;
     const wrap = h('div', {});
-    wrap.appendChild(h('div', { class: 'hint' }, PHASES[st.phase].desc, ' · 전시대는 끌어서 옮길 수 있어요.'));
-    wrap.appendChild(lobbyBox(g, st.products, st.materials, { drag: true }));
+    wrap.appendChild(h('div', { class: 'hint' }, PHASES[st.phase].desc, ' 전시대는 끌어서 옮길 수 있어요.'));
+    wrap.appendChild(lobbyBox(g, st.products, st.materials, { drag: true, mine: true }));
 
-    const deco = h('div', { class: 'panel', style: { marginTop: '12px' } });
-    deco.appendChild(h('h3', { style: { margin: '0 0 8px' } }, '로비 꾸미기'));
-    const bgRow = h('div', { class: 'row' }, '기본 배경:');
-    [0, 1, 2, 3].forEach(i => bgRow.appendChild(h('button', {
-      class: 'small bg-' + i, style: { width: '56px', height: '36px' },
+    const deco = h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '전시장 꾸미기'));
+    deco.appendChild(h('div', { class: 'field-label' }, '기본 배경'));
+    deco.appendChild(h('div', { class: 'row' }, [0, 1, 2, 3].map(i => h('button', {
+      class: 'bg-swatch bg-' + i, 'aria-label': '기본 배경 ' + (i + 1),
       onclick: async () => { try { await rpc('lobby_update', { p: { bg_preset: i, bg_url: null } }); await refresh(false); renderView(); } catch (e) { toast(e.message, 'error'); } }
-    }, ' ')));
-    deco.appendChild(bgRow);
-    deco.appendChild(h('div', { class: 'row', style: { marginTop: '8px' } },
-      fileButton('판매홀 그림 올리기', async f => {
-        const url = await uploadImage(f, 'g' + g.id, 1280);
-        await rpc('lobby_update', { p: { bg_url: url } });
-      }),
-      S.me.is_leader ? fileButton('로고 올리기 (모둠장)', async f => {
-        const url = await uploadImage(f, 'g' + g.id, 400);
-        await rpc('lobby_update', { p: { logo_url: url } });
-      }) : null));
+    }))));
+    deco.appendChild(h('div', { class: 'field-label' }, '직접 만든 배경 · 가로 16:9 (미리캔버스 「프레젠테이션」 크기 1920×1080)'));
+    deco.appendChild(fileButton('전시장 배경 올리기', async f => {
+      const url = await uploadImage(f, 'g' + g.id, 1920, 'image/jpeg');
+      await rpc('lobby_update', { p: { bg_url: url } });
+    }));
+
+    const info = h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '기업 정보', h('small', {}, S.me.is_leader ? '모둠장만 바꿀 수 있어요' : '이름과 로고는 모둠장이 바꿔요')));
     if (S.me.is_leader) {
-      const inp = h('input', { type: 'text', maxlength: '20', placeholder: '기업 이름', value: g.company_name || '' });
-      deco.appendChild(h('div', { class: 'row', style: { marginTop: '8px' } }, '기업 이름:', inp,
-        h('button', { class: 'primary small', onclick: async () => {
+      const inp = h('input', { type: 'text', maxlength: '20', placeholder: '기업 이름', value: g.company_name || '', style: { flex: '1' } });
+      info.appendChild(h('div', { class: 'field-label' }, '기업 이름'));
+      info.appendChild(h('div', { class: 'row' }, inp,
+        h('button', { class: 'primary', onclick: async () => {
           try { await rpc('lobby_update', { p: { company_name: inp.value } }); toast('기업 이름을 저장했어요.'); await refresh(false); renderShell(); }
           catch (e) { toast(e.message, 'error'); }
         } }, '저장')));
-    } else {
-      deco.appendChild(h('p', { class: 'muted' }, '기업 이름과 로고는 모둠장이 바꿀 수 있어요.'));
+      info.appendChild(h('div', { class: 'field-label' }, '로고 · 배경이 투명한 PNG면 가장 예뻐요 (가로로 긴 로고도 괜찮아요)'));
+      info.appendChild(fileButton('로고 올리기', async f => {
+        const url = await uploadImage(f, 'g' + g.id, 800, 'image/png');
+        await rpc('lobby_update', { p: { logo_url: url } });
+      }));
     }
-    deco.appendChild(h('div', { style: { marginTop: '10px' } }, '우리 팀: ',
-      st.team.map(t => h('span', { style: { marginRight: '10px' } }, (t.online ? '🟢 ' : '⚪ ') + t.name + (t.is_leader ? '(모둠장)' : '')))));
-    wrap.appendChild(deco);
+    info.appendChild(h('div', { class: 'field-label' }, '우리 팀'));
+    info.appendChild(h('div', { class: 'team' }, st.team.map(t => h('span', {}, h('i', { class: t.online ? 'on' : '' }), t.name + (t.is_leader ? ' (모둠장)' : '')))));
+    wrap.appendChild(h('div', { class: 'deco-grid' }, deco, info));
     return wrap;
   }
 
   function fileButton(label, handler) {
     const inp = h('input', { type: 'file', accept: 'image/*', class: 'hidden' });
-    const btn = h('button', { onclick: () => inp.click() }, label);
+    const btn = h('button', { class: 'sky', onclick: () => inp.click() }, label);
     inp.addEventListener('change', async () => {
       if (!inp.files[0]) return;
       btn.disabled = true; btn.textContent = '올리는 중...';
@@ -369,16 +432,16 @@
     const total = ['sole', 'body', 'insole', 'lace'].reduce((t, k) => t + priceOf(ed.parts[k]), 0);
     const pr = ed.original;
     if (S.st.phase === 8) {
-      if (!pr) return { pay: 0, text: '3차에는 이미 만든 신발만 바꿀 수 있어요.' };
+      if (!pr) return { pay: 0, label: '3차에는', text: '만든 신발만 바꿔요' };
       const pay = ['sole', 'body', 'insole', 'lace'].reduce((t, k) => t + (ed.parts[k] !== pr.parts[k] ? priceOf(ed.parts[k]) : 0), 0);
-      return { pay, text: '바꾼 재료 값: ' + pay + '코인' };
+      return { pay, label: '바꾼 재료 값', text: pay + '코인' };
     }
-    if (!pr) return { pay: total, text: '제작비: ' + total + '코인' };
+    if (!pr) return { pay: total, label: '제작비', text: total + '코인' };
     if (pr.status === 'draft') {
       const d = total - pr.cost;
-      return { pay: d, text: d >= 0 ? '추가로 낼 돈: ' + d + '코인' : '돌려받을 돈: ' + (-d) + '코인' };
+      return d >= 0 ? { pay: d, label: '추가로 낼 돈', text: d + '코인' } : { pay: d, label: '돌려받을 돈', text: (-d) + '코인' };
     }
-    return { pay: 0, text: '이미 판매한 신발이에요.' };
+    return { pay: 0, label: '이미 판매한 신발', text: '수정 불가' };
   }
 
   function workshopView() {
@@ -402,33 +465,36 @@
       const pr = st.products.find(p => p.slot === i);
       tabs.appendChild(h('button', { class: ed.slot === i ? 'on' : '', onclick: async () => {
         S.slot = i; S.editor = editorFor(i); await takeLock(i); renderView();
-      } }, i + '번 칸 ' + (pr ? (pr.status === 'listed' ? '(판매중)' : '(제작됨)') : '(비어 있음)')));
+      } }, i + '번 칸', h('small', {}, pr ? (pr.status === 'listed' ? '판매 중' : '만든 신발') : '비어 있음')));
     }
 
     // 왼쪽: 미리보기
     const left = h('div', { class: 'panel col' });
     left.appendChild(tabs);
     const cv = h('canvas', { class: 'pixel' });
-    P.drawShoe(cv, ed, st.materials, 10);
+    P.drawShoe(cv, ed, st.materials, 8);
     left.appendChild(h('div', { class: 'preview' }, cv));
     if (lockOther) left.appendChild(h('div', { class: 'hint' }, lockOther.name + ' 학생이 이 신발을 고치는 중이에요.'));
-    left.appendChild(h('div', {}, '모양'));
-    left.appendChild(h('div', { class: 'row' }, P.SHAPES.map(s => h('button', {
-      class: 'small ' + (ed.shape === s.id ? 'warn' : ''), onclick: () => { ed.shape = s.id; renderView(); }
+    left.appendChild(h('div', { class: 'field-label' }, '모양'));
+    left.appendChild(h('div', { class: 'shape-row' }, P.SHAPES.map(s => h('button', {
+      class: ed.shape === s.id ? 'on' : '', onclick: () => { ed.shape = s.id; renderView(); }
     }, s.name))));
     ['body', 'lace'].forEach(k => {
-      left.appendChild(h('div', {}, k === 'body' ? '몸체 색 (무료)' : '끈 색 (무료)'));
+      left.appendChild(h('div', { class: 'field-label' }, k === 'body' ? '몸체 색 · 무료' : '포인트 색 (끈·줄무늬) · 무료'));
       left.appendChild(h('div', { class: 'swatches' }, P.PALETTE.map(c => h('button', {
-        class: 'swatch ' + (ed.colors[k] === c.id ? 'on' : ''), title: c.name, style: { background: c.hex },
+        class: 'swatch ' + (ed.colors[k] === c.id ? 'on' : ''), title: c.name, 'aria-label': c.name, style: { background: c.hex },
         onclick: () => { ed.colors[k] = c.id; renderView(); }
       }))));
     });
     const cp = costPreview(ed);
-    left.appendChild(h('div', { class: 'cost-box' }, cp.text, h('div', { class: 'muted' }, '우리 지갑: ' + fmt(st.wallet) + '코인')));
+    const after = st.wallet - (cp.pay > 0 ? cp.pay : 0) + (cp.pay < 0 ? -cp.pay : 0);
+    left.appendChild(h('div', { class: 'cost-box' },
+      h('div', {}, h('div', { class: 'muted', style: { fontSize: '13px' } }, cp.label || '이번에 낼 돈'), h('b', {}, cp.text)),
+      h('div', { class: 'after ' + (after < 0 ? 'neg' : '') }, '지금 지갑 ' + fmt(st.wallet), h('br'), '저장 후 ' + fmt(after))));
     const pr = ed.original;
     const blocked = !editable || !!lockOther || (pr && pr.status === 'listed' && st.phase !== 8) || (st.phase === 8 && !pr);
     const saveLabel = st.phase === 8 ? '재료 바꾸기' : pr ? '수정 저장' : '신발 만들기';
-    left.appendChild(h('button', { class: 'primary', disabled: blocked, onclick: saveShoe }, saveLabel));
+    left.appendChild(h('button', { class: 'primary big', disabled: blocked, onclick: e => { e.currentTarget.disabled = true; saveShoe(); } }, saveLabel));
     if (pr && pr.status === 'draft' && [1, 4].includes(st.phase)) {
       left.appendChild(h('button', { disabled: !!lockOther, onclick: async () => {
         if (!confirm('이 신발을 취소하고 돈을 돌려받을까요?')) return;
@@ -447,21 +513,22 @@
     // 오른쪽: 재료
     const right = h('div', { class: 'panel' });
     ['sole', 'body', 'insole', 'lace'].forEach(part => {
-      const row = h('div', { class: 'part-row' }, h('h4', {}, P.PART_LABEL[part]));
+      const row = h('div', { class: 'part-row' }, h('h4', {}, P.PART_LABEL[part] + ' 재료'));
       const mats = h('div', { class: 'mats' });
       st.materials.filter(m => m.part === part).forEach(m => {
         const ok = unlocked(m);
         const tier = P.TIERS[m.tier];
         mats.appendChild(h('button', {
           class: 'mat ' + (ed.parts[part] === m.id ? 'on ' : '') + (ok ? '' : 'locked'),
-          disabled: !ok,
+          disabled: !ok, title: ok ? m.descr : '',
           onclick: () => { if (!ok) return; ed.parts[part] = m.id; renderView(); }
         },
-          h('span', { class: 'tier', style: { background: tier.color } }, tier.label),
-          h('span', { class: 'nm' }, m.name),
-          h('span', { class: 'price' }, m.price + '코인'),
-          m.env !== null ? h('span', { class: 'envtag ' + envClass(m.env) }, envText(m.env)) : null,
-          h('span', { class: 'desc' }, ok ? m.descr : (m.unlock === 'research' ? '신소재 연구 필요' : '친환경 소재 연구 필요'))));
+          h('div', { class: 'thumb' }, h('img', { src: matImg(m.id), alt: '', loading: 'lazy' }), h('span', { class: 'chip', style: { background: tier.color } }, tier.label)),
+          h('div', { class: 'info' },
+            h('span', { class: 'nm' }, m.name),
+            h('span', { class: 'price' }, m.price + '코인'),
+            m.env !== null ? h('span', { class: 'envtag ' + envClass(m.env) }, envText(m.env)) : null,
+            h('span', { class: 'desc' }, ok ? m.descr : (m.unlock === 'research' ? '신소재 연구를 하면 열려요' : '친환경 소재 연구를 하면 열려요')))));
       });
       row.appendChild(mats);
       right.appendChild(row);
@@ -482,7 +549,7 @@
       S.editor = editorFor(ed.slot);
       await takeLock(ed.slot);
       renderView();
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) { toast(e.message, 'error'); renderView(); }
   }
 
   function investPanel() {
@@ -495,8 +562,8 @@
       items.push({ k: 'eco_research', name: '친환경 소재 연구', desc: '환경을 지키는 친환경 고급 재료가 열려요.', phases: [8] });
       items.push({ k: 'purifier', name: '공장 정화장치', desc: '공장에서 나오는 오염을 줄여요.', phases: [8] });
     }
-    const panel = h('div', { class: 'panel', style: { marginTop: '14px' } },
-      h('h3', { style: { margin: '0 0 8px' } }, '기업 투자 ', h('span', { class: 'muted', style: { fontSize: '15px' } }, S.me.is_leader ? '(모둠장만 누를 수 있어요)' : '(모둠장에게 부탁하세요)')));
+    const panel = h('div', { class: 'panel', style: { marginTop: '18px' } },
+      h('div', { class: 'panel-title' }, '기업 투자', h('small', {}, S.me.is_leader ? '모둠장만 누를 수 있어요' : '모둠장에게 부탁하세요')));
     const grid = h('div', { class: 'invest-grid' });
     items.forEach(it => {
       const done = inv[it.k];
@@ -509,7 +576,7 @@
           try { await rpc('invest', { p_kind: it.k }); toast(it.name + ' 완료!'); await refresh(false); renderView(); }
           catch (e) { toast(e.message, 'error'); }
         }
-      }, h('b', {}, it.name), h('span', {}, inv['cost_' + it.k] + '코인'),
+      }, h('b', {}, it.name), h('span', { class: 'cost' }, inv['cost_' + it.k] + '코인'),
         env !== null && env !== undefined ? h('span', { class: envClass(env) }, envText(env)) : null,
         h('span', { class: 'muted', style: { fontSize: '13px' } }, done ? '✔ 완료' : open ? it.desc : '지금은 투자할 수 없어요')));
     });
@@ -524,175 +591,190 @@
     try { S.market = await rpc('market'); } catch (e) { toast(e.message, 'error'); }
   }
 
-  const TILE = 16, MAP_W = 24, MAP_H = 15;
+  // 마을 지도: 그림 좌표(1448×1086) 기준
+  const VW = 1448, VH = 1086;
+  const VIMG = new Image();
+  VIMG.src = 'img/village.webp';
   const HOUSES = [
-    { gid: 1, x: 2, y: 1 }, { gid: 2, x: 9.5, y: 1 }, { gid: 3, x: 17, y: 1 },
-    { gid: 4, x: 2, y: 9 }, { gid: 5, x: 9.5, y: 9 }, { gid: 6, x: 17, y: 9 }
+    { gid: 1, cx: 323, sx: 330, sy: 175, doorY: 293, top: true },
+    { gid: 2, cx: 725, sx: 726, sy: 175, doorY: 293, top: true },
+    { gid: 3, cx: 1105, sx: 1104, sy: 175, doorY: 293, top: true },
+    { gid: 4, cx: 330, sx: 334, sy: 737, doorY: 856 },
+    { gid: 5, cx: 726, sx: 726, sy: 739, doorY: 856 },
+    { gid: 6, cx: 1108, sx: 1105, sy: 737, doorY: 856 }
   ];
-  const HW = 5, HH = 4; // 집 크기(타일)
-  const doorRect = hs => ({ x: (hs.x + 2) * TILE, y: (hs.y + 3) * TILE, w: TILE, h: TILE });
-  const houseRect = hs => ({ x: hs.x * TILE, y: hs.y * TILE, w: HW * TILE, h: HH * TILE });
+  const houseRect = hs => hs.top ? { x: hs.cx - 150, y: 30, w: 300, h: 260 } : { x: hs.cx - 150, y: 610, w: 300, h: 242 };
+  const doorRect = hs => ({ x: hs.cx - 26, y: hs.doorY - 22, w: 52, h: 32 });
+  const FOUNTAIN = { x: 725, y: 490, rx: 150, ry: 92 };
+  const SPAWN = { x: 540, y: 470 };
   const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const feet = (x, y) => ({ x: x - 14, y: y - 10, w: 28, h: 12 });
 
   function villageView() {
     const m = S.market;
     const wrap = h('div', {});
-    if (!m) { wrap.appendChild(h('p', {}, '마을 불러오는 중...')); return wrap; }
+    if (!m) { wrap.appendChild(h('p', { class: 'hint' }, '마을 불러오는 중...')); return wrap; }
     let hint;
-    if (m.market_round) hint = m.voted ? '이번 시장에서는 구매를 마쳤어요. 다른 회사 로비 구경은 계속할 수 있어요.'
-      : '방향키(또는 화면 십자 버튼)로 걸어가서 다른 회사 집의 문으로 들어가요. 마음에 드는 신발을 장바구니에 담고 마지막에 「구매 확정」!';
-    else hint = '지금은 시장이 열려 있지 않아요. 다른 회사 로비를 구경할 수 있어요.';
+    if (m.market_round) hint = m.voted ? '이번 시장 구매를 마쳤어요. 다른 회사 전시장 구경은 계속할 수 있어요.'
+      : '방향키나 화면의 십자 버튼으로 걸어가 다른 회사 집 문으로 들어가요. 마음에 드는 신발을 담고 마지막에 「구매 확정」!';
+    else hint = '지금은 시장이 열려 있지 않아요. 다른 회사 전시장을 구경할 수 있어요.';
     wrap.appendChild(h('div', { class: 'hint' }, hint));
     const cv = h('canvas', { class: 'village' });
-    cv.width = MAP_W * TILE * 3; cv.height = MAP_H * TILE * 3;
+    cv.width = VW; cv.height = VH;
     const vw = h('div', { class: 'village-wrap' }, cv);
-    // 십자 버튼
     const dp = h('div', { class: 'dpad' });
-    const mk = (label, dir, col, row) => {
-      const b = h('button', { style: { gridColumn: col, gridRow: row } }, label);
+    const mk = (label, dir, col, row, aria) => {
+      const b = h('button', { style: { gridColumn: col, gridRow: row }, 'aria-label': aria }, label);
       const on = e => { e.preventDefault(); keys[dir] = true; };
       const off = () => { keys[dir] = false; };
       b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
       b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
       return b;
     };
-    dp.append(mk('▲', 'up', 2, 1), mk('◀', 'left', 1, 2), mk('▶', 'right', 3, 2), mk('▼', 'down', 2, 3));
+    dp.append(mk('▲', 'up', 2, 1, '위로'), mk('◀', 'left', 1, 2, '왼쪽으로'), mk('▶', 'right', 3, 2, '오른쪽으로'), mk('▼', 'down', 2, 3, '아래로'));
     vw.appendChild(dp);
     if (m.fast_travel) {
       vw.appendChild(h('div', { class: 'fast' }, m.groups.filter(g => g.id !== m.my_group).map(g =>
-        h('button', { class: 'small', onclick: () => enterHouse(g.id) }, '🏠 ' + (g.company_name || g.label)))));
+        h('button', { class: 'small', style: { '--gc': groupColor(g.id) }, onclick: () => enterHouse(g.id) }, h('i'), g.company_name || g.label))));
     }
     wrap.appendChild(vw);
     cv.addEventListener('click', e => {
       const r = cv.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width * MAP_W * TILE, y = (e.clientY - r.top) / r.height * MAP_H * TILE;
+      const x = (e.clientX - r.left) / r.width * VW, y = (e.clientY - r.top) / r.height * VH;
       const hs = HOUSES.find(hs => overlap({ x, y, w: 1, h: 1 }, houseRect(hs)));
       if (!hs) return;
       if (hs.gid === m.my_group) return go('lobby');
       if (m.fast_travel) enterHouse(hs.gid);
-      else toast('캐릭터를 움직여 집 문으로 들어가요!');
+      else toast('캐릭터를 걸어서 집 문으로 들어가 보세요!');
     });
-    startLoop(cv);
+    if (VIMG.complete) startLoop(cv); else VIMG.onload = () => startLoop(cv);
     return wrap;
   }
 
   const keys = {};
+  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
   window.addEventListener('keydown', e => {
-    const k = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' }[e.key];
-    if (k && S.view === 'village') { keys[k] = true; e.preventDefault(); }
+    const k = KEYMAP[e.key];
+    if (k && S.view === 'village' && !/INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || '')) { keys[k] = true; e.preventDefault(); }
   });
-  window.addEventListener('keyup', e => {
-    const k = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' }[e.key];
-    if (k) keys[k] = false;
-  });
+  window.addEventListener('keyup', e => { const k = KEYMAP[e.key]; if (k) keys[k] = false; });
+  window.addEventListener('blur', () => Object.keys(keys).forEach(k => keys[k] = false));
+
+  // 간판 글씨를 미리 그려 둔 바탕 지도
+  function buildBase() {
+    const m = S.market, st = S.st;
+    const c = document.createElement('canvas'); c.width = VW; c.height = VH;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(VIMG, 0, 0, VW, VH);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    HOUSES.forEach(hs => {
+      const g = m.groups.find(gg => gg.id === hs.gid) || {};
+      const name = g.company_name || g.label || (hs.gid + '모둠');
+      let size = 30;
+      do { ctx.font = size + 'px Jua, sans-serif'; size -= 1; } while (ctx.measureText(name).width > 172 && size > 14);
+      ctx.fillStyle = '#2A2350'; ctx.fillText(name, hs.sx, hs.sy + 2);
+      if (hs.gid === m.my_group) {
+        rrect(ctx, hs.sx - 50, hs.sy - 58, 100, 30, 10, '#FFC83D', '#7A4F05');
+        ctx.font = '20px Jua, sans-serif'; ctx.fillStyle = '#3A2600'; ctx.fillText('우리 회사', hs.sx, hs.sy - 42);
+      }
+    });
+    // 광장 안내판 (지구 게이지)
+    rrect(ctx, 636, 366, 180, 66, 12, '#8A5A33', '#3E2412');
+    rrect(ctx, 644, 373, 164, 52, 8, '#F7E7C4', null);
+    ctx.fillStyle = '#5A3A1E'; ctx.font = '17px Jua, sans-serif'; ctx.fillText('지구 게이지', 726, 388);
+    const gv = st && st.revealed ? st.gauge : null;
+    ctx.font = '24px "Black Han Sans", Jua, sans-serif';
+    ctx.fillStyle = gv === null ? '#7A739C' : gv >= 60 ? '#1E9E63' : gv >= 40 ? '#C98A12' : '#D83A52';
+    ctx.fillText(gv === null ? '???' : gv + '%', 726, 410);
+    return c;
+  }
+
+  function rrect(ctx, x, y, w, hh, r, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + hh, r); ctx.arcTo(x + w, y + hh, x, y + hh, r);
+    ctx.arcTo(x, y + hh, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    if (stroke) { ctx.lineWidth = 4; ctx.strokeStyle = stroke; ctx.stroke(); }
+  }
 
   let loopId = null;
   function startLoop(cv) {
     cancelAnimationFrame(loopId);
     const ctx = cv.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    if (!S.player) S.player = { x: 11.5 * TILE, y: 6.5 * TILE, dir: 'down', step: 0 };
+    const base = buildBase();
+    if (!S.player) S.player = { x: SPAWN.x, y: SPAWN.y, dir: 'down', step: 0 };
     const p = S.player;
-    let entering = false;
+    let entering = false, t = 0;
+    const free = (x, y) => {
+      if (x < 70 || x > 1380 || y < 110 || y > 1010) return false;
+      const fx = (x - FOUNTAIN.x) / FOUNTAIN.rx, fy = (y - FOUNTAIN.y) / FOUNTAIN.ry;
+      if (fx * fx + fy * fy < 1) return false;
+      const box = feet(x, y);
+      return !HOUSES.some(hs => overlap(box, houseRect(hs)) && !overlap(box, doorRect(hs)));
+    };
     const tick = () => {
       if (S.view !== 'village' || !document.body.contains(cv)) return;
-      const sp = 1.6;
+      t++;
+      const sp = 5;
       let dx = 0, dy = 0;
       if (keys.up) dy -= sp; if (keys.down) dy += sp; if (keys.left) dx -= sp; if (keys.right) dx += sp;
       if (dx || dy) {
         p.dir = dx < 0 ? 'left' : dx > 0 ? 'right' : dy < 0 ? 'up' : 'down';
         p.step += 1;
-        const tryMove = (nx, ny) => {
-          const box = { x: nx + 3, y: ny + 10, w: 10, h: 6 };
-          if (nx < TILE || ny < TILE * 0.5 || nx > (MAP_W - 2) * TILE || ny > (MAP_H - 2) * TILE) return false;
-          for (const hs of HOUSES) {
-            const hr = houseRect(hs), dr = doorRect(hs);
-            if (overlap(box, hr) && !overlap(box, dr)) return false;
-          }
-          return true;
-        };
-        if (tryMove(p.x + dx, p.y)) p.x += dx;
-        if (tryMove(p.x, p.y + dy)) p.y += dy;
+        if (free(p.x + dx, p.y)) p.x += dx;
+        if (free(p.x, p.y + dy)) p.y += dy;
         if (!entering) {
-          const box = { x: p.x + 3, y: p.y + 10, w: 10, h: 6 };
-          const hs = HOUSES.find(hs => overlap(box, doorRect(hs)));
+          const hs = HOUSES.find(hs => overlap(feet(p.x, p.y), doorRect(hs)));
           if (hs) {
             entering = true;
             Object.keys(keys).forEach(k => keys[k] = false);
-            if (hs.gid === S.market.my_group) { p.y += 14; go('lobby'); return; }
+            p.y = hs.doorY + 44; p.x = hs.cx; p.dir = 'down';
+            if (hs.gid === S.market.my_group) { go('lobby'); return; }
             enterHouse(hs.gid); return;
           }
         }
       }
-      drawVillage(ctx, p);
+      ctx.drawImage(base, 0, 0);
+      drawFountain(ctx, t);
+      drawPlayer(ctx, p);
       loopId = requestAnimationFrame(tick);
     };
-    loopId = requestAnimationFrame(tick); // 화면에 붙은 뒤 시작
+    loopId = requestAnimationFrame(tick);
   }
 
-  function drawVillage(ctx, p) {
-    const sc = 3;
-    ctx.save();
-    ctx.scale(sc, sc);
-    // 잔디
-    for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {
-      ctx.fillStyle = (x + y) % 2 ? '#7EC77A' : '#78C174';
-      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
-      if ((x * 7 + y * 3) % 5 === 0) { ctx.fillStyle = '#5FA85C'; ctx.fillRect(x * TILE + 5, y * TILE + 9, 2, 3); ctx.fillRect(x * TILE + 8, y * TILE + 8, 2, 4); }
+  function drawFountain(ctx, t) {
+    const cx = FOUNTAIN.x, cy = 478;
+    for (let k = 0; k < 3; k++) {
+      const r = (t * 0.5 + k * 22) % 66;
+      ctx.strokeStyle = `rgba(255,255,255,${(0.75 * (1 - r / 66)).toFixed(2)})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.ellipse(cx, cy + 6, 24 + r, (24 + r) * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    // 길
-    ctx.fillStyle = '#E5CF9A';
-    ctx.fillRect(0, 6 * TILE, MAP_W * TILE, 2 * TILE);
-    HOUSES.forEach(hs => { const d = doorRect(hs); const top = Math.min(d.y + TILE, 6 * TILE), bot = Math.max(d.y, 8 * TILE); ctx.fillRect(d.x, Math.min(top, d.y), TILE, Math.abs(bot - top) + TILE); });
-    // 광장
-    ctx.fillStyle = '#D9BE84'; ctx.fillRect(10 * TILE, 5.5 * TILE, 4 * TILE, 3 * TILE);
-    ctx.fillStyle = '#6BB4E8'; ctx.fillRect(11.25 * TILE, 6.25 * TILE, 1.5 * TILE, 1.5 * TILE);
-    // 나무 테두리
-    for (let x = 0; x < MAP_W; x++) { tree(ctx, x * TILE, -6); tree(ctx, x * TILE, (MAP_H - 1) * TILE + 4); }
-    for (let y = 1; y < MAP_H - 1; y++) { if (y !== 6 && y !== 7) { tree(ctx, -4, y * TILE); tree(ctx, (MAP_W - 1) * TILE + 4, y * TILE); } }
-    // 집
-    HOUSES.forEach(hs => drawHouse(ctx, hs));
-    // 캐릭터
-    P.drawAvatar(ctx, S.me.avatar || 'boy', p.x + 2, p.y, 1, p.dir, Math.floor(p.step / 8) % 2);
-    ctx.font = '7px Jua, sans-serif'; ctx.textAlign = 'center';
-    const nm = S.me.name;
-    const tw = ctx.measureText(nm).width + 6;
-    ctx.fillStyle = 'rgba(255,253,246,.92)'; ctx.fillRect(p.x + 8 - tw / 2, p.y - 11, tw, 9);
-    ctx.fillStyle = '#1F2A24'; ctx.fillText(nm, p.x + 8, p.y - 4);
-    ctx.restore();
+    // 가운데 분수대 기둥과 물방울
+    ctx.fillStyle = '#4A4640'; ctx.fillRect(cx - 14, cy - 30, 28, 40);
+    ctx.fillStyle = '#D9D4CA'; ctx.fillRect(cx - 10, cy - 26, 20, 34);
+    ctx.fillStyle = '#F2EEE6'; ctx.fillRect(cx - 10, cy - 26, 6, 34);
+    ctx.fillStyle = '#4A4640'; ctx.fillRect(cx - 26, cy - 38, 52, 12);
+    ctx.fillStyle = '#C9C4BB'; ctx.fillRect(cx - 22, cy - 35, 44, 6);
+    for (let i = 0; i < 8; i++) {
+      const ph = (t * 0.06 + i / 8) % 1;
+      const ang = (i % 2 ? 1 : -1) * (0.35 + (i % 4) * 0.12);
+      const x = cx + Math.sin(ang) * ph * 60, y = cy - 44 - Math.sin(ph * Math.PI) * 46;
+      ctx.fillStyle = i % 3 ? '#BDEBFF' : '#FFFFFF';
+      ctx.fillRect(Math.round(x / 4) * 4, Math.round(y / 4) * 4, 8, 8);
+    }
   }
 
-  function tree(ctx, x, y) {
-    ctx.fillStyle = '#7A4E2D'; ctx.fillRect(x + 6, y + 9, 4, 6);
-    ctx.fillStyle = '#2F7D3B'; ctx.fillRect(x + 2, y + 2, 12, 9);
-    ctx.fillStyle = '#3E9A4C'; ctx.fillRect(x + 4, y, 8, 4); ctx.fillRect(x + 3, y + 3, 4, 3);
-  }
-
-  function drawHouse(ctx, hs) {
-    const x = hs.x * TILE, y = hs.y * TILE, w = HW * TILE, hgt = HH * TILE;
-    const g = S.market.groups.find(gg => gg.id === hs.gid) || {};
-    const mine = hs.gid === S.market.my_group;
-    // 지붕
-    ctx.fillStyle = mine ? '#3B7DDD' : '#C9503C';
-    ctx.beginPath(); ctx.moveTo(x - 4, y + 22); ctx.lineTo(x + w / 2, y - 2); ctx.lineTo(x + w + 4, y + 22); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x - 2, y + 19, w + 4, 3);
-    // 벽
-    ctx.fillStyle = '#F3E6C8'; ctx.fillRect(x, y + 22, w, hgt - 22);
-    ctx.strokeStyle = '#2B3A30'; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + 22.5, w - 1, hgt - 23);
-    // 창문
-    ctx.fillStyle = '#8FD3F4'; ctx.fillRect(x + 6, y + 30, 12, 10); ctx.fillRect(x + w - 18, y + 30, 12, 10);
-    ctx.strokeRect(x + 6.5, y + 30.5, 11, 9); ctx.strokeRect(x + w - 17.5, y + 30.5, 11, 9);
-    // 문
-    const d = doorRect(hs);
-    ctx.fillStyle = '#8A5A33'; ctx.fillRect(d.x + 2, d.y - 6, TILE - 4, TILE + 6);
-    ctx.fillStyle = '#F2C230'; ctx.fillRect(d.x + TILE - 6, d.y + 3, 2, 2);
-    // 간판
-    const label = (g.company_name || g.label || (hs.gid + '모둠')) + (mine ? ' (우리)' : '');
-    ctx.font = '7px Jua, sans-serif'; ctx.textAlign = 'center';
-    const tw = Math.min(ctx.measureText(label).width + 8, w + 20);
-    ctx.fillStyle = '#FFFDF6'; ctx.fillRect(x + w / 2 - tw / 2, y + 22, tw, 9);
-    ctx.strokeRect(x + w / 2 - tw / 2 + .5, y + 22.5, tw - 1, 8);
-    ctx.fillStyle = '#1F2A24'; ctx.fillText(label, x + w / 2, y + 29, w + 16);
+  function drawPlayer(ctx, p) {
+    const sc = 5;
+    ctx.fillStyle = 'rgba(20,20,40,.25)';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 2, 24, 8, 0, 0, Math.PI * 2); ctx.fill();
+    P.drawAvatar(ctx, S.me.avatar || 'boy', p.x - 30, p.y - 80, sc, p.dir, Math.floor(p.step / 6) % 2);
+    ctx.font = '24px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const nm = S.me.name, tw = ctx.measureText(nm).width + 22;
+    rrect(ctx, p.x - tw / 2, p.y - 122, tw, 34, 10, '#FFF9EE', '#2A2350');
+    ctx.fillStyle = '#2A2350'; ctx.fillText(nm, p.x, p.y - 104);
   }
 
   function enterHouse(gid) {
@@ -712,39 +794,40 @@
     const m = S.market, g = m.groups.find(x => x.id === S.houseId);
     const wrap = h('div', {});
     const canBuy = m.market_round && !m.voted;
-    wrap.appendChild(h('div', { class: 'row', style: { marginBottom: '8px' } },
-      h('button', { onclick: () => {
-        const hs = HOUSES.find(x => x.gid === S.houseId);
-        if (S.player && hs) { S.player.x = (hs.x + 2) * TILE; S.player.y = (hs.y + HH) * TILE + 6; S.player.dir = 'down'; }
-        S.view = 'village'; renderShell();
-      } }, '← 마을로 나가기'),
-      h('span', { class: 'hint', style: { margin: 0 } }, canBuy ? '신발을 누르면 장바구니에 담을 수 있어요.' : '구경만 할 수 있어요.')));
-    wrap.appendChild(lobbyBox(g, g.products, m.materials, { drag: false, onShoe: pr => shoeModal(g, pr) }));
+    const cart = getCart();
+    wrap.appendChild(h('div', { class: 'house-head' },
+      h('button', { class: 'gold', onclick: () => { S.view = 'village'; renderShell(); } }, '마을로 나가기'),
+      h('div', { class: 'hint' }, canBuy ? '신발에 마우스를 올리면 재료가 보여요. 누르면 장바구니에 담을 수 있어요.' : '신발에 마우스를 올리면 재료가 보여요. 지금은 구경만 할 수 있어요.')));
+    wrap.appendChild(lobbyBox(g, g.products, m.materials, {
+      drag: false, onShoe: pr => shoeModal(g, pr),
+      tipFoot: canBuy ? '누르면 장바구니에 담을 수 있어요' : null,
+      cartQty: pr => (cart[pr.id] || {}).qty || 0
+    }));
     return wrap;
   }
 
   function shoeModal(g, pr) {
     const m = S.market;
-    const cv = h('canvas', { class: 'pixel', style: { width: '100%', maxWidth: '360px' } });
-    P.drawShoe(cv, pr, m.materials, 10);
-    const lines = ['sole', 'body', 'insole', 'lace'].map(k => {
-      const mt = P.matOf(m.materials, pr.parts[k]);
-      return h('div', {}, P.PART_LABEL[k] + ': ', mt ? mt.name : '-', mt ? h('span', { class: 'muted' }, ' (' + P.TIERS[mt.tier].label + ')') : null);
-    });
-    const body = h('div', { class: 'col center' },
-      h('h3', { style: { margin: 0 } }, (g.company_name || g.label) + ' · ' + pr.slot + '번 신발'),
+    const cv = h('canvas', { class: 'pixel', style: { width: '100%', maxWidth: '380px' } });
+    P.drawShoe(cv, pr, m.materials, 8);
+    const env = shoeEnv(pr, m.materials);
+    const shape = (P.SHAPES.find(s => s.id === pr.shape) || {}).name || '';
+    const body = h('div', { class: 'col' },
+      h('h2', {}, (g.company_name || g.label) + ' · ' + pr.slot + '번 ' + shape),
       pr.stars ? h('div', { class: 'stars', style: { fontSize: '20px' } }, '★'.repeat(pr.stars) + ' 친환경 인증') : null,
-      cv, h('div', { style: { textAlign: 'left' } }, lines));
+      h('div', { class: 'preview' }, cv),
+      h('div', {}, ...partLines(pr, m.materials)),
+      env !== null ? h('div', { class: envClass(env) }, '이 신발 한 켤레: ' + envText(env)) : null);
     let dlg;
     if (m.market_round && !m.voted) {
       const cart = getCart();
       const inCart = (cart[pr.id] || {}).qty || 0;
       const check = canAdd(cart, g.id);
-      body.appendChild(h('div', { class: 'row', style: { justifyContent: 'center' } },
-        h('button', { class: 'primary', disabled: !check.ok, onclick: () => { addCart(g, pr, 1); dlg.close(); toast('장바구니에 담았어요!'); } }, '장바구니에 담기 (+1표)'),
-        inCart ? h('button', { onclick: () => { addCart(g, pr, -1); dlg.close(); } }, '하나 빼기') : null));
-      if (!check.ok) body.appendChild(h('div', { class: 'muted' }, check.why));
-      if (inCart) body.appendChild(h('div', {}, '지금 장바구니에 ' + inCart + '표 담겨 있어요.'));
+      body.appendChild(h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '6px' } },
+        h('button', { class: 'primary big', disabled: !check.ok, onclick: () => { addCart(g, pr, 1); dlg.close(); toast('장바구니에 담았어요!'); if (S.view === 'house') renderView(); } }, '장바구니에 담기 (+1표)'),
+        inCart ? h('button', { class: 'big', onclick: () => { addCart(g, pr, -1); dlg.close(); if (S.view === 'house') renderView(); } }, '하나 빼기') : null));
+      if (!check.ok) body.appendChild(h('div', { class: 'muted center' }, check.why));
+      if (inCart) body.appendChild(h('div', { class: 'center' }, '지금 장바구니에 ' + inCart + '표 담겨 있어요.'));
     }
     dlg = modal(body);
   }
@@ -776,20 +859,22 @@
     if (!m || !m.market_round || !(S.view === 'village' || S.view === 'house')) return;
     const box = h('div', { id: 'cart', class: 'cart' });
     if (m.voted) {
-      box.appendChild(h('h4', {}, '🛒 구매 완료!'));
+      box.appendChild(h('h4', {}, '구매 완료!'));
       box.appendChild(h('div', { class: 'muted' }, '이번 시장 구매를 확정했어요.'));
       document.body.appendChild(box); return;
     }
     const c = getCart();
-    box.appendChild(h('h4', {}, '🛒 장바구니 ', h('span', { class: 'muted' }, '남은 표 ' + (m.votes_total - cartTotal(c)) + ' / ' + m.votes_total)));
+    const used = cartTotal(c);
+    box.appendChild(h('h4', {}, '장바구니', h('span', { class: 'votes-left', title: '남은 표 ' + (m.votes_total - used) }, Array.from({ length: m.votes_total }, (_, i) => h('i', { class: i < used ? 'used' : '' })))));
+    box.appendChild(h('div', { class: 'muted', style: { fontSize: '13px' } }, '남은 표 ' + (m.votes_total - used) + ' / ' + m.votes_total + ' · 한 회사에 ' + m.max_per_group + '표까지'));
     Object.entries(c).forEach(([pid, x]) => {
       box.appendChild(h('div', { class: 'item' },
         h('img', { src: P.shoeDataUrl(x.shoe, m.materials, 2), alt: '' }),
         h('span', { class: 'grow' }, x.name + ' × ' + x.qty),
-        h('button', { class: 'small', onclick: () => { const cc = getCart(); cc[pid].qty -= 1; if (cc[pid].qty <= 0) delete cc[pid]; setCart(cc); renderCart(); } }, '−')));
+        h('button', { class: 'small', 'aria-label': '하나 빼기', onclick: () => { const cc = getCart(); cc[pid].qty -= 1; if (cc[pid].qty <= 0) delete cc[pid]; setCart(cc); renderCart(); if (S.view === 'house') renderView(); } }, '−')));
     });
     if (!Object.keys(c).length) box.appendChild(h('div', { class: 'muted' }, '마음에 드는 신발을 담아 보세요.'));
-    box.appendChild(h('button', { class: 'primary', style: { width: '100%', marginTop: '6px' }, disabled: !cartTotal(c), onclick: async e => {
+    box.appendChild(h('button', { class: 'primary big', style: { width: '100%', marginTop: '8px' }, disabled: !cartTotal(c), onclick: async e => {
       if (!confirm('이대로 구매를 확정할까요? 확정하면 바꿀 수 없어요.')) return;
       e.currentTarget.disabled = true;
       try {
@@ -808,7 +893,7 @@
   async function showReport() {
     let r;
     try { r = await rpc('report'); } catch (e) { return toast(e.message, 'error'); }
-    const body = h('div', { class: 'col' }, h('h2', { style: { margin: 0 } }, '📋 우리 기업 성적표'));
+    const body = h('div', { class: 'col' }, h('h2', {}, '우리 기업 성적표'));
     body.appendChild(h('table', { class: 't' },
       h('tr', {}, h('th', {}, '판매로 번 돈'), h('td', {}, fmt(r.income) + '코인')),
       h('tr', {}, h('th', {}, '쓴 돈 (제작·투자)'), h('td', {}, fmt(r.spent) + '코인')),
@@ -829,7 +914,7 @@
         h('tr', {}, h('th', {}, '친환경 소비 보너스'), h('td', {}, '+' + fmt(r.eco_bonus))),
         h('tr', {}, h('th', {}, '지구 서버 공동 보너스'), h('td', {}, '+' + fmt(r.common_bonus))),
         h('tr', {}, h('th', {}, '종합점수'), h('td', { class: 'report-num' }, fmt(r.score)))));
-      body.appendChild(h('div', {}, '🌏 지구 게이지: ' + r.gauge + '%'));
+      body.appendChild(h('div', {}, '지구 게이지: ' + r.gauge + '%'));
       if (r.detail && r.detail.length) {
         body.appendChild(h('h3', { style: { margin: '8px 0 0' } }, '신발별 환경 영향'));
         body.appendChild(h('table', { class: 't' }, h('tr', {}, h('th', {}, '차수'), h('th', {}, '신발'), h('th', {}, '팔린 수'), h('th', {}, '한 켤레'), h('th', {}, '합계')),
@@ -854,15 +939,15 @@
     try { r = await rpc('report'); } catch (e) { /* 무시 */ }
     const bar = h('i', { style: { width: '100%' } });
     const ov = h('div', { class: 'alarm' },
-      h('h2', {}, '🚨 지구 서버 긴급 경보 🚨'),
+      h('h2', {}, '지구 서버 긴급 경보'),
       h('p', { style: { fontSize: '22px', maxWidth: '760px' } }, '우주 운영진입니다. 그동안 숨겨져 있던 「환경점수」를 공개합니다. 여러분 기업의 신발이 지구 서버에 어떤 영향을 주었는지 확인하세요.'),
       h('div', { class: 'big-gauge' }, bar),
-      h('div', { style: { fontSize: '26px' } }, '지구 게이지 ', h('b', { id: 'alarm-g' }, '100%')),
+      h('div', { style: { fontSize: '22px' } }, '지구 게이지'), h('div', { class: 'big-num', id: 'alarm-g' }, '100%'),
       r ? h('div', { style: { fontSize: '22px', marginTop: '8px' } }, '우리 기업 환경 점수: ' + envText(r.env)) : null,
-      h('button', { class: 'warn', style: { marginTop: '18px', fontSize: '22px' }, onclick: () => { ov.remove(); showReport(); } }, '성적표 확인하기'));
+      h('button', { class: 'gold big', style: { marginTop: '22px' }, onclick: () => { ov.remove(); showReport(); } }, '성적표 확인하기'));
     document.body.appendChild(ov);
     const target = r ? r.gauge : 50;
-    setTimeout(() => { bar.style.width = target + '%'; bar.style.background = target >= 60 ? '#6FD08C' : target >= 40 ? '#F2C230' : '#E05A4F'; }, 600);
+    setTimeout(() => { bar.style.width = target + '%'; bar.style.background = gaugeColor(target); }, 600);
     let v = 100; const t = setInterval(() => { v = Math.max(target, v - 1.5); const el = document.getElementById('alarm-g'); if (el) el.textContent = Math.round(v) + '%'; if (v <= target) clearInterval(t); }, 40);
   }
 
@@ -870,13 +955,14 @@
     let r = null;
     try { r = await rpc('report'); } catch (e) { return; }
     const ok = r.common_bonus > 0;
-    const ov = h('div', { class: 'alarm', style: { background: ok ? 'rgba(20,110,60,.92)' : 'rgba(40,60,90,.92)', animation: 'none' } },
-      h('h2', {}, ok ? '🌏 지구 서버가 회복되었습니다!' : '🌏 최종 결과 발표'),
+    const ov = h('div', { class: 'alarm calm ' + (ok ? '' : 'dim') },
+      h('h2', {}, ok ? '지구 서버가 회복되었습니다!' : '최종 결과 발표'),
       h('p', { style: { fontSize: '22px', maxWidth: '760px' } }, ok
         ? '기업들의 친환경 경영과 시민들의 노력이 함께 지구 서버를 살렸어요. 모든 기업에 공동 보너스가 지급됩니다!'
         : '지구 서버는 아직 회복 중이에요. 기업의 선택이 지구에 어떤 영향을 주는지 다시 생각해 봐요.'),
-      h('div', { style: { fontSize: '26px' } }, '지구 게이지 ' + r.gauge + '%'),
-      h('button', { class: 'warn', style: { marginTop: '18px', fontSize: '22px' }, onclick: () => { ov.remove(); showReport(); } }, '최종 성적표 보기'));
+      h('div', { class: 'big-gauge' }, h('i', { style: { width: r.gauge + '%', background: gaugeColor(r.gauge) } })),
+      h('div', { style: { fontSize: '22px' } }, '지구 게이지'), h('div', { class: 'big-num' }, r.gauge + '%'),
+      h('button', { class: 'gold big', style: { marginTop: '22px' }, onclick: () => { ov.remove(); showReport(); } }, '최종 성적표 보기'));
     document.body.appendChild(ov);
   }
 
@@ -886,7 +972,7 @@
     const personal = h('textarea', { maxlength: '300', placeholder: '기업이 사회적 책임을 다해야 하는 까닭은 ...' }, mine.personal || '');
     const company = h('textarea', { maxlength: '300', placeholder: '우리 기업은 ... 을(를) 지키며 신발을 만들겠습니다.' }, mine.company || '');
     const body = h('div', { class: 'col' },
-      h('h2', { style: { margin: 0 } }, '✍ 경영 원칙'),
+      h('h2', {}, '경영 원칙'),
       h('div', {}, '나의 한 문장: 기업이 사회적 책임을 다해야 하는 까닭'),
       personal,
       h('button', { class: 'primary', onclick: async () => {

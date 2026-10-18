@@ -44,23 +44,28 @@
     return data;
   }
 
-  async function uploadImage(file, folder, maxSize) {
-    const blob = await shrinkImage(file, maxSize || 800);
-    const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
-    const { error } = await sb.storage.from('images').upload(path, blob, { contentType: 'image/png', upsert: false });
+  // 배경처럼 큰 그림은 JPEG(용량↓), 로고는 PNG(투명 배경 유지)
+  async function uploadImage(file, folder, maxSize, type) {
+    type = type || 'image/png';
+    const blob = await shrinkImage(file, maxSize || 800, type);
+    const ext = type === 'image/jpeg' ? 'jpg' : 'png';
+    const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await sb.storage.from('images').upload(path, blob, { contentType: type, upsert: false });
     if (error) throw new Error('그림을 올리지 못했어요: ' + error.message);
     return sb.storage.from('images').getPublicUrl(path).data.publicUrl;
   }
 
-  function shrinkImage(file, max) {
+  function shrinkImage(file, max, type) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
         const r = Math.min(1, max / Math.max(img.width, img.height));
         const c = document.createElement('canvas');
         c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        c.toBlob(b => b ? resolve(b) : reject(new Error('그림 변환 실패')), 'image/png');
+        const ctx = c.getContext('2d');
+        if (type === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); }
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(b => b ? resolve(b) : reject(new Error('그림 변환 실패')), type, 0.88);
       };
       img.onerror = () => reject(new Error('그림 파일을 읽지 못했어요.'));
       img.src = URL.createObjectURL(file);
@@ -85,7 +90,7 @@
     for (const [k, v] of Object.entries(attrs || {})) {
       if (v === null || v === undefined || v === false) continue;
       if (k === 'class') el.className = v;
-      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'style' && typeof v === 'object') { for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith('--')) el.style.setProperty(sk, sv); else el.style[sk] = sv; } }
       else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
       else if (k === 'html') el.innerHTML = v;
       else el.setAttribute(k, v === true ? '' : v);
@@ -130,6 +135,12 @@
   const fmt = n => (n === null || n === undefined) ? '???' : Number(n).toLocaleString('ko-KR');
   const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
+  // 모둠 색 = 마을 지붕 색
+  const GROUP_COLORS = { 1: '#3B6FE0', 2: '#E0463C', 3: '#F29A2E', 4: '#8A4FD8', 5: '#22A36A', 6: '#EC5C9A' };
+  const groupColor = id => GROUP_COLORS[id] || '#3B6FE0';
+  const gaugeColor = v => v >= 60 ? 'linear-gradient(180deg,#A8F5C2,#3DCB6C)' : v >= 40 ? 'linear-gradient(180deg,#FFE58A,#F2B530)' : 'linear-gradient(180deg,#FF9AA8,#E0465C)';
+  const matImg = id => 'img/mat/' + id + '.webp';
+
   window.API = { sb, rpc, ensureSession, uploadImage, subscribe, PHASES };
-  window.UI = { $, $$, h, toast, modal, envText, envClass, fmt, debounce };
+  window.UI = { $, $$, h, toast, modal, envText, envClass, fmt, debounce, groupColor, gaugeColor, matImg };
 })();
