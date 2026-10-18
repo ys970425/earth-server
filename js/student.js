@@ -43,7 +43,7 @@
       h('div', { class: 'gco' }, g.company_name || '기업 이름을 기다리는 중'))));
     entryShell(h('h1', { class: 'title' }, '지구 서버'),
       h('p', { class: 'title-sub' }, '신발 기업 경영 시뮬레이터 · 우리 모둠을 골라 입장해요'), grid);
-    root.appendChild(h('button', { class: 'teacher-link small ghost', onclick: () => location.href = 'admin.html' }, '교사'));
+    root.appendChild(h('button', { class: 'teacher-link ghost', onclick: () => location.href = 'admin.html' }, '교사 관제실'));
   }
 
   async function rosterView(g) {
@@ -92,6 +92,7 @@
   // 게임 화면
   // ------------------------------------------------------------------
   async function enterGame() {
+    await P.ready;
     await refresh(true);
     if (!S.channel) {
       S.channel = subscribe({
@@ -430,7 +431,7 @@
     return {
       slot,
       shape: pr ? pr.shape : 'lowtop',
-      colors: { way: pr ? P.colorWay(pr) : 0 },
+      colors: { body: pr && pr.colors && P.PALETTE.some(c => c.id === pr.colors.body) ? pr.colors.body : 'ivory' },
       parts: Object.assign({}, pr ? pr.parts : DEFAULT_PARTS),
       original: pr || null
     };
@@ -488,21 +489,20 @@
     // 왼쪽: 미리보기
     const left = h('div', { class: 'panel col' });
     left.appendChild(tabs);
-    const LOOK_NAME = { plain: '저가 느낌', basic: '기본 느낌', natural: '내추럴 느낌', flashy: '화려한 느낌', eco_luxe: '친환경 고급 느낌' };
-    left.appendChild(h('div', { class: 'preview' }, P.shoeArt(ed, st.materials),
-      h('span', { class: 'look-tag' }, LOOK_NAME[P.shoeLook(ed.parts, st.materials)])));
+    left.appendChild(h('div', { class: 'preview' }, P.shoeArt(ed, st.materials)));
     left.appendChild(h('div', { class: 'mat-strip' }, P.shoeParts(ed, st.materials).map(x => x.mat ? h('span', { title: x.label + ': ' + x.mat.name }, matPic(x.mat)) : null)));
     if (lockOther) left.appendChild(h('div', { class: 'hint' }, lockOther.name + ' 학생이 이 신발을 고치는 중이에요.'));
     left.appendChild(h('div', { class: 'field-label' }, '모양'));
     left.appendChild(h('div', { class: 'shape-row' }, P.SHAPES.map(s => h('button', {
       class: ed.shape === s.id ? 'on' : '', onclick: () => { ed.shape = s.id; renderView(); }
     }, s.name))));
-    left.appendChild(h('div', { class: 'field-label' }, '색상 · 무료'));
-    left.appendChild(h('div', { class: 'way-row' }, P.COLORWAYS.map(c => h('button', {
-      class: ed.colors.way === c.id ? 'on' : '', 'aria-label': c.name,
-      onclick: () => { ed.colors = { way: c.id }; renderView(); }
-    }, h('img', { src: P.shoeSrc(ed, st.materials, c.id), alt: '' }), c.name))));
-    left.appendChild(h('div', { class: 'muted', style: { fontSize: '13px' } }, '신발 모습은 고른 재료에 따라 바뀌어요. 몸체 재료가 가장 크게 영향을 줘요.'));
+    const tintable = (() => { const m = P.matOf(st.materials, ed.parts.body); return m && ['normal', 'natural', 'eco'].includes(m.tier); })();
+    left.appendChild(h('div', { class: 'field-label' }, '몸체 색 · 무료' + (tintable ? '' : ' (지금 몸체 재료는 색이 정해져 있어요)')));
+    left.appendChild(h('div', { class: 'swatches' }, P.PALETTE.map(c => h('button', {
+      class: 'swatch ' + (ed.colors.body === c.id ? 'on' : ''), title: c.name, 'aria-label': c.name, style: { background: c.hex },
+      disabled: !tintable, onclick: () => { ed.colors = { body: c.id }; renderView(); }
+    }))));
+    left.appendChild(h('div', { class: 'muted', style: { fontSize: '13px' } }, '재료를 누르면 그 부분이 바로 바뀌어요. 아래 재료 그림 4개가 지금 고른 재료예요.'));
     const cp = costPreview(ed);
     const after = st.wallet - (cp.pay > 0 ? cp.pay : 0) + (cp.pay < 0 ? -cp.pay : 0);
     left.appendChild(h('div', { class: 'cost-box' },
