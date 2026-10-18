@@ -430,7 +430,7 @@ begin
   from priv.products p where p.status in ('draft', 'listed')
   on conflict do nothing;
   update priv.products set status = 'listed', updated_at = now() where status = 'draft';
-  delete from priv.slot_locks;
+  delete from priv.slot_locks where true;
 end $$;
 
 -- 정산: 차수별 결과를 한 번만 기록
@@ -467,7 +467,7 @@ declare sa text := md5(random()::text || clock_timestamp()::text);
 begin
   insert into priv.admin_secret(id, salt, hash) values (1, sa, encode(sha256(convert_to(sa || pw, 'UTF8')), 'hex'))
   on conflict (id) do update set salt = excluded.salt, hash = excluded.hash;
-  delete from priv.admins;
+  delete from priv.admins where true;
 end $$;
 
 -- =====================================================================
@@ -1089,11 +1089,11 @@ declare n int;
 begin
   perform priv.need_admin();
   if priv.phase() > 1 then perform priv.err('PHASE', '명단은 1차 시장이 열리기 전에만 바꿀 수 있어요.'); end if;
-  delete from priv.pairing_requests;
-  delete from priv.slot_locks;
+  delete from priv.pairing_requests where true;
+  delete from priv.slot_locks where true;
   delete from priv.principles where student_id is not null;
-  delete from priv.vote_submissions;
-  delete from priv.students;
+  delete from priv.vote_submissions where true;
+  delete from priv.students where true;
   insert into priv.students(group_id, no, name)
     select (r->>'group')::int, nullif(r->>'no', '')::int, trim(r->>'name')
     from jsonb_array_elements(p_rows) r
@@ -1225,13 +1225,13 @@ declare g int;
 begin
   perform priv.need_admin();
   if p_confirm <> '초기화' then perform priv.err('CONFIRM', '확인 문구가 달라요.'); end if;
-  delete from priv.votes; delete from priv.vote_submissions; delete from priv.events;
-  delete from priv.round_results; delete from priv.ledger; delete from priv.snapshots;
-  delete from priv.slot_locks; delete from priv.products; delete from priv.principles;
-  delete from public.notices;
+  delete from priv.votes where true; delete from priv.vote_submissions where true; delete from priv.events where true;
+  delete from priv.round_results where true; delete from priv.ledger where true; delete from priv.snapshots where true;
+  delete from priv.slot_locks where true; delete from priv.products where true; delete from priv.principles where true;
+  delete from public.notices where true;
   update priv.groups set company_name = null, logo_url = null, bg_url = null, bg_preset = 0, stands = '[]',
     slot_count = priv.s('slots_base')::int, has_research = false, has_factory = false,
-    has_eco_research = false, has_purifier = false;
+    has_eco_research = false, has_purifier = false where true;
   update public.game set phase = 0, env_revealed = false, fast_travel = false where id = 1;
   perform priv.bump_game();
   for g in select id from priv.groups loop perform priv.bump(g); end loop;
