@@ -431,7 +431,7 @@
     return {
       slot,
       shape: pr ? pr.shape : 'lowtop',
-      colors: { body: pr && pr.colors && P.PALETTE.some(c => c.id === pr.colors.body) ? pr.colors.body : 'ivory' },
+      colors: {},
       parts: Object.assign({}, pr ? pr.parts : DEFAULT_PARTS),
       original: pr || null
     };
@@ -496,13 +496,7 @@
     left.appendChild(h('div', { class: 'shape-row' }, P.SHAPES.map(s => h('button', {
       class: ed.shape === s.id ? 'on' : '', onclick: () => { ed.shape = s.id; renderView(); }
     }, s.name))));
-    const tintable = (() => { const m = P.matOf(st.materials, ed.parts.body); return m && ['normal', 'natural', 'eco'].includes(m.tier); })();
-    left.appendChild(h('div', { class: 'field-label' }, '몸체 색 · 무료' + (tintable ? '' : ' (지금 몸체 재료는 색이 정해져 있어요)')));
-    left.appendChild(h('div', { class: 'swatches' }, P.PALETTE.map(c => h('button', {
-      class: 'swatch ' + (ed.colors.body === c.id ? 'on' : ''), title: c.name, 'aria-label': c.name, style: { background: c.hex },
-      disabled: !tintable, onclick: () => { ed.colors = { body: c.id }; renderView(); }
-    }))));
-    left.appendChild(h('div', { class: 'muted', style: { fontSize: '13px' } }, '재료를 누르면 그 부분이 바로 바뀌어요. 아래 재료 그림 4개가 지금 고른 재료예요.'));
+    left.appendChild(h('div', { class: 'muted', style: { fontSize: '13px' } }, '재료를 누르면 그 부분이 바로 바뀌어요. 몸체 재료가 신발 전체 디자인을 정해요. 아래 그림 4개가 지금 고른 재료예요.'));
     const cp = costPreview(ed);
     const after = st.wallet - (cp.pay > 0 ? cp.pay : 0) + (cp.pay < 0 ? -cp.pay : 0);
     left.appendChild(h('div', { class: 'cost-box' },

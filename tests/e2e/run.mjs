@@ -80,7 +80,7 @@ await A.click('.nav >> text=제작방');
 await A.waitForSelector('.mats');
 await A.click('.part-row:nth-of-type(1) .mat >> nth=2');
 await A.click('.part-row:nth-of-type(2) .mat >> nth=3');
-await A.click('.swatch >> nth=2');
+
 await shot(A, '04-workshop');
 await A.click('.workshop button.primary');
 await wait(800);
