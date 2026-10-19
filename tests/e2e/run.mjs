@@ -185,9 +185,19 @@ await shot(board, '17-board-alarm');
 
 // 8: 3차 경영, A가 재료 교체
 await call(ADMIN, 'admin_set_phase', { p_target: 8 });
+await call(ADMIN, 'admin_timer', { p_seconds: 600, p_label: '활동1' });
 await A.reload(); await A.waitForSelector('.topbar');
 await A.click('.nav >> text=제작방'); await wait(500);
+if (!(await A.$('#timer-chip:not(.hidden)'))) errors.push('학생 화면에 타이머 없음');
 await shot(A, '18-workshop-r3');
+await wait(8500);
+await board.evaluate(() => document.querySelectorAll('.alarm').forEach(x => x.remove()));
+await shot(board, '18b-board-rank');
+// 여성 구두 + 새 재료로 2번 칸 신발 바꾸기 시도는 3차엔 불가 → 미리보기만
+await A.click('.shape-row button >> text=여성 구두'); await wait(300);
+await A.click('.part-row:nth-of-type(2) .mat >> nth=5'); await wait(300);
+await shot(A, '18c-maryjane-preview');
+await A.click('.shape-row button >> text=운동화'); await wait(200);
 for (let i = 1; i <= 4; i++) await A.click(`.part-row:nth-of-type(${i}) .mat >> nth=2`);
 await A.click('.workshop button.primary'); await wait(800);
 await shot(A, '19-workshop-r3-saved');
@@ -213,8 +223,14 @@ await A.reload(); await wait(1500);
 await A.keyboard.press('Escape').catch(() => {});
 await A.click('.nav >> text=경영 원칙').catch(e => errors.push('no principle nav'));
 await wait(600);
+await A.click('.frames button >> nth=0'); await A.keyboard.type('환경');
+await A.click('text=기업 원칙 등록'); await wait(500);
+await A.click('.frames >> nth=1 >> button >> nth=0'); await A.keyboard.type('모두가 피해를 보기');
+await A.click('text=내 문장 저장'); await wait(500);
 await shot(A, '23-principle');
+for (const b of bots.slice(0, 6)) await call(b.uid, 'principle_submit', { p_kind: 'personal', p_text: '기업이 환경을 해치면 모두가 피해를 보기 때문입니다.' });
 await wait(9000);
+await board.evaluate(() => document.querySelectorAll('.alarm').forEach(x => x.remove()));
 await shot(board, '24-board-final');
 await adm.reload(); await adm.waitForSelector('text=관제실');
 await shot(adm, '25-admin-final');

@@ -126,6 +126,14 @@
       (p.n === ph ? '👉 ' : p.n < ph ? '✔ ' : '　 ') + p.n + '. ' + p.name + ' — ' + p.desc + (p.n === 6 ? '  [화요일 끝]' : p.n === 7 ? '  [공개수업 시작]' : ''))));
     page.appendChild(list);
 
+    // 활동 타이머
+    const tm = st.game.timer_end ? Math.round((new Date(st.game.timer_end) - new Date(st.now)) / 1000) : null;
+    const tlabel = h('input', { type: 'text', placeholder: '이름 (예: 활동1)', style: { width: '150px' }, value: st.game.timer_label || '' });
+    page.appendChild(h('div', { class: 'panel col', style: { marginTop: '12px' } },
+      h('div', { class: 'panel-title' }, '활동 타이머', h('small', {}, tm === null ? '꺼짐' : tm > 0 ? '남은 시간 ' + Math.floor(tm / 60) + '분 ' + (tm % 60) + '초 · 학생 화면과 칠판에 보여요' : '시간 끝')),
+      h('div', { class: 'row' }, tlabel, [4, 5, 10, 12].map(mn => h('button', { class: 'sky', onclick: () => act('admin_timer', { p_seconds: mn * 60, p_label: tlabel.value }, mn + '분 타이머 시작') }, mn + '분')),
+        h('button', { onclick: () => act('admin_timer', { p_seconds: 0, p_label: null }, '타이머 끔') }, '끄기'))));
+
     const flags = h('div', { class: 'panel row', style: { marginTop: '12px' } },
       h('label', {}, h('input', { type: 'checkbox', checked: st.game.fast_travel, onchange: e => act('admin_flags', { p: { fast_travel: e.target.checked } }, e.target.checked ? '빠른 이동 켬' : '빠른 이동 끔') }), ' 마을 빠른 이동 (집 목록 버튼)'),
       h('label', {}, h('input', { type: 'checkbox', checked: st.game.require_approval, onchange: e => act('admin_flags', { p: { require_approval: e.target.checked } }, e.target.checked ? '새 기기 승인 모드 켬' : '승인 모드 끔') }), ' 새 기기 연결 시 교사 승인'));

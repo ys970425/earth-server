@@ -79,7 +79,12 @@ await rpc(ADMIN, 'admin_flags', JSON.stringify({ require_approval: false }));
   ok((await rpc(lv.uid, 'get_me')).status === 'none', '나가기 후 연결 해제');
   ok((await rpc(lv.uid, 'join_student', lv.id, 'girl')).status === 'joined', '나간 기기로 다시 입장');
 }
-ok((await db.query(`select count(*) c from priv.materials`)).rows[0].c == 32, '재료 32종(부위당 8개)');
+ok((await db.query(`select count(*) c from priv.materials`)).rows[0].c == 64, '재료 64종(부위당 16개)');
+// 타이머
+await rpc(ADMIN, 'admin_timer', 600, '활동1');
+{ const ms = await rpc(students[0].uid, 'my_state'); ok(ms.timer.label === '활동1' && ms.timer.end, '타이머가 학생 화면 정보에 들어감'); }
+await rpc(ADMIN, 'admin_timer', 0, null);
+ok((await rpc(students[0].uid, 'my_state')).timer.end === null, '타이머 끄기');
 
 // 모둠장
 const leaders = {};
@@ -164,10 +169,17 @@ await fails(ADMIN, 'admin_undo_event', [a3.events.find(e => e.status === 'active
 await rpc(ADMIN, 'admin_set_phase', 4);
 await fails(member(1), 'invest', ['research'], 'LEADER_ONLY', '모둠장 아닌 학생 투자 차단');
 await fails(leaders[1], 'invest', ['eco_research'], 'PHASE', '2차에 친환경 연구 차단');
+// 새 재료(B) 잠금: 연구 전에는 고급 B·한정판 B·친환경 고급 B 차단
+const premB = P('M46', 'M38', 'M54', 'M62');
+await fails(leaders[1], 'product_save', [1, 'maryjane', '{}', premB], 'LOCKED_MATERIAL', '연구 전 고급 B 재료 차단');
 await rpc(ADMIN, 'admin_grant', 1, 600, '테스트: 1모둠 투자 여력 보정');
 await rpc(leaders[1], 'invest', 'research');
 await rpc(leaders[1], 'invest', 'factory');
 await fails(leaders[1], 'invest', ['factory'], 'ALREADY', '같은 투자 중복 차단');
+await rpc(member(1), 'product_save', 3, 'maryjane', '{}', P('M46', 'M38', 'M54', 'M64'));
+ok((await rpc(member(1), 'my_state')).products.find(p => p.slot === 3).shape === 'maryjane', '연구 후 고급 B·한정판 B 재료로 여성 구두 제작');
+await fails(member(1), 'product_save', [3, 'maryjane', '{}', P('M47', 'M39', 'M55', 'M63')], 'LOCKED_MATERIAL', '친환경 연구 전 친환경 고급 B 차단');
+await rpc(member(1), 'product_cancel', 3);
 await rpc(member(1), 'product_save', 3, 'hightop', '{}', prem);
 await fails(member(2), 'product_save', [1, 'lowtop', '{}', normal], 'ALREADY_SOLD', '이미 판 신발 수정 차단');
 await rpc(member(2), 'product_retire', 2);
@@ -241,6 +253,8 @@ await fails(member(1), 'principle_submit', ['company', '환경을 지키자'], '
 await rpc(leaders[1], 'principle_submit', 'company', '환경을 생각하는 신발을 만든다');
 await rpc(member(1), 'principle_submit', 'personal', '기업이 환경을 지켜야 모두가 오래 산다');
 ok((await rpc(member(1), 'my_principles')).personal !== null, '개인 한 문장 저장');
+{ const bd = await rpc(null, 'get_board');
+  ok(bd.groups[0].principle && bd.sentences.length >= 1 && bd.groups.every(g => g.perf !== null), '전자칠판: 경영 원칙·문장·경영 성과'); }
 
 // 초기화
 await fails(ADMIN, 'admin_reset_game', ['아니'], 'CONFIRM', '초기화 확인 문구');

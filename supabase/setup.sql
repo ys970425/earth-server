@@ -59,6 +59,8 @@ create table if not exists public.game (
   updated_at       timestamptz not null default now()
 );
 insert into public.game(id) values (1) on conflict do nothing;
+alter table public.game add column if not exists timer_end timestamptz;
+alter table public.game add column if not exists timer_label text;
 
 create table if not exists public.notices (
   id         bigserial primary key,
@@ -165,9 +167,45 @@ insert into priv.materials(id, part, tier, name, price, env, unlock, texture, de
  ('M31','lace','natural','삼베 끈',100,0,'none','speckle','삼베로 꼰 소박한 끈',4),
  ('M32','lace','limited','LED 한정판 끈',190,-4,'research','sparkle','밤에도 빛나는 한정판 끈',8)
 on conflict (id) do nothing;
--- 카드 순서: 저가 · 반짝 · 일반 · 천연 · 재활용 · 고급 · 친환경 고급 · 한정판
-update priv.materials set sort = case tier when 'cheap' then 1 when 'shiny' then 2 when 'normal' then 3 when 'natural' then 4
-  when 'eco' then 5 when 'premium' then 6 when 'eco_premium' then 7 when 'limited' then 8 else sort end where true;
+-- 재료 2배(부위당 16개): 등급마다 두 번째 선택지
+insert into priv.materials(id, part, tier, name, price, env, unlock, texture, descr, sort) values
+ ('M33','body','cheap','저가 인조가죽 몸체',45,-2,'none','dull','금방 갈라지는 얇은 인조가죽이에요',0),
+ ('M34','body','shiny','네온 젤리 몸체',65,-3,'none','sparkle','형광빛 말랑한 플라스틱이에요',0),
+ ('M35','body','normal','검정 합성가죽 몸체',75,-1,'none','flat','어디에나 어울리는 무난한 검정이에요',0),
+ ('M36','body','natural','린넨 몸체',95,0,'none','speckle','바람이 잘 통하는 린넨 천이에요',0),
+ ('M37','body','eco','업사이클 데님 몸체',115,1,'none','speckle','헌 청바지 조각을 이어 만들었어요',0),
+ ('M38','body','premium','벨벳 스웨이드 몸체',140,-3,'research','sparkle','부드럽고 고급스러운 스웨이드예요',0),
+ ('M39','body','eco_premium','선인장 가죽 몸체',155,2,'eco_research','knit','선인장으로 만든 비건 가죽이에요',0),
+ ('M40','body','limited','미드나잇 블랙 몸체',200,-4,'research','sparkle','매트한 검정, 딱 한정 수량!',0),
+ ('M41','sole','cheap','딱딱한 PVC 밑창',45,-2,'none','dull','싸지만 딱딱하고 잘 갈라져요',0),
+ ('M42','sole','shiny','네온 형광 밑창',65,-3,'none','sparkle','눈에 확 띄는 형광 밑창이에요',0),
+ ('M43','sole','normal','흰 고무 밑창',75,-1,'none','flat','깔끔한 흰색 고무예요',0),
+ ('M44','sole','natural','생고무 밑창',95,0,'none','speckle','꿀색 천연 생고무예요',0),
+ ('M45','sole','eco','재활용 밑창',115,1,'none','speckle','헌 운동화 밑창을 갈아 만들었어요',0),
+ ('M46','sole','premium','폼 쿠션 밑창',140,-3,'research','sparkle','구름처럼 폭신한 폼이에요',0),
+ ('M47','sole','eco_premium','사탕수수 밑창',155,2,'eco_research','knit','사탕수수로 만든 바이오 소재예요',0),
+ ('M48','sole','limited','크리스털 밑창',200,-4,'research','sparkle','수정처럼 투명한 한정판이에요',0),
+ ('M49','insole','cheap','종이 깔창',45,-2,'none','dull','얇고 금방 구겨져요',0),
+ ('M50','insole','shiny','홀로그램 깔창',65,-3,'none','sparkle','무지개빛으로 반짝여요',0),
+ ('M51','insole','normal','메쉬 깔창',75,-1,'none','flat','통풍이 잘되는 그물 천이에요',0),
+ ('M52','insole','natural','양털 깔창',95,0,'none','speckle','포근하고 따뜻해요',0),
+ ('M53','insole','eco','커피 찌꺼기 깔창',115,1,'none','speckle','커피 찌꺼기를 모아 만들었어요',0),
+ ('M54','insole','premium','에어 쿠션 깔창',140,-3,'research','sparkle','공기 방울이 발을 받쳐 줘요',0),
+ ('M55','insole','eco_premium','해초 바이오폼 깔창',155,2,'eco_research','knit','바다 해초로 만든 폼이에요',0),
+ ('M56','insole','limited','실크 깔창',200,-4,'research','sparkle','부드러운 실크 한정판이에요',0),
+ ('M57','lace','cheap','비닐 끈',45,-2,'none','dull','번들거리는 얇은 비닐 끈이에요',0),
+ ('M58','lace','shiny','홀로그램 리본 끈',65,-3,'none','sparkle','무지개빛 리본 끈이에요',0),
+ ('M59','lace','normal','컬러 납작 끈',75,-1,'none','flat','알록달록 납작한 끈이에요',0),
+ ('M60','lace','natural','왁스 면 끈',95,0,'none','speckle','윤기 나는 튼튼한 면 끈이에요',0),
+ ('M61','lace','eco','페트병 끈',115,1,'none','speckle','페트병을 녹여 만든 끈이에요',0),
+ ('M62','lace','premium','반사 끈',140,-3,'research','sparkle','밤에 빛을 반사해 안전해요',0),
+ ('M63','lace','eco_premium','대나무 섬유 끈',155,2,'eco_research','knit','대나무로 만든 부드러운 끈이에요',0),
+ ('M64','lace','limited','금사 끈',200,-4,'research','sparkle','가는 금실을 꼬아 만든 한정판',0)
+on conflict (id) do nothing;
+-- 카드 순서: 저가 · 반짝 · 일반 · 천연 · 재활용 · 고급 · 친환경 고급 · 한정판 (등급마다 기존 → 새 재료)
+update priv.materials set sort = (case tier when 'cheap' then 1 when 'shiny' then 2 when 'normal' then 3 when 'natural' then 4
+  when 'eco' then 5 when 'premium' then 6 when 'eco_premium' then 7 when 'limited' then 8 else 9 end) * 2
+  + (case when substr(id, 2)::int >= 33 then 1 else 0 end) where true;
 
 create table if not exists priv.products (
   id         serial primary key,
@@ -614,6 +652,8 @@ begin
   res := jsonb_build_object(
     'phase', ph, 'revealed', rv, 'work_round', priv.work_round(ph), 'market_round', mr,
     'fast_travel', (select fast_travel from public.game where id = 1),
+    'timer', (select jsonb_build_object('end', timer_end, 'label', timer_label) from public.game where id = 1),
+    'now', now(),
     'me', jsonb_build_object('id', me.id, 'name', me.name, 'no', me.no, 'avatar', me.avatar, 'is_leader', me.is_leader),
     'group', priv.lobby_json(me.group_id),
     'wallet', priv.wallet(me.group_id),
@@ -703,7 +743,7 @@ begin
   me := priv.me();
   select * into gr from priv.groups where id = me.group_id for update;
   ph := priv.phase();
-  if (p_shape is null and ph <> 8) or p_shape not in ('lowtop', 'hightop', 'clog', 'oxford') then perform priv.err('BAD_SHAPE', '신발 모양을 골라 주세요.'); end if;
+  if (p_shape is null and ph <> 8) or p_shape not in ('lowtop', 'hightop', 'clog', 'oxford', 'maryjane') then perform priv.err('BAD_SHAPE', '신발 모양을 골라 주세요.'); end if;
   if p_slot < 1 or p_slot > gr.slot_count then perform priv.err('BAD_SLOT', '사용할 수 없는 전시 칸이에요.'); end if;
   perform priv.take_lock(me.group_id, p_slot, me.id);
   price := priv.check_parts(me.group_id, p_parts);
@@ -971,14 +1011,21 @@ end $$;
 create or replace function public.get_board() returns jsonb
 language sql stable security definer set search_path = public, priv as $$
   select jsonb_build_object(
-    'phase', priv.phase(), 'revealed', priv.revealed(),
+    'phase', priv.phase(), 'revealed', priv.revealed(), 'now', now(),
+    'timer', (select jsonb_build_object('end', timer_end, 'label', timer_label) from public.game where id = 1),
     'gauge', case when priv.revealed() then round(priv.gauge(), 1) end,
     'threshold', priv.s('gauge_threshold'),
     'groups', (select coalesce(jsonb_agg(jsonb_build_object('id', gr.id, 'label', gr.label,
         'company_name', gr.company_name, 'logo_url', gr.logo_url,
+        'perf', case when priv.revealed() then priv.perf(gr.id) end,
         'score', case when priv.revealed() then priv.score(gr.id) end,
-        'env', case when priv.revealed() then priv.env_total(gr.id) end) order by gr.id), '[]')
-      from priv.groups gr),
+        'env', case when priv.revealed() then priv.env_total(gr.id) end,
+        'principle', case when priv.phase() >= 10 then
+          (select body from priv.principles p where p.group_id = gr.id and p.kind = 'company' order by p.id desc limit 1) end
+      ) order by gr.id), '[]') from priv.groups gr),
+    'sentences', case when priv.phase() >= 10 then
+      (select coalesce(jsonb_agg(jsonb_build_object('group_id', p.group_id, 'body', p.body) order by p.id), '[]')
+       from priv.principles p where p.kind = 'personal') end,
     'voted', (select count(*) from priv.vote_submissions where round = priv.market_round(priv.phase())),
     'joined', (select count(*) from priv.students where uid is not null))
 $$;
@@ -1011,6 +1058,17 @@ language sql stable security definer set search_path = public, priv as $$
 $$;
 
 -- 관제실 전체 데이터
+-- 활동 타이머 (초, 0이면 끄기)
+create or replace function public.admin_timer(p_seconds int, p_label text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  update public.game set timer_end = case when coalesce(p_seconds, 0) > 0 then now() + make_interval(secs => p_seconds) end,
+    timer_label = case when coalesce(p_seconds, 0) > 0 then nullif(trim(coalesce(p_label, '')), '') end where id = 1;
+  perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
 -- 관제실 나가기 (이 기기의 교사 로그인 해제)
 create or replace function public.admin_logout() returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
@@ -1027,6 +1085,7 @@ begin
   ph := priv.phase(); mr := priv.market_round(ph);
   return jsonb_build_object(
     'game', (select to_jsonb(g) from public.game g where id = 1),
+    'now', now(),
     'market_round', mr, 'work_round', priv.work_round(ph),
     'gauge', round(priv.gauge(), 1),
     'gauge_adj', coalesce((select sum(gauge_delta) from priv.events where status = 'active'), 0),
@@ -1337,7 +1396,7 @@ begin
            where n.nspname = 'public' and p.proname in (
              'get_public','get_roster','join_student','get_me','my_state','lobby_update','slot_lock','slot_unlock',
              'product_save','product_cancel','product_retire','invest','market','votes_submit','report',
-             'principle_submit','my_principles','get_board','admin_login','admin_logout','admin_check','admin_state','admin_set_phase',
+             'principle_submit','my_principles','get_board','admin_login','admin_logout','admin_timer','admin_check','admin_state','admin_set_phase',
              'admin_force_phase','admin_flags','admin_roster_import','admin_set_label','admin_set_leader',
              'leave_student','admin_reset_binding','admin_approve','admin_approve_group','admin_reject','admin_event','admin_undo_event','admin_grant',
              'admin_notice','admin_reset_game','admin_export') loop
