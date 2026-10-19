@@ -104,7 +104,7 @@
     const st = A.st, ph = st.game.phase;
     const nx = NEXT[ph + 1];
     const warn = [];
-    if (ph + 1 === 2 || ph + 1 === 5) st.groups.forEach(g => { if (!g.products.length) warn.push(g.label + '에 신발이 없어요.'); });
+    if ([2, 5, 9].includes(ph + 1)) st.groups.forEach(g => { if (!g.products.length) warn.push(g.label + '에 판매할 신발이 없어요. 시장을 열기 전에 만들게 해 주세요.'); });
     if (st.market_round) {
       const notVoted = st.students.filter(s => s.bound && !s.voted);
       if (notVoted.length) warn.push('아직 구매 확정 안 한 학생 ' + notVoted.length + '명: ' + notVoted.map(s => s.name).join(', '));
@@ -244,6 +244,23 @@
       { kind: 'practical', name: '실용 신발 인기', qty: 8, msg: p => '저렴하고 튼튼한 신발을 찾는 소비자가 늘었습니다! ' + p + '이(가) 인기예요!' },
       { kind: 'ai_order', name: 'AI 소비자 주문', qty: null, msg: p => 'AI 소비자들이 ' + p + '을(를) 구매했습니다!' }
     ];
+    if (st.market_round) {
+      const rows = st.sales.filter(x => x.round === st.market_round);
+      const per = st.groups.map(g => {
+        const mine = rows.filter(x => x.group_id === g.id);
+        return { g, stu: mine.reduce((t, x) => t + x.student_votes, 0), ev: mine.reduce((t, x) => t + x.event_votes, 0) };
+      }).sort((a, b) => (a.stu + a.ev) - (b.stu + b.ev));
+      const max = Math.max(1, ...per.map(p => p.stu + p.ev));
+      const done = st.students.filter(s => s.bound && s.voted).length, all = st.students.filter(s => s.bound).length;
+      page.appendChild(h('div', { class: 'panel col', style: { marginBottom: '12px' } },
+        h('div', { class: 'panel-title' }, st.market_round + '차 시장 모둠별 판매 현황', h('small', {}, '구매 확정 ' + done + '/' + all + '명 · 적은 순 · 5초마다 갱신')),
+        per.map(p => h('div', { class: 'row', style: { gap: '8px' } },
+          h('b', { style: { width: '150px', color: groupColor(p.g.id) } }, p.g.label + (p.g.company_name ? ' ' + p.g.company_name : '')),
+          h('div', { style: { flex: 1, height: '18px', background: '#EFE6D3', borderRadius: '9px', overflow: 'hidden', display: 'flex' } },
+            h('i', { style: { width: (p.stu / max * 100) + '%', background: groupColor(p.g.id) } }),
+            h('i', { style: { width: (p.ev / max * 100) + '%', background: '#C9BFA8' } })),
+          h('span', { style: { width: '150px' } }, '학생 ' + p.stu + '표' + (p.ev ? ' + 주문 ' + p.ev : ''))))));
+    }
     const box = h('div', { class: 'panel col' }, h('h3', { style: { margin: 0 } }, '가상 주문'));
     const pick = productPicker();
     const qty = h('input', { type: 'number', value: '3', min: '1', max: '30', style: { width: '80px' } });
