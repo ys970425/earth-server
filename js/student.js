@@ -122,6 +122,7 @@
     }
     const prev = S.st;
     S.st = st; S.me = st.me;
+    if (st.now) S.offset = new Date(st.now).getTime() - Date.now();
     const phaseChanged = !prev || prev.phase !== st.phase;
     if (!first && phaseChanged) onPhaseChange(prev ? prev.phase : null, st.phase);
     // 새로고침·늦게 들어온 학생도 경보·최종 발표를 한 번은 보게
@@ -182,7 +183,9 @@
     bar.appendChild(gauge);
     bar.appendChild(h('span', { class: 'me-chip' }, h('img', { src: P.avatarDataUrl(S.me.avatar || 'boy', 2), alt: '' }), S.me.name,
       S.me.is_leader ? h('span', { class: 'lead' }, '모둠장') : null));
+    bar.appendChild(h('span', { id: 'timer-chip', class: 'timer-chip hidden' }));
     bar.appendChild(h('span', { class: 'phase-badge' }, h('span', { class: 'n' }, st.phase), PHASES[st.phase].name));
+    tickTimer();
   }
 
   async function leaveDevice() {
@@ -190,6 +193,19 @@
     try { await releaseLock(); await rpc('leave_student'); } catch (e) { /* 그래도 처음 화면으로 */ }
     location.reload();
   }
+
+  // 활동 타이머 (교사가 관제실에서 시작)
+  function tickTimer() {
+    const el = $('#timer-chip'), t = S.st && S.st.timer;
+    if (!el) return;
+    if (!t || !t.end) { el.classList.add('hidden'); return; }
+    const left = Math.round((new Date(t.end).getTime() - (Date.now() + (S.offset || 0))) / 1000);
+    el.classList.remove('hidden');
+    el.classList.toggle('over', left <= 0);
+    el.classList.toggle('soon', left > 0 && left <= 60);
+    el.textContent = (t.label ? t.label + ' ' : '') + (left <= 0 ? '시간 끝!' : Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'));
+  }
+  setInterval(tickTimer, 1000);
 
   function go(v) {
     if (S.view === 'workshop' && v !== 'workshop') releaseLock();
@@ -1002,21 +1018,30 @@
   async function showPrinciple() {
     let mine = {};
     try { mine = await rpc('my_principles'); } catch (e) { /* 무시 */ }
-    const personal = h('textarea', { maxlength: '300', placeholder: '기업이 사회적 책임을 다해야 하는 까닭은 ...' }, mine.personal || '');
-    const company = h('textarea', { maxlength: '300', placeholder: '우리 기업은 ... 을(를) 지키며 신발을 만들겠습니다.' }, mine.company || '');
-    const body = h('div', { class: 'col' },
-      h('h2', {}, '경영 원칙'),
-      h('div', {}, '나의 한 문장: 기업이 사회적 책임을 다해야 하는 까닭'),
-      personal,
-      h('button', { class: 'primary', onclick: async () => {
-        try { await rpc('principle_submit', { p_kind: 'personal', p_text: personal.value }); toast('저장했어요!'); } catch (e) { toast(e.message, 'error'); }
-      } }, '내 문장 저장'));
-    body.appendChild(h('div', { style: { marginTop: '10px' } }, '우리 기업의 경영 원칙 ' + (S.me.is_leader ? '(모둠장이 등록)' : '(모둠장이 등록해요)')));
-    body.appendChild(company);
-    if (S.me.is_leader) body.appendChild(h('button', { class: 'primary', onclick: async () => {
-      try { await rpc('principle_submit', { p_kind: 'company', p_text: company.value }); toast('기업 원칙을 등록했어요!'); } catch (e) { toast(e.message, 'error'); }
-    } }, '기업 원칙 등록'));
-    else company.disabled = true;
+    const company = h('textarea', { maxlength: '300', placeholder: '우리 기업은 ...을/를 지키며 신발을 만들겠습니다.' }, mine.company || '');
+    const personal = h('textarea', { maxlength: '300', placeholder: '기업이 사회적 책임을 다해야 하는 까닭은 ... 때문입니다.' }, mine.personal || '');
+    // 문장틀: 누르면 칸에 넣고 ( ) 자리로 커서 이동
+    const frames = (ta, list) => h('div', { class: 'frames' }, list.map(f => h('button', { class: 'small', type: 'button', onclick: () => {
+      ta.value = f; ta.focus(); const at = f.indexOf('( )'); if (at >= 0) ta.setSelectionRange(at, at + 3);
+    } }, f)));
+    const body = h('div', { class: 'col' }, h('h2', {}, '경영 원칙'));
+    body.appendChild(h('div', { class: 'panel-title', style: { margin: '6px 0 0', fontSize: '18px' } }, '1. 우리 기업의 경영 원칙', h('small', {}, S.me.is_leader ? '모둠과 정한 뒤 모둠장이 등록해요' : '모둠과 함께 정하고, 등록은 모둠장이 해요')));
+    if (mine.company && !S.me.is_leader) body.appendChild(h('div', { class: 'hint' }, '등록된 원칙: ' + mine.company));
+    if (S.me.is_leader) {
+      body.appendChild(frames(company, ['우리 기업은 ( )을/를 지키며 신발을 만들겠습니다.', '우리 기업은 이윤보다 ( )을/를 먼저 생각하겠습니다.', '우리 기업은 ( ) 재료를 써서 지구를 지키겠습니다.']));
+      body.appendChild(company);
+      body.appendChild(h('button', { class: 'primary', onclick: async () => {
+        if (company.value.includes('( )')) return toast('( ) 자리를 채워 주세요.', 'error');
+        try { await rpc('principle_submit', { p_kind: 'company', p_text: company.value }); toast('기업 원칙을 등록했어요!'); } catch (e) { toast(e.message, 'error'); }
+      } }, '기업 원칙 등록'));
+    }
+    body.appendChild(h('div', { class: 'panel-title', style: { margin: '14px 0 0', fontSize: '18px' } }, '2. 나의 한 문장', h('small', {}, '기업이 사회적 책임을 다해야 하는 까닭')));
+    body.appendChild(frames(personal, ['기업이 사회적 책임을 다해야 하는 까닭은 ( ) 때문입니다.', '기업이 환경을 해치면 ( ) 때문에 책임을 다해야 합니다.']));
+    body.appendChild(personal);
+    body.appendChild(h('button', { class: 'primary', onclick: async () => {
+      if (personal.value.includes('( )')) return toast('( ) 자리를 채워 주세요.', 'error');
+      try { await rpc('principle_submit', { p_kind: 'personal', p_text: personal.value }); toast('저장했어요!'); } catch (e) { toast(e.message, 'error'); }
+    } }, '내 문장 저장'));
     modal(body);
   }
 

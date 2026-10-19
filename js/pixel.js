@@ -45,7 +45,8 @@
     { id: 'lowtop', name: '운동화' },
     { id: 'hightop', name: '하이탑' },
     { id: 'clog', name: '클로그' },
-    { id: 'oxford', name: '구두' }
+    { id: 'oxford', name: '남성 구두' },
+    { id: 'maryjane', name: '여성 구두' }
   ];
 
   // 밑창·중창·깔창은 재료 등급에 따라 색이 정해짐
@@ -263,62 +264,112 @@
   const step = (r, L) => r[Math.max(0, Math.min(r.length - 1, Math.floor(L * r.length)))];
 
   // 부위 하나의 한 칸 색 (무늬는 아주 드물게만)
-  function partColor(part, idx, L, x, y) {
-    const r = rampRgb(RAMP[part][idx]);
+  // 새 재료(M33~)용 색 계단: [부위][등급]
+  const RAMP_B = {
+    sole: [
+      ['#6E6E6A', '#828280', '#979794', '#ABABA8', '#BEBEBB'],
+      ['#7BC41E', '#97D93A', '#B2EA5C', '#CBF485', '#E4FBB5'],
+      ['#C9CCD1', '#D9DBDF', '#E7E9EC', '#F2F3F5', '#FFFFFF'],
+      ['#A2662A', '#B67935', '#C88D45', '#D8A35C', '#E6BA7A'],
+      ['#55575C', '#686A70', '#7C7E84', '#919399', '#A6A8AE'],
+      ['#7FB6EE', '#9CC8F3', '#B9DAF7', '#D6EAFB', '#F0F7FE'],
+      ['#7FB35A', '#94C46D', '#A9D383', '#BEE09B', '#D3EBB6'],
+      ['#B9C6EA', '#CDD7F1', '#DFE6F6', '#EEF2FB', '#FFFFFF']
+    ],
+    insole: [
+      ['#C8B796', '#D5C6A8', '#E1D5BC', '#ECE3D0', '#F6F0E4'],
+      ['#B9A6F0', '#CBB9F5', '#DCCDF8', '#EADFFB', '#F6F0FD'],
+      ['#9C9EA6', '#B0B2B9', '#C4C6CC', '#D6D8DD', '#E8E9EC'],
+      ['#DCD3C2', '#E5DED0', '#EEE8DD', '#F5F1EA', '#FCFAF6'],
+      ['#4E3422', '#5E412C', '#704F37', '#835F43', '#977152'],
+      ['#B4D4F2', '#C6DEF5', '#D7E8F8', '#E7F1FB', '#F6FAFE'],
+      ['#6DB28E', '#80C09E', '#95CCAF', '#ABD8C0', '#C2E4D2'],
+      ['#E6DCC6', '#EDE5D3', '#F3EDE0', '#F8F4EC', '#FFFDF8']
+    ],
+    lace: [
+      ['#B8BEC8', '#C9CED6', '#D9DDE3', '#E8EBEF', '#F6F7F9'],
+      ['#C7B3FF', '#B3E6FF', '#FFC2E6', '#FFF2A8', '#FFFFFF'],
+      ['#FF7FB0', '#FFD84D', '#6FD08C', '#6EC6FF', '#FFFFFF'],
+      ['#6B4526', '#7E5432', '#93653F', '#A8784E', '#BC8C60'],
+      ['#7FB7E0', '#96C6E7', '#ADD4EE', '#C4E2F4', '#DCEFFA'],
+      ['#7C8088', '#9296A0', '#A9ADB6', '#C1C4CB', '#DADCE1'],
+      ['#C9C6A0', '#D5D3B2', '#E1DFC5', '#ECEBD8', '#F6F6EB'],
+      ['#9C7418', '#B88D25', '#D4A93A', '#E9C65C', '#F8E39A']
+    ]
+  };
+
+  // 부위 하나의 한 칸 색 (평평한 명암 + 아주 드문 무늬)
+  function partColor(part, idx, alt, L, x, y) {
+    const r = rampRgb((alt ? RAMP_B : RAMP)[part][idx]);
     let c = step(r, L);
     const n = hash(x, y);
-    if (part === 'sole') {
-      if (idx === 1 && n > 0.975) c = [255, 255, 255];                       // 젤리 반짝이
-      if (idx === 4 && n > 0.94) c = [[226, 84, 84], [84, 156, 232], [96, 196, 112], [240, 204, 80]][Math.floor(n * 997) % 4]; // 재활용 알갱이
-      if (idx === 7 && L > 0.55 && (x + y) % 9 === 0) c = [255, 255, 255];    // 에어 창 빛
-    } else if (part === 'lace') {
-      if (idx === 1) c = shade([[255, 140, 196], [140, 206, 255], [255, 255, 255]][Math.floor((x + y) / 3) % 3], (L - 0.6) * 0.5); // 구슬
-      if (idx === 4 && n > 0.9) c = [96, 158, 84];                            // 초록 점
-      if (idx === 5) c = shade([[255, 92, 168], [255, 196, 70], [86, 220, 130], [80, 196, 255]][Math.floor((x + y) / 4) % 4], (L - 0.6) * 0.4); // 형광
-      if (idx === 7 && ((x + y) % 5 === 0 || ((x - y) % 5 + 5) % 5 === 0)) c = ((x + y) % 10 === 0) ? [255, 90, 190] : [90, 210, 255]; // LED
-    } else if (part === 'insole') {
-      if (idx === 0 && x % 4 === 0 && y % 3 === 0) c = shade(c, -0.25);       // 스펀지 구멍
-      if (idx === 6 && n > 0.7) c = shade(c, -0.12);                          // 코르크
+    if (!alt) {
+      if (part === 'sole') {
+        if (idx === 1 && n > 0.975) c = [255, 255, 255];
+        if (idx === 4 && n > 0.95) c = [[226, 84, 84], [84, 156, 232], [96, 196, 112], [240, 204, 80]][Math.floor(n * 997) % 4];
+        if (idx === 7 && L > 0.55 && (x + y) % 11 === 0) c = [255, 255, 255];
+      } else if (part === 'lace') {
+        if (idx === 1) c = shade([[255, 140, 196], [140, 206, 255], [255, 255, 255]][Math.floor((x + y) / 4) % 3], (L - 0.6) * 0.5);
+        if (idx === 4 && n > 0.92) c = [96, 158, 84];
+        if (idx === 5) c = shade([[255, 92, 168], [255, 196, 70], [86, 220, 130], [80, 196, 255]][Math.floor((x + y) / 5) % 4], (L - 0.6) * 0.4);
+        if (idx === 7 && (x + y) % 6 === 0) c = ((x + y) % 12 === 0) ? [255, 90, 190] : [90, 210, 255];
+      } else if (part === 'insole') {
+        if (idx === 0 && x % 5 === 0 && y % 4 === 0) c = shade(c, -0.22);
+        if (idx === 6 && n > 0.75) c = shade(c, -0.1);
+      }
+    } else {
+      if (part === 'sole') {
+        if (idx === 4 && n > 0.94) c = [[226, 84, 84], [84, 156, 232], [240, 204, 80]][Math.floor(n * 997) % 3];
+        if (idx === 7 && L > 0.5 && (x - y) % 9 === 0) c = [255, 255, 255];
+      } else if (part === 'lace') {
+        if (idx === 1 || idx === 2) c = shade(r[Math.floor((x + y) / 5) % 4], (L - 0.6) * 0.4);
+        if (idx === 5 && (x + y) % 8 === 0) c = [245, 247, 250];
+      } else if (part === 'insole') {
+        if (idx === 4 && n > 0.85) c = shade(c, -0.25);
+      }
     }
     return c;
   }
 
-  function idxOf(materials, id) { const m = matOf(materials, id); return m && TIER_IDX[m.tier] !== undefined ? TIER_IDX[m.tier] : 2; }
+  function matPick(materials, id) {
+    const m = matOf(materials, id);
+    const idx = m && TIER_IDX[m.tier] !== undefined ? TIER_IDX[m.tier] : 2;
+    const alt = !!(m && parseInt(String(m.id).slice(1), 10) >= 33);
+    return { idx, alt };
+  }
 
   function drawComposite(canvas, shoe, materials) {
     const shape = SHOE.art[shoe.shape] ? shoe.shape : 'lowtop';
     const art = SHOE.art[shape], map = SHOE.map[shape], meta = SHOE.meta;
-    const [CW, CH] = meta ? meta.cell : [221, 236];
+    const [CW, CH] = meta ? meta.cell : [300, 250];
     canvas.width = CW; canvas.height = CH;
     const ctx = canvas.getContext('2d');
     if (!art || !map) return canvas;
     const parts = shoe.parts || {};
-    const bi = idxOf(materials, parts.body), si = idxOf(materials, parts.sole), ii = idxOf(materials, parts.insole), li = idxOf(materials, parts.lace);
-    ctx.drawImage(art, bi * CW, 0, CW, CH, 0, 0, CW, CH);
+    const B = matPick(materials, parts.body), S = matPick(materials, parts.sole), I = matPick(materials, parts.insole), Lc = matPick(materials, parts.lace);
+    const cell = B.idx + (B.alt ? 8 : 0);
+    ctx.drawImage(art, cell * CW, 0, CW, CH, 0, 0, CW, CH);
     const img = ctx.getImageData(0, 0, CW, CH), o = img.data, d = map.data, MW = map.width;
-    const isLaceShoe = shape === 'lowtop' || shape === 'hightop';
-    const metal = rampRgb(li >= 5 ? ['#8A6A20', '#B08A32', '#D4AE52', '#EDD08A', '#FFF0C8'] : ['#5C5E66', '#787B84', '#969AA3', '#B6BAC2', '#D8DBE0']);
     for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
-      const mi = (y * MW + bi * CW + x) * 4;
+      const mi = (y * MW + cell * CW + x) * 4;
       if (d[mi + 3] < 128) continue;
       const lab = Math.round(d[mi] / 40), L = Math.min(0.999, d[mi + 1] / 255);
       let c;
-      if (lab === 2) c = partColor('sole', si, L, x, y);
-      else if (lab === 3) c = partColor('insole', ii, L, x, y);
-      else if (lab === 4) c = partColor('lace', li, L, x, y);
-      else if (lab === 5) c = step(metal, L);
+      if (lab === 2) c = partColor('sole', S.idx, S.alt, L, x, y);
+      else if (lab === 3) c = partColor('insole', I.idx, I.alt, L, x, y);
+      else if (lab === 4) c = partColor('lace', Lc.idx, Lc.alt, L, x, y);
       else continue;
       const k = (y * CW + x) * 4;
       o[k] = clamp(c[0]); o[k + 1] = clamp(c[1]); o[k + 2] = clamp(c[2]);
     }
     ctx.putImageData(img, 0, 0);
-    // 끈 대신: 클로그는 지비츠, 로퍼는 발등 장식
-    if (!isLaceShoe && meta) {
-      const all = meta.shapes[shape].spots;
-      const spots = (all[bi] && all[bi].length ? all[bi] : all.find(s => s.length) || []);
-      const deco = SHOE.deco[(shape === 'clog' ? 'charm' : 'orn') + li];
-      const px = shape === 'clog' ? 38 : 30;
-      if (deco) spots.forEach(([x, y]) => ctx.drawImage(deco, Math.round(x - px / 2), Math.round(y - px / 2), px, px));
+    // 끈 재료 장식: 클로그는 지비츠, 구두는 발등·스트랩 장식
+    const sp = meta && meta.shapes[shape] && meta.shapes[shape].spots[cell];
+    if (sp && shape !== 'lowtop' && shape !== 'hightop') {
+      const deco = SHOE.deco[(shape === 'clog' ? 'charm' : 'orn') + Lc.idx];
+      const px = Math.round(Math.max(26, sp[2] * (shape === 'clog' ? 1.9 : 1.7)));
+      ctx.imageSmoothingEnabled = false;
+      if (deco) ctx.drawImage(deco, Math.round(sp[0] - px / 2), Math.round(sp[1] - px / 2), px, px);
     }
     return canvas;
   }
