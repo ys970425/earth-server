@@ -229,6 +229,11 @@ await A.click('.nav >> text=나가기'); await wait(1500);
 if (!(await A.$('.group-btn'))) errors.push('나가기 후 처음 화면이 아님');
 await shot(A, '28-after-leave');
 
+await adm.click('.nav >> text=나가기'); await wait(1500);
+if (!adm.url().endsWith('index.html')) errors.push('관제실 나가기 실패');
+await adm.goto(BASE + '/admin.html'); await wait(1200);
+if (!(await adm.$('input[type=password]'))) errors.push('나간 뒤 비밀번호 화면이 아님');
+await shot(adm, '29-admin-after-logout');
 console.log('ERRORS:', errors.length ? '\n' + errors.join('\n') : 'none');
 await browser.close();
 process.exit(0);

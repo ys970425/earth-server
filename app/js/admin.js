@@ -39,6 +39,13 @@
     }
   }
 
+  async function logout() {
+    if (!confirm('관제실에서 나갈까요? 다시 들어오려면 비밀번호가 필요해요.')) return;
+    clearInterval(A.timer);
+    try { await rpc('admin_logout'); } catch (e) { /* 그래도 나감 */ }
+    location.href = 'index.html';
+  }
+
   async function dashboard() {
     await P.ready;
     await load();
@@ -67,7 +74,8 @@
     root.appendChild(h('div', { id: 'adminHeader', class: 'topbar' }));
     const tabs = [['progress', '진행'], ['groups', '모둠'], ['sales', '판매'], ['events', '시장 개입'], ['roster', '명단·연결'], ['backup', '백업·복구']];
     root.appendChild(h('div', { class: 'nav' }, tabs.map(([k, l]) => h('button', { class: A.tab === k ? 'on' : '', onclick: () => { A.tab = k; render(); } }, l)),
-      h('a', { href: 'board.html', target: '_blank', style: { alignSelf: 'center', marginLeft: 'auto' } }, '전자칠판 화면 열기 ↗')));
+      h('a', { href: 'board.html', target: '_blank', style: { alignSelf: 'center', marginLeft: 'auto', color: '#FFE07A' } }, '전자칠판 화면 열기 ↗'),
+      h('button', { class: 'small ghost', style: { alignSelf: 'center' }, onclick: logout }, '나가기')));
     const page = h('div', { class: 'page' });
     root.appendChild(page);
     renderHeader();

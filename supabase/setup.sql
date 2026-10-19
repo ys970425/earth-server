@@ -1011,6 +1011,14 @@ language sql stable security definer set search_path = public, priv as $$
 $$;
 
 -- 관제실 전체 데이터
+-- 관제실 나가기 (이 기기의 교사 로그인 해제)
+create or replace function public.admin_logout() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  delete from priv.admins where uid = auth.uid();
+  return jsonb_build_object('ok', true);
+end $$;
+
 create or replace function public.admin_state() returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
 declare ph int; mr int;
@@ -1329,7 +1337,7 @@ begin
            where n.nspname = 'public' and p.proname in (
              'get_public','get_roster','join_student','get_me','my_state','lobby_update','slot_lock','slot_unlock',
              'product_save','product_cancel','product_retire','invest','market','votes_submit','report',
-             'principle_submit','my_principles','get_board','admin_login','admin_check','admin_state','admin_set_phase',
+             'principle_submit','my_principles','get_board','admin_login','admin_logout','admin_check','admin_state','admin_set_phase',
              'admin_force_phase','admin_flags','admin_roster_import','admin_set_label','admin_set_leader',
              'leave_student','admin_reset_binding','admin_approve','admin_approve_group','admin_reject','admin_event','admin_undo_event','admin_grant',
              'admin_notice','admin_reset_game','admin_export') loop
