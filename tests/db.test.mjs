@@ -214,7 +214,11 @@ console.log('  2차 공개 시 게이지', a7.gauge, '/ 기업 종합점수', a7
 
 // 단계 8: 3차 경영
 await rpc(ADMIN, 'admin_set_phase', 8);
-await fails(member(1), 'product_save', [4, 'lowtop', '{}', eco], 'PHASE', '3차 새 디자인 차단');
+{ const before = (await rpc(member(1), 'my_state')).wallet;
+  await rpc(member(1), 'product_save', 4, 'lowtop', '{}', eco);
+  ok((await rpc(member(1), 'my_state')).wallet === before - 480, '3차: 빈 칸에 새 신발 제작 가능');
+  await rpc(member(1), 'product_cancel', 4);
+  ok((await rpc(member(1), 'my_state')).wallet === before, '3차: 새로 만든 신발 취소 환불'); }
 const before = (await rpc(member(2), 'my_state')).wallet;
 await rpc(member(2), 'product_save', 1, 'lowtop', '{}', P('M03', 'M08', 'M12', 'M17')); // 2부품 교체 240
 ok((await rpc(member(2), 'my_state')).wallet === before - 240, '3차 재료 교체: 바꾼 부품 값만 결제');

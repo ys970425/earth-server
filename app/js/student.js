@@ -465,8 +465,7 @@
   function costPreview(ed) {
     const total = ['sole', 'body', 'insole', 'lace'].reduce((t, k) => t + priceOf(ed.parts[k]), 0);
     const pr = ed.original;
-    if (S.st.phase === 8) {
-      if (!pr) return { pay: 0, label: '3차에는', text: '만든 신발만 바꿔요' };
+    if (S.st.phase === 8 && pr && pr.status === 'listed') {
       const pay = ['sole', 'body', 'insole', 'lace'].reduce((t, k) => t + (ed.parts[k] !== pr.parts[k] ? priceOf(ed.parts[k]) : 0), 0);
       return { pay, label: '바꾼 재료 값', text: pay + '코인' };
     }
@@ -490,7 +489,7 @@
     const wrap = h('div', {});
     const editable = canEdit();
     const lockOther = (st.locks || []).find(l => l.slot === ed.slot && !l.mine);
-    let hint = editable ? (st.phase === 8 ? '3차 경영: 이미 만든 신발의 재료를 바꾸거나 친환경 투자를 할 수 있어요.' : '재료를 골라 신발을 만들어요. 돈이 부족하지 않게 계획해요!')
+    let hint = editable ? (st.phase === 8 ? '3차 경영: 판매 중인 신발은 재료를 바꾸고, 빈 칸에는 새 신발을 만들 수 있어요. 친환경 투자도 할 수 있어요.' : '재료를 골라 신발을 만들어요. 돈이 부족하지 않게 계획해요!')
       : '지금은 「' + PHASES[st.phase].name + '」 시간이라 신발을 만들 수 없어요.';
     wrap.appendChild(h('div', { class: 'hint' }, hint));
 
@@ -519,10 +518,10 @@
       h('div', {}, h('div', { class: 'muted', style: { fontSize: '13px' } }, cp.label || '이번에 낼 돈'), h('b', {}, cp.text)),
       h('div', { class: 'after ' + (after < 0 ? 'neg' : '') }, '지금 지갑 ' + fmt(st.wallet), h('br'), '저장 후 ' + fmt(after))));
     const pr = ed.original;
-    const blocked = !editable || !!lockOther || (pr && pr.status === 'listed' && st.phase !== 8) || (st.phase === 8 && !pr);
-    const saveLabel = st.phase === 8 ? '재료 바꾸기' : pr ? '수정 저장' : '신발 만들기';
+    const blocked = !editable || !!lockOther || (pr && pr.status === 'listed' && st.phase !== 8);
+    const saveLabel = st.phase === 8 && pr && pr.status === 'listed' ? '재료 바꾸기' : pr ? '수정 저장' : '신발 만들기';
     left.appendChild(h('button', { class: 'primary big', disabled: blocked, onclick: e => { e.currentTarget.disabled = true; saveShoe(); } }, saveLabel));
-    if (pr && pr.status === 'draft' && [1, 4].includes(st.phase)) {
+    if (pr && pr.status === 'draft' && [1, 4, 8].includes(st.phase)) {
       left.appendChild(h('button', { disabled: !!lockOther, onclick: async () => {
         if (!confirm('이 신발을 취소하고 돈을 돌려받을까요?')) return;
         try { await rpc('product_cancel', { p_slot: ed.slot }); toast('취소하고 돈을 돌려받았어요.'); S.editor = null; await refresh(false); renderView(); }

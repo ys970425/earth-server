@@ -749,8 +749,10 @@ begin
   perform priv.take_lock(me.group_id, p_slot, me.id);
   price := priv.check_parts(me.group_id, p_parts);
   select * into cur from priv.products where group_id = me.group_id and slot = p_slot and status in ('draft', 'listed');
+  -- 3차: 판매 중인 신발은 재료 교체, 빈 칸에는 새 신발 제작 가능
+  if ph = 8 and (cur.id is null or cur.status = 'draft') and p_shape is null then perform priv.err('BAD_SHAPE', '신발 모양을 골라 주세요.'); end if;
 
-  if ph in (1, 4) then
+  if ph in (1, 4) or (ph = 8 and (cur.id is null or cur.status = 'draft')) then
     if cur.id is null then
       pay := price;
       if priv.wallet(me.group_id) < pay then perform priv.err('NO_MONEY', '돈이 부족해요. (필요 ' || pay || ', 지갑 ' || priv.wallet(me.group_id) || ')'); end if;
@@ -802,7 +804,7 @@ declare me priv.students; cur priv.products;
 begin
   me := priv.me();
   perform 1 from priv.groups where id = me.group_id for update;
-  if priv.phase() not in (1, 4) then perform priv.err('PHASE', '지금은 취소할 수 없어요.'); end if;
+  if priv.phase() not in (1, 4, 8) then perform priv.err('PHASE', '지금은 취소할 수 없어요.'); end if;
   perform priv.take_lock(me.group_id, p_slot, me.id);
   select * into cur from priv.products where group_id = me.group_id and slot = p_slot and status = 'draft';
   if not found then perform priv.err('NOT_DRAFT', '판매 전 신발만 취소할 수 있어요.'); end if;
