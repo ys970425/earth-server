@@ -258,7 +258,7 @@
     page.appendChild(box);
 
     const gbox = h('div', { class: 'panel col', style: { marginTop: '12px' } }, h('h3', { style: { margin: 0 } }, '시민 친환경 운동 (지구 게이지 회복)'));
-    const gd = h('input', { type: 'number', value: '15', style: { width: '80px' } });
+    const gd = h('input', { type: 'number', value: '25', style: { width: '80px' } });
     gbox.appendChild(h('div', { class: 'row' }, '게이지 +', gd, '%p',
       h('button', { class: 'primary', onclick: () => {
         if (!confirm('지구 게이지를 ' + gd.value + '%p 올릴까요?')) return;

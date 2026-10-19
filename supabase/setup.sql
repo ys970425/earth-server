@@ -24,7 +24,8 @@ insert into priv.settings(key, value, note) values
   ('eco_cap',          250, '친환경 소비 보너스 기업당 상한'),
   ('star1_bonus',       30, '★ 신발 1표당 구매자 기업 보너스'),
   ('star2_bonus',       50, '★★ 신발 1표당 구매자 기업 보너스'),
-  ('gauge_coef',      0.07, '지구 게이지 = 100 + 계수 × 전체 환경점수'),
+  ('gauge_coef',      0.07, '지구 게이지 = 100 + 계수 × 전체 환경점수 (7단계에 자동 보정)'),
+  ('gauge_reveal_target', 28, '환경 공개 순간의 지구 게이지(%) 목표'),
   ('gauge_threshold',   60, '공동 보너스 기준 게이지(%)'),
   ('common_bonus',     150, '공동 보너스'),
   ('votes_r1',           3, '1차 투표권'),
@@ -1129,7 +1130,7 @@ end $$;
 -- 단계 넘기기 (한 단계씩 앞으로, 정산·스냅샷 자동)
 create or replace function public.admin_set_phase(p_target int) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare ph int; nxt int; g int;
+declare ph int; nxt int; g int; tot numeric;
 begin
   perform priv.need_admin();
   perform 1 from public.game where id = 1 for update;
@@ -1144,6 +1145,11 @@ begin
     elsif nxt = 6 then perform priv.settle(2);
     elsif nxt = 7 then
       update public.game set env_revealed = true where id = 1;
+      -- 인원·판매량과 관계없이 공개 순간 게이지가 목표(기본 28%)가 되도록 계수 보정
+      select coalesce(sum(priv.env_total(gg.id)), 0) into tot from priv.groups gg;
+      if tot < 0 then
+        update priv.settings set value = round((100 - priv.s('gauge_reveal_target')) / (-tot), 5) where key = 'gauge_coef';
+      end if;
       for g in select id from priv.groups loop
         insert into priv.ledger(txn_key, group_id, round, kind, amount, perf, note)
           values ('grant:env:g' || g, g, 3, 'grant', priv.s('grant_env')::int, false, '우주 운영진 환경 전환 지원금')
@@ -1355,7 +1361,8 @@ begin
   update priv.groups set company_name = null, logo_url = null, bg_url = null, bg_preset = 0, stands = '[]',
     slot_count = priv.s('slots_base')::int, has_research = false, has_factory = false,
     has_eco_research = false, has_purifier = false where true;
-  update public.game set phase = 0, env_revealed = false, fast_travel = false where id = 1;
+  update public.game set phase = 0, env_revealed = false, fast_travel = false, timer_end = null, timer_label = null where id = 1;
+  update priv.settings set value = 0.07 where key = 'gauge_coef';
   perform priv.bump_game();
   for g in select id from priv.groups loop perform priv.bump(g); end loop;
   return jsonb_build_object('ok', true);
@@ -1419,3 +1426,6 @@ do $$ begin
 exception when others then
   raise notice 'storage 설정 건너뜀: %', sqlerrm;
 end $$;
+
+-- API가 새 함수를 바로 알아보게
+notify pgrst, 'reload schema';
