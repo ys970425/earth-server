@@ -425,6 +425,23 @@ language sql stable as $$
   ))
 $$;
 
+-- 예상 게이지: 아직 정산 안 된 이번 시장의 구매 확정분까지 미리 더한 값 (관제실 전용)
+create or replace function priv.pending_env() returns int
+language sql stable as $$
+  select coalesce(sum(v.qty * s.env), 0)::int
+  from priv.votes v join priv.snapshots s on s.round = v.round and s.product_id = v.product_id
+  where v.round = priv.market_round(priv.phase())
+    and not exists (select 1 from priv.round_results r where r.round = v.round)
+$$;
+
+create or replace function priv.gauge_preview() returns numeric
+language sql stable as $$
+  select greatest(0, least(100,
+      100 + priv.s('gauge_coef') * (coalesce((select sum(priv.env_total(id)) from priv.groups), 0) + priv.pending_env())
+          + coalesce((select sum(gauge_delta) from priv.events where status = 'active'), 0)
+  ))
+$$;
+
 create or replace function priv.common_bonus() returns int
 language sql stable as $$
   select case when priv.phase() >= 10 and priv.gauge() >= priv.s('gauge_threshold')
@@ -1091,6 +1108,7 @@ begin
     'now', now(),
     'market_round', mr, 'work_round', priv.work_round(ph),
     'gauge', round(priv.gauge(), 1),
+    'gauge_preview', round(priv.gauge_preview(), 1),
     'gauge_adj', coalesce((select sum(gauge_delta) from priv.events where status = 'active'), 0),
     'common_bonus', priv.common_bonus(),
     'settings', (select jsonb_object_agg(key, value) from priv.settings),

@@ -957,7 +957,7 @@
       const envPts = r.env_points;
       body.appendChild(h('h3', { style: { margin: '8px 0 0' } }, '종합점수 계산'));
       body.appendChild(h('table', { class: 't' },
-        h('tr', {}, h('th', {}, '경영 성과 (번 돈 − 쓴 돈)'), h('td', {}, fmt(r.perf))),
+        h('tr', {}, h('th', {}, '이윤 (번 돈 − 쓴 돈)'), h('td', {}, fmt(r.perf))),
         h('tr', {}, h('th', {}, '환경 점수'), h('td', { class: envClass(r.env) }, envText(r.env), ' × ' + r.env_mult + ' = ', (envPts < 0 ? '−' : '+') + fmt(Math.abs(envPts)))),
         h('tr', {}, h('th', {}, '친환경 소비 보너스'), h('td', {}, '+' + fmt(r.eco_bonus))),
         h('tr', {}, h('th', {}, '지구 서버 공동 보너스'), h('td', {}, '+' + fmt(r.common_bonus))),

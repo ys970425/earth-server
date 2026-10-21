@@ -242,8 +242,12 @@ for (const s of students) {
   await rpc(s.uid, 'votes_submit', JSON.stringify(items));
 }
 await rpc(ADMIN, 'admin_event', 'citizen', null, 0, 30, '시민 친환경 운동!');
+const a9 = await rpc(ADMIN, 'admin_state');
+console.log('  9단계 게이지', a9.gauge, '/ 예상 게이지', a9.gauge_preview);
 await rpc(ADMIN, 'admin_set_phase', 10);
 const a10 = await rpc(ADMIN, 'admin_state');
+ok(Number(a9.gauge_preview) === Number(a10.gauge), '9단계 예상 게이지 = 10단계 최종 게이지');
+ok(Number(a10.gauge_preview) === Number(a10.gauge), '정산 후에는 예상 = 현재');
 console.log('  최종 게이지', a10.gauge, '/ 공동보너스', a10.common_bonus);
 for (const g of a10.groups) console.log(`   ${g.id}모둠 지갑 ${g.wallet} 성과 ${g.perf} 환경 ${g.env} 친환경보너스 ${g.eco_bonus} 종합 ${g.score}`);
 ok(a10.groups.every(g => g.eco_bonus <= 250), '친환경 소비 보너스 상한 250');
@@ -258,7 +262,7 @@ await rpc(leaders[1], 'principle_submit', 'company', '환경을 생각하는 신
 await rpc(member(1), 'principle_submit', 'personal', '기업이 환경을 지켜야 모두가 오래 산다');
 ok((await rpc(member(1), 'my_principles')).personal !== null, '개인 한 문장 저장');
 { const bd = await rpc(null, 'get_board');
-  ok(bd.groups[0].principle && bd.sentences.length >= 1 && bd.groups.every(g => g.perf !== null), '전자칠판: 경영 원칙·문장·경영 성과'); }
+  ok(bd.groups[0].principle && bd.sentences.length >= 1 && bd.groups.every(g => g.perf !== null), '전자칠판: 경영 원칙·문장·이윤'); }
 
 // 초기화
 await fails(ADMIN, 'admin_reset_game', ['아니'], 'CONFIRM', '초기화 확인 문구');

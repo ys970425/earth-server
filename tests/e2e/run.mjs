@@ -212,6 +212,8 @@ await B.click('.nav >> text=마을'); await wait(400);
 await B.click('.fast button >> nth=0'); await wait(1200);
 await shot(B, '20-house-stars');
 await botVotes(3);
+await adm.reload(); await adm.waitForSelector('.nav'); await adm.click('.nav >> text=시장 개입'); await wait(800);
+await shot(adm, '20b-admin-preview');
 await call(ADMIN, 'admin_event', { p_kind: 'citizen', p_product: null, p_qty: 0, p_gauge: 15, p_message: '시민 운동' });
 await call(ADMIN, 'admin_set_phase', { p_target: 10 });
 await A.reload(); await wait(2500);
