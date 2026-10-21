@@ -95,6 +95,7 @@
       h('span', { class: 'stat' }, '입장', h('b', {}, joined + '/' + st.students.length)),
       h('span', { class: 'stat' }, '접속 중', h('b', {}, online)),
       h('span', { class: 'stat' }, '지구 게이지', h('b', {}, st.gauge + '%'), g.env_revealed ? '' : ' (학생에겐 ???)'),
+      st.market_round && g.env_revealed && st.gauge_preview != null ? h('span', { class: 'stat' }, '예상', h('b', {}, st.gauge_preview + '%')) : null,
       st.market_round ? h('span', { class: 'stat' }, '구매 확정', h('b', {}, st.students.filter(s => s.voted).length + '/' + joined)) : null,
       st.pairings.length ? h('span', { class: 'phase', style: { background: '#E05A4F', color: '#fff' } }, '연결 승인 대기 ' + st.pairings.length) : null].filter(Boolean));
   }
@@ -141,7 +142,7 @@
 
     // 요약 표
     const t = h('table', { class: 't', style: { marginTop: '12px', background: '#fff' } },
-      h('tr', {}, h('th', {}, '모둠'), h('th', {}, '기업'), h('th', {}, '지갑'), h('th', {}, '경영 성과'), h('th', {}, '환경'), h('th', {}, '친환경 보너스'), h('th', {}, '종합점수'), h('th', {}, '투자')),
+      h('tr', {}, h('th', {}, '모둠'), h('th', {}, '기업'), h('th', {}, '지갑'), h('th', {}, '이윤'), h('th', {}, '환경'), h('th', {}, '친환경 보너스'), h('th', {}, '종합점수'), h('th', {}, '투자')),
       st.groups.map(g => h('tr', {}, h('td', {}, g.label), h('td', {}, g.company_name || '-'), h('td', {}, fmt(g.wallet)), h('td', {}, fmt(g.perf)),
         h('td', { class: envClass(g.env) }, envText(g.env)), h('td', {}, g.eco_bonus), h('td', {}, h('b', {}, fmt(g.score))),
         h('td', {}, [g.has_research && '연구', g.has_factory && '공장', g.has_eco_research && '친환경연구', g.has_purifier && '정화'].filter(Boolean).join(', ')))));
@@ -175,7 +176,7 @@
     page.appendChild(h('div', { class: 'workshop' },
       h('div', { class: 'panel col' },
         h('div', { class: 'row' }, '모둠 이름:', label, h('button', { class: 'small', onclick: () => act('admin_set_label', { p_group: g.id, p_label: label.value }, '저장') }, '저장')),
-        h('div', {}, '지갑 ', h('b', {}, fmt(g.wallet)), ' · 경영 성과 ', fmt(g.perf), ' · ', h('span', { class: envClass(g.env) }, envText(g.env)), ' · 종합 ', h('b', {}, fmt(g.score))),
+        h('div', {}, '지갑 ', h('b', {}, fmt(g.wallet)), ' · 이윤 ', fmt(g.perf), ' · ', h('span', { class: envClass(g.env) }, envText(g.env)), ' · 종합 ', h('b', {}, fmt(g.score))),
         h('h3', { style: { margin: '6px 0 0' } }, '학생'),
         h('table', { class: 't' }, studs.map(s => h('tr', {},
           h('td', {}, (s.online ? '🟢 ' : s.bound ? '⚪ ' : '— ') + (s.no ? s.no + '번 ' : '') + s.name + (s.is_leader ? ' 👑' : '')),
@@ -275,13 +276,19 @@
     page.appendChild(box);
 
     const gbox = h('div', { class: 'panel col', style: { marginTop: '12px' } }, h('h3', { style: { margin: 0 } }, '시민 친환경 운동 (지구 게이지 회복)'));
-    const gd = h('input', { type: 'number', value: '25', style: { width: '80px' } });
+    // 예상 게이지: 시장이 열려 있으면 구매 확정분까지 더한 값. 모자란 만큼(+3)을 칸에 미리 채움
+    const pv = st.gauge_preview != null ? Number(st.gauge_preview) : null;
+    const thr = Number(st.settings.gauge_threshold);
+    const short = pv !== null && st.market_round && st.game.env_revealed ? Math.ceil(thr - pv) : null;
+    const gd = h('input', { type: 'number', value: short !== null ? String(short > 0 ? short + 3 : 0) : '25', style: { width: '80px' } });
     gbox.appendChild(h('div', { class: 'row' }, '게이지 +', gd, '%p',
       h('button', { class: 'primary', onclick: () => {
         if (!confirm('지구 게이지를 ' + gd.value + '%p 올릴까요?')) return;
         act('admin_event', { p_kind: 'citizen', p_product: null, p_qty: 0, p_gauge: Number(gd.value), p_message: '지구 서버 곳곳에서 시민들의 친환경 소비와 정화 활동이 퍼지고 있습니다!' }, '시민 운동 실행');
       } }, '시민 운동 실행')));
-    gbox.appendChild(h('div', { class: 'muted' }, '지금 게이지 ' + st.gauge + '% (이벤트 보정 ' + st.gauge_adj + '%p) · 최종 정산 때 ' + st.settings.gauge_threshold + '% 이상이면 공동 보너스'));
+    if (short !== null) gbox.appendChild(h('div', { style: { fontSize: '18px', fontWeight: 700, color: short > 0 ? '#E05A4F' : '#2E9E5B' } },
+      '예상 최종 게이지 ' + pv + '%  →  ' + (short > 0 ? thr + '%까지 ' + short + '%p 모자람' : '기준 ' + thr + '% 넘음 (누르지 않아도 됨)')));
+    gbox.appendChild(h('div', { class: 'muted' }, '지금 게이지 ' + st.gauge + '% (이벤트 보정 ' + st.gauge_adj + '%p) · 예상 게이지는 지금까지 구매 확정된 표가 정산 때 더해진 값 · 최종 정산 때 ' + st.settings.gauge_threshold + '% 이상이면 공동 보너스'));
     page.appendChild(gbox);
 
     const nbox = h('div', { class: 'panel col', style: { marginTop: '12px' } }, h('h3', { style: { margin: 0 } }, '공지 · 지원금'));
@@ -294,7 +301,7 @@
       if (!why.value) return toast('사유를 적어 주세요.', 'error');
       act('admin_grant', { p_group: gsel.value ? Number(gsel.value) : null, p_amount: Number(amt.value), p_reason: why.value }, '지원금 지급');
     } }, '지원금 지급')));
-    nbox.appendChild(h('div', { class: 'muted' }, '지원금은 지갑에만 들어가고 경영 성과(성적표)에는 포함되지 않아요.'));
+    nbox.appendChild(h('div', { class: 'muted' }, '지원금은 지갑에만 들어가고 이윤(성적표)에는 포함되지 않아요.'));
     page.appendChild(nbox);
 
     page.appendChild(h('h3', {}, '이벤트 기록'));

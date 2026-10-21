@@ -78,7 +78,7 @@
       h('span', { class: 'b-rank-n' }, i + 1), logoOf(gr, 40), h('span', { class: 'b-rank-name' }, gname(gr)),
       h('span', { class: 'b-rank-val' }, fmt(val)), extra || null);
     return h('div', { class: 'b-rank' },
-      h('div', { class: 'panel' }, h('div', { class: 'b-rank-title' }, '번 돈 순위', h('small', {}, '경영 성과')),
+      h('div', { class: 'panel' }, h('div', { class: 'b-rank-title' }, '이윤 순위', h('small', {}, '판매 수입 − 비용')),
         byPerf.map((gr, i) => row(gr, i, gr.perf))),
       h('div', { class: 'b-rank-arrow' }, '환경점수\n더하기 →'),
       h('div', { class: 'panel' }, h('div', { class: 'b-rank-title' }, '종합점수 순위', h('small', {}, '환경까지 더한 점수')),
