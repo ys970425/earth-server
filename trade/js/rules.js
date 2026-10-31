@@ -89,9 +89,22 @@
     workshop: { name: '금 세공소', tech: 'economics', input: 'gold', output: 'jewelry', build: { coin: 50, wood: 2 }, perTurn: 2 }
   };
   // 나라별 공장 짓는 비용 (없으면 위 기본 비용). 반도는 반도체 공장을 싸게, 섬나라는 조금 비싸게, 나머지는 아주 비싸게
-  R.FACTORY_BUILD = { chipfab: { K: { coin: 40, wood: 2, food: 2 }, J: { coin: 90, aluminum: 2, copper: 2 } } };
-  // 특산 공장: 원료 없이 매 턴 만들어요 (가공비만 냄). 반도의 반도체
-  R.FACTORY_FREE = { K: { chipfab: true } };
+  // 나라마다 특산품 하나: 특산 공장은 싸게 짓고(코인 40·목재 2·식량 2), 원료 없이 매 턴 2개 만들어요 (가공비만 냄)
+  R.SPECIALTY = {
+    K: { factory: 'chipfab', why: '기술이 뛰어나 원료가 없어도 반도체를 만들어요' },
+    J: { factory: 'rubberplant', why: '부품 기술이 좋아 타이어를 잘 만들어요' },
+    C: { factory: 'steelworks', why: '큰 제철소가 많아 강철을 많이 만들어요' },
+    A: { factory: 'refinery', why: '석유가 많아 연료를 넉넉히 만들어요' },
+    N: { factory: 'workshop', why: '금과 보석이 많이 나서 장신구를 잘 만들어요' },
+    T: { factory: 'textilemill', why: '일손이 많아 옷을 많이 만들어요' }
+  };
+  R.SPECIALTY_BUILD = { coin: 40, wood: 2, food: 2 };
+  R.FACTORY_BUILD = { chipfab: { J: { coin: 90, aluminum: 2, copper: 2 } } };
+  R.FACTORY_FREE = {};
+  for (const [t, sp] of Object.entries(R.SPECIALTY)) {
+    (R.FACTORY_BUILD[sp.factory] = R.FACTORY_BUILD[sp.factory] || {})[t] = R.SPECIALTY_BUILD;
+    R.FACTORY_FREE[t] = { [sp.factory]: true };
+  }
   // 나라별 가공비 (코인/개). 없으면 못 만듦
   R.PROC_COST = {
     K: { steel: 4, fuel: 3, chip: 5 },
@@ -134,7 +147,7 @@
   R.UNIT_UPKEEP = 1;
   // 기술 아이콘 (img/tech/*.png). 없는 기술은 글자만
   R.TECH_ICON = { engineering: 'engineering', economics: 'economics', gunpowder: 'gunpowder', navigation: 'astronomy', shipbuilding: 'shipbuilding',
-    steelmaking: 'steelmaking', refining: 'refining', chipmaking: 'chipmaking', radar: 'internet', missile: 'satellite', combustion: 'steam', warship: 'munitions', chivalry: 'education' };
+    steelmaking: 'steelmaking', refining: 'oil', chipmaking: 'chipmaking', radar: 'radar', missile: 'missile', combustion: 'steam', warship: 'munitions', chivalry: 'chivalry' };
   R.START_UNITS = ['worker', 'scout', 'scout', 'scout', 'spear', 'spear', 'catapult'];
   // 전투: 피해 = 30 × (공격 힘 ÷ 방어력). 다친 병력은 힘이 줄어요. 원거리는 반격을 1/4만 받아요.
   R.COMBAT = { base: 30, counter: 0.7, min: 3, max: 100, rangedCounter: 0.25, healField: 10, healHome: 20 };
@@ -172,14 +185,14 @@
          like: '중국', desc: '넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요.' },
     A: { name: '신대륙의 강국', color: '#8A4FD8', techs: ['engineering', 'refining', 'radar'],
          like: '미국', desc: '넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요.' },
-    N: { name: '북방의 대국', color: '#22A36A', techs: ['chivalry', 'refining', 'steelmaking'],
+    N: { name: '북방의 대국', color: '#22A36A', techs: ['chivalry', 'refining', 'economics'],
          like: '러시아', desc: '가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요.' },
     T: { name: '열대 해양국', color: '#EC5C9A', techs: ['shipbuilding', 'economics', 'navigation'],
          like: '동남아시아 여러 나라', desc: '정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요.' }
   };
   // 도시 그림 (img/city/*.png, 160×160, 기준점: 가로 50%, 세로 83%가 칸 중심)
   R.CITY_ART = { K: 'capital_peninsula', J: 'capital_island', C: 'capital_continental', A: 'capital_newworld', N: 'capital_northern', T: 'capital_tropical',
-    village: 'neutral_village', fortress: 'neutral_fortress', harbor: 'neutral_harbor' };
+    village: 'neutral_village', fortress: 'neutral_fortress', harbor: 'neutral_harbor', boss: 'boss' };
   R.CITY_ANCHOR = 0.83;
   R.DEFAULT_TYPES = { 1: 'K', 2: 'J', 3: 'C', 4: 'A', 5: 'N', 6: 'T' };
 
