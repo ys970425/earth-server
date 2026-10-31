@@ -59,6 +59,14 @@ create or replace function priv.iname(item text) returns text
 language sql stable as $$ select case when item = 'coin' then '코인' else coalesce(priv.cfg()->'ITEMS'->item->>'name', item) end $$;
 
 -- 육각 거리 (odd-r 오프셋 → 큐브)
+-- 도시 그림 종류: 수도는 나라 유형(K·J…), 도시국가는 harbor(바다) / fortress(방어 13 이상) / village
+create or replace function priv.city_art(p_id text) returns text
+language sql stable as $$
+  select case when c.kind = 'capital' then coalesce((select type from priv.countries where id = c.country), c.type)
+              when c.sea then 'harbor' when c.def >= 13 then 'fortress' else 'village' end
+  from priv.cities c where c.id = p_id
+$$;
+
 create or replace function priv.hdist(c1 int, r1 int, c2 int, r2 int) returns int
 language sql immutable as $$
   select greatest(abs(q1 - q2), abs(r1 - r2), abs((-q1 - r1) - (-q2 - r2)))
@@ -476,11 +484,11 @@ begin
       'title', co.title, 'glory', coalesce((select sum(x) from unnest(co.glory) x), 0), 'attacked', co.attacked_turn >= g.turn,
       'discovered', co.discovered, 'explored_count', coalesce(array_length(co.explored, 1), 0)),
     'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}') from priv.inventory where country = co.id and qty <> 0),
-    'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name,
+    'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
         'buildings', c.buildings, 'built', c.built_turn >= g.turn, 'trained', c.trained_turn >= g.turn, 'unrest', c.unrest,
         'coastal', exists(select 1 from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.terrain in ('ocean', 'coast') and priv.hdist(t.c, t.r, ct.c, ct.r) = 1))
         order by c.kind, c.taken_turn), '[]') from priv.cities c where c.country = co.id),
-    'targets', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'name', c.name, 'def', greatest(1, c.def - c.def_help),
+    'targets', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'name', c.name, 'art', priv.city_art(c.id), 'def', greatest(1, c.def - c.def_help),
         'sea', c.sea, 'tech', c.tech, 'taken', c.country is not null,
         'res', (select coalesce(jsonb_agg(t.res), '[]') from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.res is not null and t.zone = c.type and priv.hdist(t.c, t.r, ct.c, ct.r) <= 1))
         order by c.def), '[]') from priv.cities c where c.kind = 'cs' and c.type = co.type),
@@ -515,7 +523,7 @@ begin
         case when t.owner is null or t.owner = co.id then t.res end, t.owner,
         case when t.owner = co.id then t.imp end) order by t.id), '[]')
       from priv.tiles t where t.id = any(co.explored)),
-    'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name,
+    'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
         'country', c.country, 'mine', c.type = co.type, 'buildings', case when c.country = co.id then c.buildings end,
         'unrest', case when c.country = co.id then c.unrest end,
         'def', case when c.kind = 'cs' and c.country is null then greatest(1, c.def - c.def_help) end)), '[]')
@@ -870,7 +878,7 @@ language sql stable security definer set search_path = public, priv as $$
         'exports', (select coalesce(sum(qty), 0) from priv.trades where from_c = c.id and not broker),
         'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker)) order by c.id), '[]') from priv.countries c),
     'tiles', (select jsonb_agg(jsonb_build_array(t.id, t.terrain, t.res, t.owner, t.imp) order by t.id) from priv.tiles t),
-    'cities', (select jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'country', c.country,
+    'cities', (select jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'country', c.country, 'art', priv.city_art(c.id),
         'buildings', c.buildings, 'unrest', c.unrest)) from priv.cities c),
     'volume', (select coalesce(jsonb_agg(jsonb_build_object('turn', t, 'qty', priv.trade_volume(t)) order by t), '[]')
         from generate_series(greatest(1, (select turn from public.game where id = 1) - 12), (select turn from public.game where id = 1)) t),

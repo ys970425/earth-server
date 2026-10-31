@@ -121,6 +121,10 @@
     T: { name: '열대 해양국', color: '#EC5C9A', techs: ['textile'],
          like: '동남아시아 여러 나라', desc: '정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요.' }
   };
+  // 도시 그림 (img/city/*.png, 160×160, 기준점: 가로 50%, 세로 83%가 칸 중심)
+  R.CITY_ART = { K: 'capital_peninsula', J: 'capital_island', C: 'capital_continental', A: 'capital_newworld', N: 'capital_northern', T: 'capital_tropical',
+    village: 'neutral_village', fortress: 'neutral_fortress', harbor: 'neutral_harbor' };
+  R.CITY_ANCHOR = 0.83;
   R.DEFAULT_TYPES = { 1: 'K', 2: 'J', 3: 'C', 4: 'A', 5: 'N', 6: 'T' };
 
   R.ROLES = ['국가 대표', '도시·내정', '군사·정찰', '자원·생산', '기록관'];

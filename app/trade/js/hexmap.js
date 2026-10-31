@@ -13,7 +13,8 @@
     ...Object.keys(R.TERRAIN).map(t => load('t:' + t, 'img/terrain/' + t + '.png')),
     ...Object.keys(R.ITEMS).map(i => load('r:' + i, 'img/res/' + i + '.png')),
     ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
-    ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, 'img/bld/' + b + '.png'))
+    ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, 'img/bld/' + b + '.png')),
+    ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, 'img/city/' + f + '.png'))
   ]);
 
   // ---------- 좌표 ----------
@@ -110,6 +111,11 @@
       const h = im.height * w / im.width;
       ctx.drawImage(im, cx - w / 2, by - h, w, h);
     }
+    function drawImgAnchor(im, cx, cy, w) {
+      if (!im) return;
+      const h = im.height * w / im.width;
+      ctx.drawImage(im, cx - w / 2, cy - h * R.CITY_ANCHOR, w, h);
+    }
     function flagFor(c) {
       const co = st.countries[c]; if (!co || !co.flag_url) return null;
       if (!st.flags[co.flag_url]) { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = mark; im.src = co.flag_url; st.flags[co.flag_url] = im; }
@@ -181,10 +187,11 @@
         const [x, y] = center(id), city = cityAt.get(id);
         if (city) {
           const big = city.kind === 'capital';
-          const im = IMG[big ? 'b:capital' : (t.terrain === 'coast' || city.sea ? 'b:port' : 'b:capital')];
+          const im = IMG['c:' + city.art] || IMG[big ? 'b:capital' : (t.terrain === 'coast' || city.sea ? 'b:port' : 'b:capital')];
           ctx.save();
-          if (!city.country) ctx.filter = 'saturate(.35) brightness(.95)';
-          drawImgBottom(im, x, y + HALF_H * 0.75, big ? 132 : 104);
+          if (!city.country) ctx.filter = 'saturate(.55) brightness(.95)';
+          if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
+          else drawImgBottom(im, x, y + HALF_H * 0.75, big ? 132 : 104);
           ctx.restore();
           if (city.country) drawFlag(city.country, x + 26, y - 30, big ? 1.2 : 0.9);
           // 이름표
@@ -194,10 +201,10 @@
           roundRect(ctx, x - tw / 2, y + 30, tw, 28, 9); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#1A1440'; ctx.stroke();
           ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x, y + 45);
           if (!city.country && city.def != null) {
-            ctx.fillStyle = '#C02945'; roundRect(ctx, x - 26, y - 72, 52, 24, 8); ctx.fill(); ctx.strokeStyle = '#1A1440'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#fff'; ctx.font = '600 16px Jua, sans-serif'; ctx.fillText('방어 ' + city.def, x, y - 59);
+            ctx.fillStyle = '#C02945'; roundRect(ctx, x - 26, y - 108, 52, 24, 8); ctx.fill(); ctx.strokeStyle = '#1A1440'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.font = '600 16px Jua, sans-serif'; ctx.fillText('방어 ' + city.def, x, y - 95);
           }
-          if (city.unrest) { ctx.fillStyle = '#FF5D73'; ctx.font = '600 18px Jua, sans-serif'; ctx.fillText('불안!', x, y - 80); }
+          if (city.unrest) { ctx.fillStyle = '#FF5D73'; ctx.font = '600 18px Jua, sans-serif'; ctx.fillText('불안!', x, y - 128); }
         } else {
           if (t.imp) {
             const k = { farm: 'b:farm', lumber: 'b:lumber', mine: 'b:mine' }[t.imp];

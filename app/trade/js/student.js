@@ -246,11 +246,14 @@
     return miss.length ? miss.join(', ') + ' 모자라요' : '';
   }
 
+  // 도시 그림: GPT 도시 그림(img/city)이 있으면 그것, 없으면 예전 건물 그림
+  const cityArt = (c, fb) => R.CITY_ART[c.art] ? 'img/city/' + R.CITY_ART[c.art] + '.png' : 'img/bld/' + fb + '.png';
+
   // ---------- 도시 창 ----------
   function cityWindow(side, c) {
     const st = S.st, cap = c.kind === 'capital';
     side.append(sideHead(cap ? st.country.name + ' 수도' : c.name, (cap ? '수도' : '도시') + (c.unrest ? ' · 불안 (생산 멈춤)' : ''), back));
-    side.append(h('div', { class: 'city-pic' }, h('img', { src: 'img/bld/' + (cap ? 'capital' : 'port') + '.png' }),
+    side.append(h('div', { class: 'city-pic' }, h('img', { src: cityArt(c, cap ? 'capital' : 'port') }),
       h('div', { class: 'city-blds' }, c.buildings.map(b => h('span', { class: 'chip bld' }, R.BUILDINGS[b].name)))));
     const tabs = h('div', { class: 'subtabs' }, [['build', '건설'], ['train', '병력 훈련'], ['info', '도시 정보']].map(([k, l]) =>
       h('button', { class: 'small ' + (S.cityTab === k ? 'gold' : ''), onclick: () => { S.cityTab = k; renderSide(); } }, l)));
@@ -302,7 +305,7 @@
   function csWindow(side, city) {
     const st = S.st, tg = st.targets.find(t => t.id === city.id) || {};
     side.append(sideHead(city.name, '중립 도시국가 · 우리 나라가 차지할 수 있어요', back));
-    side.append(h('div', { class: 'city-pic' }, h('img', { src: 'img/bld/' + (tg.sea ? 'port' : 'capital') + '.png', class: 'neutral' })));
+    side.append(h('div', { class: 'city-pic' }, h('img', { src: cityArt(tg.art ? tg : city, tg.sea ? 'port' : 'capital'), class: 'neutral' })));
     side.append(h('div', { class: 'vs' }, h('div', {}, h('small', {}, '우리 힘'), h('b', {}, st.strength)), h('span', {}, 'VS'), h('div', {}, h('small', {}, '방어력'), h('b', {}, tg.def))));
     const gain = [];
     if (tg.res && tg.res.length) gain.push(h('div', { class: 'res-line' }, '주변 자원: ', tg.res.map(r => h('span', { class: 'res-chip' }, h('img', { src: itemImg(r) }), itemName(r)))));
@@ -326,7 +329,8 @@
       S.busy = false;
       if (err) { toast(err.message, 'error'); renderSide(); return; }
       map.floatText(city.tile, '점령!', '#FFE07A');
-      const kids = [h('h2', {}, res.name + ' 점령!'), h('p', {}, '시민들이 환호합니다! (행복도 +' + R.HAPPY.glory + ')')];
+      const tg = S.st.targets.find(t => t.id === city.id) || city;
+      const kids = [R.CITY_ART[tg.art] ? h('img', { src: cityArt(tg, 'port'), class: 'capture-pic' }) : null, h('h2', {}, res.name + ' 점령!'), h('p', {}, '시민들이 환호합니다! (행복도 +' + R.HAPPY.glory + ')')];
       if (res.res && res.res.length) kids.push(h('p', {}, '새 자원: ', res.res.map(r => h('span', { class: 'res-chip' }, h('img', { src: itemImg(r) }), itemName(r)))));
       if (res.tech) kids.push(h('p', {}, '도시의 기술자들이 합류해 「' + res.tech + '」 기술을 쓸 수 있게 되었어요.'));
       modal(h('div', { class: 'center capture' }, ...kids));
