@@ -317,14 +317,17 @@ begin
       shortl := shortl || '식량'::text;
     end if;
     -- 가공 공장 (원료 1 → 제품 1, 가공비)
-    if g.phase >= 2 then
+    if true then
       for f in select * from priv.factories where country = co.id loop
         it := cfg->'FACTORIES'->f.kind->>'input';
         cost := (cfg->'PROC_COST'->co.type->>(cfg->'FACTORIES'->f.kind->>'output'))::int;
         select coin into v from priv.countries where id = co.id;
-        n := least((cfg->'FACTORIES'->f.kind->>'perTurn')::int, priv.inv(co.id, it), case when cost > 0 then v / cost else 99 end);
+        -- 특산 공장은 원료 없이
+        n := least((cfg->'FACTORIES'->f.kind->>'perTurn')::int,
+                   case when (cfg->'FACTORY_FREE'->co.type->>f.kind)::boolean is true then 99 else priv.inv(co.id, it) end,
+                   case when cost > 0 then v / cost else 99 end);
         if n > 0 then
-          perform priv.add(co.id, it, -n);
+          if (cfg->'FACTORY_FREE'->co.type->>f.kind)::boolean is not true then perform priv.add(co.id, it, -n); end if;
           perform priv.add(co.id, 'coin', -n * cost);
           perform priv.add(co.id, cfg->'FACTORIES'->f.kind->>'output', n);
         end if;
@@ -912,7 +915,7 @@ end $$;
 
 create or replace function public.factory_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2, '기획부 장관'); cfg jsonb := priv.cfg(); f jsonb; tp text;
+declare me priv.students := priv.act_start(1, '기획부 장관'); cfg jsonb := priv.cfg(); f jsonb; tp text;
 begin
   tp := priv.ctype(me.country_id);
   f := cfg->'FACTORIES'->p_kind;
@@ -920,7 +923,7 @@ begin
   if exists(select 1 from priv.factories where country = me.country_id and kind = p_kind) then perform priv.err('DONE', '이미 지은 공장이에요.'); end if;
   if not priv.has_tech(me.country_id, f->>'tech') or (cfg->'PROC_COST'->tp->(f->>'output')) is null then
     perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(f->>'tech')) || '」 기술이 있어야 지을 수 있어요.'); end if;
-  perform priv.pay(me.country_id, f->'build');
+  perform priv.pay(me.country_id, coalesce(cfg->'FACTORY_BUILD'->p_kind->tp, f->'build'));
   insert into priv.factories(country, kind) values (me.country_id, p_kind);
   perform priv.bump(me.country_id);
   return jsonb_build_object('ok', true);

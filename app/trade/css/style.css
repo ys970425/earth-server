@@ -872,3 +872,5 @@ button.nick-slot { --b-top: #3A4A2A; --b-bot: #1E2A14; --b-text: #FFE7A6; border
 .nav .credit-nav + .leave { margin-left: 10px; }
 .test-btn { margin-left: auto; align-self: center; font-size: 12px !important; }
 .test-btn + .credit-nav { margin-left: 10px; }
+.bcard.special { box-shadow: 0 0 0 2px #E2B85C, 0 0 14px rgba(226,184,92,.45); }
+.bcard-body b .chip { margin-left: 6px; vertical-align: 2px; }

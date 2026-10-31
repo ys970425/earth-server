@@ -83,11 +83,15 @@
   R.FACTORIES = {
     steelworks: { name: '제철소', tech: 'steelmaking', input: 'iron', output: 'steel', build: { coin: 50, wood: 2 }, perTurn: 2 },
     refinery: { name: '정유소', tech: 'refining', input: 'oil', output: 'fuel', build: { coin: 50, wood: 2 }, perTurn: 2 },
-    chipfab: { name: '반도체 공장', tech: 'chipmaking', input: 'copper', output: 'chip', build: { coin: 60, wood: 2 }, perTurn: 2 },
+    chipfab: { name: '반도체 공장', tech: 'chipmaking', input: 'copper', output: 'chip', build: { coin: 150, aluminum: 4, copper: 3 }, perTurn: 2 },
     textilemill: { name: '섬유 공장', tech: 'economics', input: 'cotton', output: 'clothes', build: { coin: 50, wood: 2 }, perTurn: 2 },
     rubberplant: { name: '고무 공장', tech: 'economics', input: 'rubber', output: 'tire', build: { coin: 50, wood: 2 }, perTurn: 2 },
     workshop: { name: '금 세공소', tech: 'economics', input: 'gold', output: 'jewelry', build: { coin: 50, wood: 2 }, perTurn: 2 }
   };
+  // 나라별 공장 짓는 비용 (없으면 위 기본 비용). 반도는 반도체 공장을 싸게, 섬나라는 조금 비싸게, 나머지는 아주 비싸게
+  R.FACTORY_BUILD = { chipfab: { K: { coin: 40, wood: 2, food: 2 }, J: { coin: 90, aluminum: 2, copper: 2 } } };
+  // 특산 공장: 원료 없이 매 턴 만들어요 (가공비만 냄). 반도의 반도체
+  R.FACTORY_FREE = { K: { chipfab: true } };
   // 나라별 가공비 (코인/개). 없으면 못 만듦
   R.PROC_COST = {
     K: { steel: 4, fuel: 3, chip: 5 },

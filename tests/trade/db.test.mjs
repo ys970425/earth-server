@@ -212,11 +212,17 @@ ok(c3.trades[0].from_c === 1 && c3.trades[0].to_c === 3 && c3.trades[0].item ===
 ok(await fail(rpc(of(3)[1].uid, 'offer_respond', off.id, true), 'DONE'), '같은 제안 두 번 수락 불가');
 // 공장
 await db.query(`update priv.countries set coin = 500 where id = 1`);
+const w0 = (await rpc(L(1), 'my_state')).inventory;
+await db.query(`update priv.inventory set qty = greatest(qty, 5) where country = 1 and item in ('wood', 'food')`);
+const coin0 = (await one(`select coin from priv.countries where id = 1`)).coin;
 await rpc(L(1), 'factory_build', 'chipfab');
+ok(coin0 - (await one(`select coin from priv.countries where id = 1`)).coin === 40, '반도는 반도체 공장을 싸게 (코인 40·목재 2·식량 2)');
 ok(await fail(rpc(L(3), 'factory_build', 'refinery'), 'NO_TECH'), '기술 없으면 공장 불가 (대륙, 정유)');
-await db.query(`insert into priv.inventory values (1, 'copper', 3) on conflict (country, item) do update set qty = 3`);
+await db.query(`delete from priv.inventory where country = 1 and item = 'copper'`);
 await rpc(ADMIN, 'admin_next_turn');
-ok((await rpc(L(1), 'my_state')).inventory.chip === 2, '반도체 공장: 구리 → 반도체 2개');
+ok((await rpc(L(1), 'my_state')).inventory.chip === 2, '반도 특산: 구리 없이도 반도체 2개');
+await db.query(`update priv.countries set techs = techs || '{chipmaking}' where id = 3`);
+ok(await fail(rpc(L(3), 'factory_build', 'chipfab'), 'SHORT') || await fail(rpc(L(3), 'factory_build', 'chipfab')), '다른 나라는 반도체 공장에 알루미늄 4·구리 3 필요');
 
 // [테스트] 최종 성장 모드
 const eg = await rpc(L(2), 'test_endgame');
