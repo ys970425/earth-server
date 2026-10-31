@@ -658,7 +658,7 @@
           Object.entries(TT).map(([k, t]) => {
             const done = have.includes(k), ok_ = can(k), why = done ? '' : !ok_ ? '먼저: ' + t.req.filter(q => !have.includes(q)).map(q => TT[q].name).join(', ') : (lead || (st.country.researched ? '이번 턴 연구 끝' : short(t.cost)));
             return h('div', { class: 'tcard ' + (done ? 'done' : ok_ ? 'open' : 'locked'), id: 'tc-' + k, style: { gridColumn: t.era + 1, gridRow: t.row + 2 } },
-              h('div', { class: 'tc-top' }, h('b', {}, t.name), done ? h('span', { class: 'tc-done' }, '완료') : null),
+              h('div', { class: 'tc-top' }, R.TECH_ICON[k] ? h('img', { class: 'tc-ic', src: 'img/tech/' + R.TECH_ICON[k] + '.png', alt: '' }) : null, h('b', {}, t.name), done ? h('span', { class: 'tc-done' }, '완료') : null),
               h('small', { class: 'tc-un' }, t.unlock),
               done ? null : h('small', { class: 'tc-cost' }, '연구비: ' + costText(t.cost)),
               done ? null : h('button', { class: 'small ' + (ok_ ? 'primary' : ''), disabled: !!why || S.busy, title: why, onclick: () => act('research_tech', [k], () => toast('「' + t.name + '」 연구 완료!')) }, ok_ ? '연구' : '잠김'),

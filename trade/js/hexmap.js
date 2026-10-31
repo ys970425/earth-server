@@ -13,9 +13,9 @@
     document.fonts ? document.fonts.load('700 16px Galmuri11').catch(() => null) : null,
     ...Object.keys(R.TERRAIN).map(t => load('t:' + t, 'img/terrain/' + t + '.png')),
     ...Object.keys(R.ITEMS).map(i => load('r:' + i, 'img/res/' + i + '.png')),
-    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery', 'swordsman', 'infantry', 'tank', 'destroyer', 'battleship', 'carrier'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
+    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery', 'swordsman', 'infantry', 'tank', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
     // 나라 색 병력 (K는 원래 파랑)
-    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery', 'knight'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, 'img/unit/' + u + '_' + t + '.png'))),
+    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery', 'knight', 'swordsman', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, 'img/unit/' + u + '_' + t + '.png'))),
     ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, 'img/bld/' + b + '.png')),
     ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, 'img/city/' + f + '.png'))
   ]);
@@ -268,7 +268,7 @@
       const sx = onCity ? -38 : -18;
       list.slice(0, 3).forEach((u, i) => {
         const img = (R.UNITS[u.kind] || {}).img || u.kind;
-        let key = u.kind === 'scout' && sea ? 'u:ship' : 'u:' + img;   // 정찰병이 바다에 있으면 배로 (탑승)
+        let key = u.kind === 'scout' && sea ? 'u:boat' : 'u:' + img;   // 정찰병이 바다에 있으면 배로 (탑승)
         const tp = u.country ? (st.countries[u.country] || {}).type : st.myType;
         if (tp && IMG[key + '_' + tp]) key = key + '_' + tp;
         const px = x + sx + i * 30, py = y + (onCity ? 22 : 34);
@@ -277,7 +277,7 @@
         ctx.restore();
         if (u.sel) { ctx.save(); ctx.strokeStyle = '#FFE07A'; ctx.lineWidth = 4; ctx.shadowColor = '#FFE07A'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.ellipse(px, py, 26, 10, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
         if (u.done) ctx.globalAlpha = 0.6;
-        drawImgBottom(IMG[key], px, py, ['catapult', 'cannon', 'artillery', 'tank', 'trireme', 'frigate', 'battleship', 'cruiser'].includes(u.kind) ? 62 : 52);
+        drawImgBottom(IMG[key], px, py, ['catapult', 'cannon', 'artillery', 'tank', 'trireme', 'frigate', 'battleship', 'cruiser'].includes(u.kind) ? 66 : 54);
         ctx.globalAlpha = 1;
         if (u.hp != null && u.hp < 100) hpBar(px - 18, py + 6, 36, 5, u.hp / 100);
         if (u.n > 1) {

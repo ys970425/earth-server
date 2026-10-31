@@ -121,16 +121,20 @@
     catapult:  { name: '투석기', era: 1, str: 11, move: 2, range: 2, tech: 'engineering', cost: { coin: 30, wood: 2 }, img: 'catapult' },
     knight:    { name: '기사', era: 1, str: 14, move: 4, tech: 'chivalry', cost: { coin: 40, food: 2, iron: 1 }, img: 'knight' },
     musket:    { name: '머스킷 보병', era: 2, str: 20, move: 3, tech: 'gunpowder', cost: { coin: 50, iron: 1 }, img: 'swordsman' },
-    cannon:    { name: '대포', era: 2, str: 26, move: 2, range: 2, tech: 'gunpowder', cost: { coin: 60, iron: 2, wood: 2 }, img: 'artillery' },
+    cannon:    { name: '대포', era: 2, str: 26, move: 2, range: 2, tech: 'gunpowder', cost: { coin: 60, iron: 2, wood: 2 }, img: 'cannon' },
     infantry:  { name: '보병', era: 3, str: 36, move: 3, tech: 'munitions', cost: { coin: 70, steel: 1, food: 2 }, img: 'infantry' },
     artillery: { name: '포병', era: 3, str: 48, move: 2, range: 3, tech: 'munitions', cost: { coin: 90, steel: 2 }, img: 'artillery' },
     tank:      { name: '탱크', era: 4, str: 75, move: 5, tech: 'combustion', cost: { coin: 130, steel: 2, fuel: 2, tire: 1 }, img: 'tank' },
-    trireme:   { name: '삼단노선', era: 1, str: 10, move: 4, sea: true, tech: 'shipbuilding', cost: { coin: 30, wood: 3 }, img: 'ship' },
-    frigate:   { name: '프리깃', era: 2, str: 24, move: 5, range: 2, sea: true, tech: 'navigation', cost: { coin: 60, wood: 3, iron: 1 }, img: 'destroyer' },
-    battleship:{ name: '전함', era: 3, str: 55, move: 5, range: 2, sea: true, tech: 'warship', cost: { coin: 110, steel: 3, fuel: 1 }, img: 'battleship' },
-    cruiser:   { name: '미사일 순양함', era: 4, str: 90, move: 6, range: 3, sea: true, tech: 'missile', cost: { coin: 160, steel: 2, fuel: 2, chip: 2 }, img: 'carrier' }
+    trireme:   { name: '삼단노선', era: 1, str: 10, move: 4, sea: true, tech: 'shipbuilding', cost: { coin: 30, wood: 3 }, img: 'trireme' },
+    frigate:   { name: '프리깃', era: 2, str: 24, move: 5, range: 2, sea: true, tech: 'navigation', cost: { coin: 60, wood: 3, iron: 1 }, img: 'frigate' },
+    battleship:{ name: '전함', era: 3, str: 55, move: 5, range: 2, sea: true, tech: 'warship', cost: { coin: 110, steel: 3, fuel: 1 }, img: 'warship' },
+    cruiser:   { name: '미사일 순양함', era: 4, str: 90, move: 6, range: 3, sea: true, tech: 'missile', cost: { coin: 160, steel: 2, fuel: 2, chip: 2 }, img: 'cruiser' }
   };
   R.UNIT_UPKEEP = 1;
+  // 기술 아이콘 (img/tech/*.png). 없는 기술은 글자만
+  R.TECH_ICON = { engineering: 'engineering', economics: 'economics', gunpowder: 'gunpowder', textile: 'textile', navigation: 'astronomy', shipbuilding: 'shipbuilding',
+    metalcraft: 'metalcraft', steelmaking: 'steelmaking', munitions: 'munitions', refining: 'refining', rubberwork: 'rubberwork', electricity: 'electricity',
+    chipmaking: 'chipmaking', internet: 'internet', satellite: 'satellite', combustion: 'steam', woodwork: 'printing', chivalry: 'education' };
   R.START_UNITS = ['worker', 'scout', 'spear', 'spear', 'catapult'];
   // 전투: 피해 = 30 × (공격 힘 ÷ 방어력). 다친 병력은 힘이 줄어요. 원거리는 반격을 1/4만 받아요.
   R.COMBAT = { base: 30, min: 3, max: 100, rangedCounter: 0.25, healField: 10, healHome: 20 };
