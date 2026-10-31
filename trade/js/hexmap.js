@@ -10,6 +10,7 @@
     return new Promise(res => { const im = new Image(); im.onload = () => { IMG[key] = im; res(); }; im.onerror = () => res(); im.src = src; });
   }
   const ready = Promise.all([
+    document.fonts ? document.fonts.load('700 16px Galmuri11').catch(() => null) : null,
     ...Object.keys(R.TERRAIN).map(t => load('t:' + t, 'img/terrain/' + t + '.png')),
     ...Object.keys(R.ITEMS).map(i => load('r:' + i, 'img/res/' + i + '.png')),
     ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
@@ -111,6 +112,14 @@
       const h = im.height * w / im.width;
       ctx.drawImage(im, cx - w / 2, by - h, w, h);
     }
+    // 이름판: 나라 색 바탕 + 어두운 테두리 + 금색 속선 (도트 게임 느낌의 각진 판)
+    function plate(px, py, w, hh, fill, gold) {
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(px + 2, py + 3, w, hh);
+      ctx.fillStyle = '#1B130A'; ctx.fillRect(px - 2, py - 2, w + 4, hh + 4);
+      ctx.fillStyle = fill; ctx.fillRect(px, py, w, hh);
+      ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(px, py, w, Math.max(2, hh * 0.18));
+      ctx.strokeStyle = gold ? '#E2B85C' : 'rgba(255,230,170,.45)'; ctx.lineWidth = gold ? 2 : 1.5; ctx.strokeRect(px + 2, py + 2, w - 4, hh - 4);
+    }
     function drawImgAnchor(im, cx, cy, w) {
       if (!im) return;
       const h = im.height * w / im.width;
@@ -137,8 +146,9 @@
     function draw(time) {
       const z = st.cam.z, dpr = st.dpr || 1;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.imageSmoothingEnabled = z < 0.75;
-      ctx.fillStyle = '#0E0B2E'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      const far = !st.all ? z < 0.4 : z < 0.3;   // 멀리서 볼 때는 자잘한 그림을 줄여 눈이 편하게
+      ctx.fillStyle = '#0B0F17'; ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(dpr * z, 0, 0, dpr * z, -st.cam.x * z * dpr, -st.cam.y * z * dpr);
       const vw = canvas.width / dpr / z, vh = canvas.height / dpr / z;
       const r1 = Math.max(0, Math.floor((st.cam.y - TW) / ROW)), r2 = Math.min(H - 1, Math.ceil((st.cam.y + vh + TW) / ROW));
@@ -147,7 +157,7 @@
       for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) {
         const id = r * W + c, [x, y] = center(id), t = st.tiles.get(id);
         if (!visible(id) || !t) {
-          hexPath(ctx, x, y, SIDE + 0.5); ctx.fillStyle = (c + r) % 2 ? '#1B1648' : '#19143F'; ctx.fill();
+          hexPath(ctx, x, y, SIDE + 0.5); ctx.fillStyle = (c + r) % 2 ? '#161C28' : '#131925'; ctx.fill(); hexPath(ctx, x, y, SIDE - 3); ctx.strokeStyle = 'rgba(226,184,92,.07)'; ctx.lineWidth = 2; ctx.stroke();
           continue;
         }
         const im = IMG['t:' + t.terrain];
@@ -196,15 +206,18 @@
           if (city.country) drawFlag(city.country, x + 26, y - 30, big ? 1.2 : 0.9);
           // 이름표
           const label = big ? (st.countries[city.country] ? st.countries[city.country].name : city.name) : city.name;
-          ctx.font = '600 20px Jua, sans-serif'; const tw = ctx.measureText(label).width + 18;
-          ctx.fillStyle = city.country ? colorOf(city.country) : 'rgba(40,34,80,.85)';
-          roundRect(ctx, x - tw / 2, y + 30, tw, 28, 9); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#1A1440'; ctx.stroke();
-          ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x, y + 45);
-          if (!city.country && city.def != null) {
-            ctx.fillStyle = '#C02945'; roundRect(ctx, x - 26, y - 108, 52, 24, 8); ctx.fill(); ctx.strokeStyle = '#1A1440'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#fff'; ctx.font = '600 16px Jua, sans-serif'; ctx.fillText('방어 ' + city.def, x, y - 95);
+          if (!far || big) {   // 멀리서는 수도 이름만 크게
+            const k = far ? Math.min(2.6, 0.5 / z) : 1, fs = Math.round((big ? 20 : 17) * k);
+            ctx.font = `700 ${fs}px Galmuri11, Jua, sans-serif`; const tw = ctx.measureText(label).width + 20 * k, th = fs + 12 * k, ly = y + 30;
+            plate(x - tw / 2, ly, tw, th, city.country ? colorOf(city.country) : '#2A2433', big);
+            ctx.fillStyle = '#FFF4D6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(label, x, ly + th / 2 + 1); ctx.fillText(label, x, ly + th / 2 + 1);
           }
-          if (city.unrest) { ctx.fillStyle = '#FF5D73'; ctx.font = '600 18px Jua, sans-serif'; ctx.fillText('불안!', x, y - 128); }
+          if (!far && !city.country && city.def != null) {
+            plate(x - 30, y - 110, 60, 24, '#8E1F2F', false);
+            ctx.fillStyle = '#FFE9C2'; ctx.font = '700 14px Galmuri11, Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('방어 ' + city.def, x, y - 97);
+          }
+          if (city.unrest) { ctx.fillStyle = '#FF5D73'; ctx.font = '700 18px Galmuri11, Jua, sans-serif'; ctx.fillText('불안!', x, y - 128); }
         } else {
           if (t.imp) {
             const k = { farm: 'b:farm', lumber: 'b:lumber', mine: 'b:mine' }[t.imp];
@@ -214,9 +227,9 @@
               drawImgBottom(IMG['r:' + t.res], x, y + 16, 70);
             }
           }
-          if (t.res && !t.imp) drawImgBottom(IMG['r:' + t.res], x + 20, y + 30, 44);
+          if (t.res && !t.imp && !far) drawImgBottom(IMG['r:' + t.res], x + 20, y + 30, 44);
         }
-        const us = unitsAt.get(id);
+        const us = far ? null : unitsAt.get(id);
         if (us && us.length) {
           if (st.tintUnits) {   // 관전: 나라별로 나눠 그리고 발밑에 나라 색
             const by = new Map(); for (const u of us) { if (!by.has(u.country)) by.set(u.country, []); by.get(u.country).push(u); }
