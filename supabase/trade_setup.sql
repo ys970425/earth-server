@@ -85,6 +85,7 @@ create table if not exists priv.students (
 
 alter table priv.students add column if not exists roles text[] not null default '{}';
 
+
 create table if not exists priv.pairing_requests (
   id         serial primary key,
   student_id int not null references priv.students(id) on delete cascade,
@@ -205,6 +206,19 @@ create table if not exists priv.snapshots (
 );
 
 create table if not exists priv.admins (uid uuid primary key, at timestamptz not null default now());
+alter table priv.admins add column if not exists control int;
+
+-- v2: 병력 이동·전투, 도시국가 체력, 기술 연구, 턴 준비, 선생님 체험 조작
+alter table priv.cities add column if not exists tier int not null default 0;
+alter table priv.cities add column if not exists hp int not null default 0;
+alter table priv.cities add column if not exists max_hp int not null default 0;
+alter table priv.cities add column if not exists bonus int not null default 0;
+alter table priv.cities add column if not exists tutorial boolean not null default false;
+alter table priv.cities add column if not exists boss boolean not null default false;
+alter table priv.units add column if not exists hp int not null default 100;
+alter table priv.units add column if not exists attacked_turn int not null default -1;
+alter table priv.countries add column if not exists ready_turn int not null default 0;
+alter table priv.countries add column if not exists research_turn int not null default -1;
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 
@@ -236,754 +250,1190 @@ end $$;
 
 -- ---------------------------------------------------------------------
 
-insert into priv.config(id, data) values (1, $cfg${"W":32,"H":22,"START":{"coin":150,"food":4,"wood":5,"iron":1},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"TECHS":{"steelmaking":"제철","oil_drill":"석유 추출","refining":"석유 정제","munitions":"군수품 공장","nuclear":"원자력","chipmaking":"반도체 제조","rubberwork":"고무 가공","woodwork":"목재 가공","metalcraft":"금속 세공","textile":"섬유 가공","satellite":"인공위성","internet":"인터넷","tourism":"관광산업","shipbuilding":"조선","jungle":"밀림 개발"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium"],"cost":{"coin":15,"wood":1},"yield":2},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"oil_drill","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"바다 건너 도시국가 공격, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":60,"wood":2},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"textile","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"rubberwork","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"metalcraft","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2}},"PROC_COST":{"K":{"steel":4,"fuel":3,"chip":5},"J":{"chip":15,"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5,"tire":12,"chip":50,"fuel":15},"A":{"chip":20,"clothes":20,"fuel":6},"N":{"jewelry":12,"fuel":10},"T":{"clothes":4,"tire":8}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"internet","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"satellite","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"munitions","cost":{"coin":60,"steel":2,"aluminum":1},"unlock":"cannon"}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","str":5,"cost":{"coin":20,"food":1}},"catapult":{"name":"투석기","str":9,"cost":{"coin":30,"wood":2}},"ballista":{"name":"발리스타","str":14,"cost":{"coin":40,"wood":2,"iron":1}},"cannon":{"name":"대포","str":24,"cost":{"coin":60,"steel":1,"fuel":1},"needs":"arsenal"}},"UNIT_UPKEEP":2,"SCOUT_MOVE":5,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":55,"perLuxType":6,"perPlaza":6,"glory":10,"gloryDecay":5,"perCity":-3,"hunger":-8,"tariffPer":8,"crisis":{"perCity":-2,"fewLux":-8,"fewLuxUnder":2,"armyNeedsSteel":3,"noSteel":-5,"fuelCities":4,"noFuel":-6},"golden":70,"unhappy":40,"unrest":25,"revolt":15},"TYPES":{"K":{"name":"반도의 용","color":"#2F6FE0","techs":["steelmaking","refining","chipmaking","shipbuilding","internet"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"파도의 섬왕국","color":"#E0463C","techs":["metalcraft","rubberwork","munitions","tourism","shipbuilding","chipmaking"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 제국","color":"#F29A2E","techs":["textile","steelmaking","woodwork"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["oil_drill","refining","nuclear","satellite","internet","chipmaking","textile"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["oil_drill","refining","nuclear","satellite"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["textile"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"CITY_ART":{"K":"capital_peninsula","J":"capital_island","C":"capital_continental","A":"capital_newworld","N":"capital_northern","T":"capital_tropical","village":"neutral_village","fortress":"neutral_fortress","harbor":"neutral_harbor"},"CITY_ANCHOR":0.83,"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","장군","건축가","개척자","탐험가"],"ROLE_INFO":{"국가 대표":{"icon":"leader","now":"나라 이름·국기 정하기, 모둠 회의 이끌기, 다른 나라와 외교","later":"무역 제안 최종 승인, 조약 서명"},"장군":{"icon":"spear","now":"병력 훈련, 도시국가 공격","later":"무역 사절: 다른 나라에 거래 제안 보내기"},"건축가":{"icon":"market","now":"도시 건물·공장·발전 건물 짓기","later":"공장 가동, 무엇을 만들어 팔지 정하기"},"개척자":{"icon":"worker","now":"노동자로 땅 개발(농장·광산…), 노동자 고용","later":"창고 관리, 모자란 자원 찾아 수입 요청"},"탐험가":{"icon":"scout","now":"정찰병으로 다른 나라 찾기","later":"시장 조사: 기준가·생산비 비교"}},"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요."},{"n":9,"name":"무역 갈등","desc":"거래 조건이 갑자기 바뀌었어요."},{"n":10,"name":"조약 회의","desc":"피해를 살펴보고 약속을 만들어요."},{"n":11,"name":"무역 헌장","desc":"함께 만든 약속으로 세계를 되살려요."}]}$cfg$::jsonb)
+insert into priv.config(id, data) values (1, $cfg${"W":40,"H":28,"START":{"coin":150,"food":4,"wood":5,"iron":1},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"ERAS":["고대","중세","르네상스","산업","현대"],"ANCIENT":["농업","목축","채광","도기","궁술","청동기","기초 항해","역법","문자","바퀴"],"TECH_TREE":{"engineering":{"name":"공학","era":1,"row":0,"req":[],"cost":{"coin":30,"food":2},"unlock":"투석기 · 곡물 창고"},"chivalry":{"name":"기사도","era":1,"row":1,"req":[],"cost":{"coin":30,"food":2},"unlock":"기사 (빠른 기병)"},"woodwork":{"name":"목재 가공","era":1,"row":2,"req":[],"cost":{"coin":25,"food":2},"unlock":"벌목장 목재 +1"},"shipbuilding":{"name":"조선","era":1,"row":3,"req":[],"cost":{"coin":35,"wood":2},"unlock":"항구 · 삼단노선"},"jungle":{"name":"밀림 개발","era":1,"row":4,"req":[],"cost":{"coin":25,"food":2},"unlock":"정글 개발비 절반"},"economics":{"name":"경제학","era":2,"row":0,"req":["engineering"],"cost":{"coin":60,"food":3},"unlock":"도시 시장 코인 +6"},"gunpowder":{"name":"화약","era":2,"row":1,"req":["chivalry","engineering"],"cost":{"coin":60,"iron":1},"unlock":"대포 · 머스킷 보병"},"textile":{"name":"섬유 가공","era":2,"row":2,"req":["woodwork"],"cost":{"coin":50,"food":3},"unlock":"섬유 공장"},"navigation":{"name":"항해술","era":2,"row":3,"req":["shipbuilding"],"cost":{"coin":60,"wood":3},"unlock":"프리깃 · 정찰병 바다 이동 +2"},"metalcraft":{"name":"금속 세공","era":2,"row":4,"req":[],"cost":{"coin":50,"food":3},"unlock":"금 세공소"},"steelmaking":{"name":"제철","era":3,"row":0,"req":["economics"],"cost":{"coin":90,"iron":2},"unlock":"제철소"},"munitions":{"name":"군수","era":3,"row":1,"req":["gunpowder","steelmaking"],"cost":{"coin":100,"iron":2},"unlock":"보병 · 포병 · 군수 공장"},"oil_drill":{"name":"석유 추출","era":3,"row":2,"req":[],"cost":{"coin":80,"wood":3},"unlock":"유정"},"refining":{"name":"석유 정제","era":3,"row":3,"req":["oil_drill"],"cost":{"coin":90,"food":4},"unlock":"정유소"},"rubberwork":{"name":"고무 가공","era":3,"row":4,"req":["jungle"],"cost":{"coin":80,"food":4},"unlock":"고무 공장"},"warship":{"name":"강철 군함","era":3,"row":5,"req":["navigation","steelmaking"],"cost":{"coin":110,"steel":1},"unlock":"전함"},"combustion":{"name":"내연 기관","era":4,"row":1,"req":["munitions","refining","rubberwork"],"cost":{"coin":150,"fuel":1},"unlock":"탱크"},"electricity":{"name":"전기","era":4,"row":0,"req":["steelmaking"],"cost":{"coin":130,"copper":2},"unlock":"전자 상가"},"chipmaking":{"name":"반도체 제조","era":4,"row":2,"req":["electricity"],"cost":{"coin":160,"copper":2},"unlock":"반도체 공장"},"radar":{"name":"레이더","era":4,"row":3,"req":["electricity"],"cost":{"coin":160,"aluminum":1},"unlock":"통신탑 · 방송국 (근미래 건물)"},"internet":{"name":"인터넷","era":4,"row":4,"req":["chipmaking","radar"],"cost":{"coin":200,"chip":1},"unlock":"인터넷 센터"},"missile":{"name":"유도 미사일","era":4,"row":5,"req":["radar","warship"],"cost":{"coin":200,"chip":1},"unlock":"미사일 순양함"},"nuclear":{"name":"원자력","era":4,"row":6,"req":["electricity"],"cost":{"coin":180,"uranium":1},"unlock":"원자력 발전소"},"satellite":{"name":"인공위성","era":4,"row":7,"req":["missile"],"cost":{"coin":240,"aluminum":2},"unlock":"인공위성 센터"}},"TECHS":{"engineering":"공학","chivalry":"기사도","woodwork":"목재 가공","shipbuilding":"조선","jungle":"밀림 개발","economics":"경제학","gunpowder":"화약","textile":"섬유 가공","navigation":"항해술","metalcraft":"금속 세공","steelmaking":"제철","munitions":"군수","oil_drill":"석유 추출","refining":"석유 정제","rubberwork":"고무 가공","warship":"강철 군함","combustion":"내연 기관","electricity":"전기","chipmaking":"반도체 제조","radar":"레이더","internet":"인터넷","missile":"유도 미사일","nuclear":"원자력","satellite":"인공위성"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra","desert"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium"],"cost":{"coin":15,"wood":1},"yield":2},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"oil_drill","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"tech":"engineering","effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"배 만들기, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":60,"wood":2},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"textile","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"rubberwork","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"metalcraft","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2}},"PROC_COST":{"K":{"steel":4,"fuel":3,"chip":5},"J":{"chip":15,"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5,"tire":12,"chip":50,"fuel":15},"A":{"chip":20,"clothes":20,"fuel":6},"N":{"jewelry":12,"fuel":10},"T":{"clothes":4,"tire":8}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"internet","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"satellite","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"munitions","cost":{"coin":60,"steel":2},"unlock":"tank"},"commtower":{"name":"통신탑","tech":"radar","cost":{"coin":80,"aluminum":2,"copper":2},"happy":14,"culture":10},"broadcast":{"name":"방송국","tech":"radar","cost":{"coin":90,"chip":2,"aluminum":1},"happy":18,"culture":15},"nuclearplant":{"name":"원자력 발전소","tech":"nuclear","cost":{"coin":100,"uranium":2,"steel":2},"econ":15,"coinPerTurn":25}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","era":0,"str":8,"move":3,"cost":{"coin":20,"food":1},"img":"spear"},"catapult":{"name":"투석기","era":1,"str":11,"move":2,"range":2,"tech":"engineering","cost":{"coin":30,"wood":2},"img":"catapult"},"knight":{"name":"기사","era":1,"str":14,"move":4,"tech":"chivalry","cost":{"coin":40,"food":2,"iron":1},"img":"knight"},"musket":{"name":"머스킷 보병","era":2,"str":20,"move":3,"tech":"gunpowder","cost":{"coin":50,"iron":1},"img":"swordsman"},"cannon":{"name":"대포","era":2,"str":26,"move":2,"range":2,"tech":"gunpowder","cost":{"coin":60,"iron":2,"wood":2},"img":"artillery"},"infantry":{"name":"보병","era":3,"str":36,"move":3,"tech":"munitions","cost":{"coin":70,"steel":1,"food":2},"img":"infantry"},"artillery":{"name":"포병","era":3,"str":48,"move":2,"range":3,"tech":"munitions","cost":{"coin":90,"steel":2},"img":"artillery"},"tank":{"name":"탱크","era":4,"str":75,"move":5,"tech":"combustion","cost":{"coin":130,"steel":2,"fuel":2,"tire":1},"img":"tank"},"trireme":{"name":"삼단노선","era":1,"str":10,"move":4,"sea":true,"tech":"shipbuilding","cost":{"coin":30,"wood":3},"img":"ship"},"frigate":{"name":"프리깃","era":2,"str":24,"move":5,"range":2,"sea":true,"tech":"navigation","cost":{"coin":60,"wood":3,"iron":1},"img":"destroyer"},"battleship":{"name":"전함","era":3,"str":55,"move":5,"range":2,"sea":true,"tech":"warship","cost":{"coin":110,"steel":3,"fuel":1},"img":"battleship"},"cruiser":{"name":"미사일 순양함","era":4,"str":90,"move":6,"range":3,"sea":true,"tech":"missile","cost":{"coin":160,"steel":2,"fuel":2,"chip":2},"img":"carrier"}},"UNIT_UPKEEP":1,"START_UNITS":["worker","scout","spear","spear","catapult"],"COMBAT":{"base":30,"min":3,"max":100,"rangedCounter":0.25,"healField":10,"healHome":20},"CS_TIERS":[{"name":"마을","def":6,"hp":60,"coin":100,"heal":6},{"name":"도시","def":12,"hp":100,"coin":40,"heal":12},{"name":"성곽 도시","def":22,"hp":150,"coin":60,"heal":18},{"name":"요새","def":40,"hp":220,"coin":90,"heal":25},{"name":"철옹성","def":70,"hp":320,"coin":150,"heal":35},{"name":"최종 보스","def":110,"hp":1200,"coin":500,"heal":80}],"SCOUT_MOVE":5,"WORKER_MOVE":0,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":55,"perLuxType":6,"perPlaza":6,"glory":10,"gloryDecay":5,"perCity":-3,"hunger":-8,"tariffPer":8,"crisis":{"perCity":-2,"fewLux":-8,"fewLuxUnder":2,"armyNeedsSteel":6,"noSteel":-5,"fuelCities":4,"noFuel":-6},"golden":70,"unhappy":40,"unrest":25,"revolt":15},"TYPES":{"K":{"name":"반도의 용","color":"#2F6FE0","techs":["shipbuilding","steelmaking","chipmaking"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"파도의 섬왕국","color":"#E0463C","techs":["shipbuilding","metalcraft","rubberwork"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 제국","color":"#F29A2E","techs":["textile","steelmaking","woodwork"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["oil_drill","refining","radar"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["oil_drill","refining","nuclear"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["jungle","rubberwork","textile"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"CITY_ART":{"K":"capital_peninsula","J":"capital_island","C":"capital_continental","A":"capital_newworld","N":"capital_northern","T":"capital_tropical","village":"neutral_village","fortress":"neutral_fortress","harbor":"neutral_harbor"},"CITY_ANCHOR":0.83,"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","총사령관","수석 건축가","대지 개척자","별빛 탐험가"],"ROLE_INFO":{"국가 대표":{"icon":"leader","now":"나라 이름·국기, 모둠 회의, 「턴 끝내기」","later":"무역 제안 최종 승인, 조약 서명"},"총사령관":{"icon":"spear","now":"병력 훈련·이동, 도시국가 공격","later":"무역 사절: 다른 나라에 거래 제안 보내기"},"수석 건축가":{"icon":"market","now":"도시 건물·공장·근미래 건물 짓기","later":"공장 가동, 무엇을 만들어 팔지 정하기"},"대지 개척자":{"icon":"worker","now":"노동자로 땅 개발(농장·광산…), 노동자 고용","later":"창고 관리, 모자란 자원 찾아 수입 요청"},"별빛 탐험가":{"icon":"scout","now":"정찰병으로 세계 탐험, 기술 연구","later":"시장 조사: 기준가·생산비 비교"}},"ROLE_KEY":{"leader":"국가 대표","army":"총사령관","build":"수석 건축가","land":"대지 개척자","explore":"별빛 탐험가"},"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요."},{"n":9,"name":"무역 갈등","desc":"거래 조건이 갑자기 바뀌었어요."},{"n":10,"name":"조약 회의","desc":"피해를 살펴보고 약속을 만들어요."},{"n":11,"name":"무역 헌장","desc":"함께 만든 약속으로 세계를 되살려요."}]}$cfg$::jsonb)
   on conflict (id) do update set data = excluded.data;
 
 insert into priv.tiles(id, c, r, zone, terrain, res) values
 (0,0,0,null,'ocean',null),
-(1,1,0,null,'coast',null),
+(1,1,0,null,'ocean',null),
 (2,2,0,null,'coast',null),
-(3,3,0,'N','tundra',null),
-(4,4,0,'N','snow',null),
-(5,5,0,'N','forest',null),
-(6,6,0,'N','snow',null),
-(7,7,0,'N','tundra',null),
-(8,8,0,'N','snow',null),
-(9,9,0,'N','tundra',null),
+(3,3,0,null,'coast',null),
+(4,4,0,'N','tundra',null),
+(5,5,0,'N','snow',null),
+(6,6,0,'N','forest',null),
+(7,7,0,'N','hills',null),
+(8,8,0,'N','tundra',null),
+(9,9,0,'N','snow',null),
 (10,10,0,'N','tundra',null),
-(11,11,0,'N','tundra',null),
-(12,12,0,'N','hills',null),
+(11,11,0,'N','hills','aluminum'),
+(12,12,0,'N','tundra',null),
 (13,13,0,'N','hills',null),
-(14,14,0,'N','tundra',null),
-(15,15,0,'N','tundra',null),
+(14,14,0,'N','hills',null),
+(15,15,0,'N','forest',null),
 (16,16,0,'N','tundra',null),
 (17,17,0,'N','forest',null),
 (18,18,0,'N','forest',null),
-(19,19,0,'N','forest','uranium'),
-(20,20,0,'N','tundra',null),
+(19,19,0,'N','forest',null),
+(20,20,0,'N','forest',null),
 (21,21,0,'N','tundra',null),
-(22,22,0,'N','snow',null),
-(23,23,0,'N','tundra',null),
-(24,24,0,null,'coast',null),
-(25,25,0,null,'coast',null),
-(26,26,0,null,'coast',null),
-(27,27,0,null,'ocean',null),
-(28,28,0,null,'ocean',null),
-(29,29,0,null,'ocean',null),
-(30,30,0,null,'ocean',null),
-(31,31,0,null,'ocean',null),
-(32,0,1,null,'coast',null),
-(33,1,1,'N','tundra',null),
-(34,2,1,'N','tundra',null),
-(35,3,1,'N','forest',null),
-(36,4,1,'N','forest',null),
-(37,5,1,'N','tundra',null),
-(38,6,1,'N','tundra',null),
-(39,7,1,'N','tundra',null),
-(40,8,1,'N','hills','gold'),
-(41,9,1,'N','tundra',null),
-(42,10,1,'N','tundra',null),
-(43,11,1,'N','tundra',null),
-(44,12,1,'N','tundra',null),
-(45,13,1,'N','forest',null),
-(46,14,1,'N','forest',null),
-(47,15,1,'N','tundra',null),
-(48,16,1,'N','forest',null),
-(49,17,1,'N','snow',null),
-(50,18,1,'N','tundra',null),
-(51,19,1,'N','tundra',null),
-(52,20,1,'N','tundra',null),
-(53,21,1,'N','tundra',null),
-(54,22,1,'N','tundra',null),
-(55,23,1,'N','forest',null),
-(56,24,1,'N','tundra',null),
-(57,25,1,'N','tundra',null),
-(58,26,1,null,'coast',null),
-(59,27,1,null,'ocean',null),
-(60,28,1,null,'ocean',null),
-(61,29,1,null,'ocean',null),
-(62,30,1,null,'ocean',null),
-(63,31,1,null,'ocean',null),
-(64,0,2,null,'coast',null),
-(65,1,2,'N','snow',null),
-(66,2,2,'N','forest',null),
-(67,3,2,'N','tundra',null),
-(68,4,2,'N','hills',null),
-(69,5,2,'N','tundra',null),
-(70,6,2,'N','tundra',null),
-(71,7,2,'N','tundra',null),
-(72,8,2,'N','snow',null),
-(73,9,2,'N','forest',null),
-(74,10,2,'N','tundra',null),
-(75,11,2,'N','tundra',null),
-(76,12,2,'N','tundra',null),
-(77,13,2,'N','plains',null),
-(78,14,2,'N','tundra',null),
-(79,15,2,'N','forest','oil'),
-(80,16,2,'N','forest',null),
-(81,17,2,'N','tundra',null),
-(82,18,2,'N','tundra',null),
-(83,19,2,'N','forest',null),
-(84,20,2,'N','snow',null),
-(85,21,2,'N','tundra',null),
-(86,22,2,'N','tundra',null),
-(87,23,2,'N','forest',null),
-(88,24,2,'N','forest',null),
-(89,25,2,'N','tundra',null),
-(90,26,2,null,'coast',null),
-(91,27,2,null,'ocean',null),
-(92,28,2,null,'ocean',null),
-(93,29,2,null,'ocean',null),
-(94,30,2,null,'ocean',null),
-(95,31,2,null,'ocean',null),
-(96,0,3,null,'coast',null),
-(97,1,3,null,'coast',null),
-(98,2,3,'N','tundra',null),
-(99,3,3,'N','forest',null),
-(100,4,3,'N','tundra',null),
-(101,5,3,'N','tundra','oil'),
-(102,6,3,'N','snow',null),
-(103,7,3,'N','tundra',null),
-(104,8,3,'N','tundra',null),
-(105,9,3,'N','snow',null),
-(106,10,3,'N','forest',null),
-(107,11,3,'N','tundra',null),
-(108,12,3,'N','tundra',null),
-(109,13,3,'N','tundra',null),
-(110,14,3,'N','forest',null),
-(111,15,3,'N','forest','oil'),
-(112,16,3,'N','tundra',null),
-(113,17,3,'N','tundra',null),
-(114,18,3,'N','forest',null),
-(115,19,3,'N','tundra',null),
-(116,20,3,'N','tundra',null),
-(117,21,3,'N','tundra',null),
-(118,22,3,'N','tundra',null),
-(119,23,3,'N','hills','gold'),
-(120,24,3,'N','tundra',null),
-(121,25,3,null,'coast',null),
-(122,26,3,null,'coast',null),
-(123,27,3,null,'coast',null),
-(124,28,3,null,'coast',null),
-(125,29,3,null,'coast',null),
-(126,30,3,null,'ocean',null),
-(127,31,3,null,'ocean',null),
-(128,0,4,null,'ocean',null),
-(129,1,4,null,'ocean',null),
-(130,2,4,null,'coast',null),
-(131,3,4,null,'coast',null),
-(132,4,4,null,'coast',null),
-(133,5,4,'N','forest',null),
-(134,6,4,'N','forest',null),
-(135,7,4,'N','tundra',null),
-(136,8,4,'N','tundra',null),
-(137,9,4,'N','tundra',null),
-(138,10,4,'N','tundra',null),
-(139,11,4,'N','tundra',null),
-(140,12,4,'N','tundra',null),
-(141,13,4,'N','tundra',null),
-(142,14,4,'N','forest',null),
-(143,15,4,'N','snow',null),
-(144,16,4,'N','forest',null),
-(145,17,4,'N','tundra',null),
-(146,18,4,'N','forest',null),
-(147,19,4,'N','forest',null),
-(148,20,4,'N','tundra',null),
-(149,21,4,'N','forest',null),
-(150,22,4,null,'coast',null),
-(151,23,4,null,'coast',null),
-(152,24,4,null,'coast',null),
-(153,25,4,null,'coast',null),
-(154,26,4,null,'coast',null),
-(155,27,4,'A','forest',null),
-(156,28,4,'A','desert',null),
-(157,29,4,'A','hills',null),
-(158,30,4,null,'coast',null),
-(159,31,4,null,'coast',null),
-(160,0,5,null,'ocean',null),
-(161,1,5,null,'ocean',null),
-(162,2,5,null,'ocean',null),
-(163,3,5,null,'ocean',null),
-(164,4,5,null,'coast',null),
-(165,5,5,null,'coast',null),
-(166,6,5,null,'coast',null),
-(167,7,5,null,'coast',null),
-(168,8,5,null,'coast',null),
-(169,9,5,null,'coast',null),
-(170,10,5,'C','plains',null),
-(171,11,5,'C','forest',null),
-(172,12,5,'C','plains',null),
-(173,13,5,'C','desert',null),
-(174,14,5,'C','desert',null),
-(175,15,5,null,'coast',null),
-(176,16,5,null,'coast',null),
-(177,17,5,null,'coast',null),
-(178,18,5,null,'coast',null),
-(179,19,5,null,'coast',null),
-(180,20,5,null,'coast',null),
-(181,21,5,null,'coast',null),
-(182,22,5,null,'ocean',null),
-(183,23,5,null,'ocean',null),
-(184,24,5,null,'ocean',null),
-(185,25,5,null,'coast',null),
-(186,26,5,'A','hills','aluminum'),
-(187,27,5,'A','plains',null),
-(188,28,5,'A','forest',null),
-(189,29,5,'A','forest',null),
-(190,30,5,'A','plains','oil'),
-(191,31,5,null,'coast',null),
-(192,0,6,null,'ocean',null),
-(193,1,6,null,'ocean',null),
-(194,2,6,null,'ocean',null),
-(195,3,6,null,'ocean',null),
-(196,4,6,null,'coast',null),
-(197,5,6,null,'coast',null),
-(198,6,6,null,'coast',null),
-(199,7,6,'C','desert',null),
-(200,8,6,'C','plains',null),
-(201,9,6,null,'coast',null),
-(202,10,6,'C','desert',null),
-(203,11,6,'K','mountain',null),
-(204,12,6,'K','forest',null),
-(205,13,6,'K','mountain',null),
-(206,14,6,'K','forest',null),
-(207,15,6,'K','plains',null),
-(208,16,6,'K','plains',null),
-(209,17,6,'K','plains',null),
-(210,18,6,null,'coast',null),
-(211,19,6,null,'ocean',null),
-(212,20,6,null,'coast',null),
-(213,21,6,'J','forest',null),
-(214,22,6,null,'coast',null),
-(215,23,6,null,'coast',null),
-(216,24,6,null,'ocean',null),
-(217,25,6,null,'coast',null),
-(218,26,6,'A','plains',null),
-(219,27,6,'A','plains',null),
-(220,28,6,'A','plains','wine'),
-(221,29,6,'A','plains',null),
-(222,30,6,'A','forest',null),
-(223,31,6,null,'coast',null),
-(224,0,7,null,'ocean',null),
-(225,1,7,null,'ocean',null),
-(226,2,7,null,'coast',null),
-(227,3,7,null,'coast',null),
-(228,4,7,'C','plains',null),
-(229,5,7,'C','plains',null),
-(230,6,7,'C','hills','iron'),
-(231,7,7,'C','desert',null),
-(232,8,7,'C','plains',null),
-(233,9,7,'C','hills',null),
-(234,10,7,'C','hills','copper'),
-(235,11,7,'C','plains',null),
-(236,12,7,null,'coast',null),
-(237,13,7,null,'coast',null),
-(238,14,7,'K','hills',null),
-(239,15,7,'K','mountain',null),
-(240,16,7,'K','plains',null),
-(241,17,7,'K','mountain',null),
-(242,18,7,null,'coast',null),
-(243,19,7,null,'coast',null),
-(244,20,7,null,'coast',null),
-(245,21,7,'J','forest',null),
-(246,22,7,'J','hills',null),
-(247,23,7,null,'coast',null),
-(248,24,7,null,'coast',null),
-(249,25,7,null,'coast',null),
-(250,26,7,'A','forest',null),
-(251,27,7,'A','forest',null),
-(252,28,7,'A','plains',null),
-(253,29,7,'A','plains',null),
-(254,30,7,'A','hills',null),
-(255,31,7,null,'coast',null),
-(256,0,8,null,'ocean',null),
-(257,1,8,null,'ocean',null),
-(258,2,8,null,'coast',null),
-(259,3,8,'C','plains',null),
-(260,4,8,'C','hills',null),
-(261,5,8,'C','plains',null),
-(262,6,8,'C','hills',null),
-(263,7,8,'C','plains',null),
-(264,8,8,'C','forest',null),
-(265,9,8,'C','hills',null),
-(266,10,8,'C','plains',null),
-(267,11,8,'C','plains',null),
-(268,12,8,'C','forest',null),
-(269,13,8,null,'coast',null),
-(270,14,8,null,'coast',null),
-(271,15,8,'K','hills',null),
-(272,16,8,'K','plains',null),
-(273,17,8,'K','forest',null),
-(274,18,8,null,'coast',null),
-(275,19,8,null,'coast',null),
-(276,20,8,'J','forest',null),
-(277,21,8,'J','plains',null),
-(278,22,8,'J','forest','copper'),
-(279,23,8,null,'coast',null),
-(280,24,8,null,'coast',null),
-(281,25,8,'A','desert',null),
-(282,26,8,'A','plains',null),
-(283,27,8,'A','plains',null),
-(284,28,8,'A','mountain',null),
-(285,29,8,'A','forest',null),
-(286,30,8,'A','plains',null),
-(287,31,8,'A','plains',null),
-(288,0,9,null,'ocean',null),
-(289,1,9,null,'coast',null),
-(290,2,9,'C','hills','copper'),
-(291,3,9,'C','plains',null),
-(292,4,9,'C','hills',null),
-(293,5,9,'C','desert',null),
-(294,6,9,'C','plains',null),
-(295,7,9,'C','plains',null),
-(296,8,9,'C','forest',null),
-(297,9,9,'C','desert',null),
-(298,10,9,'C','plains',null),
-(299,11,9,'C','plains',null),
-(300,12,9,'C','desert',null),
-(301,13,9,'C','plains',null),
-(302,14,9,null,'coast',null),
-(303,15,9,'K','mountain',null),
-(304,16,9,'K','plains',null),
-(305,17,9,'K','mountain',null),
-(306,18,9,null,'coast',null),
-(307,19,9,null,'coast',null),
-(308,20,9,'J','forest',null),
-(309,21,9,'J','plains',null),
-(310,22,9,'J','forest',null),
-(311,23,9,null,'coast',null),
-(312,24,9,null,'coast',null),
-(313,25,9,'A','plains',null),
-(314,26,9,'A','forest',null),
-(315,27,9,'A','plains',null),
-(316,28,9,'A','forest',null),
-(317,29,9,'A','plains','oil'),
-(318,30,9,'A','hills',null),
-(319,31,9,'A','desert',null),
-(320,0,10,null,'ocean',null),
-(321,1,10,null,'coast',null),
-(322,2,10,'C','plains',null),
-(323,3,10,'C','hills','aluminum'),
-(324,4,10,'C','forest',null),
-(325,5,10,'C','plains',null),
-(326,6,10,'C','plains',null),
-(327,7,10,'C','hills','iron'),
-(328,8,10,'C','plains',null),
-(329,9,10,'C','desert',null),
-(330,10,10,'C','forest',null),
-(331,11,10,'C','plains',null),
-(332,12,10,'C','plains',null),
-(333,13,10,'C','plains',null),
-(334,14,10,null,'coast',null),
-(335,15,10,'K','forest',null),
-(336,16,10,'K','plains',null),
-(337,17,10,'K','plains',null),
-(338,18,10,null,'coast',null),
-(339,19,10,null,'coast',null),
-(340,20,10,'J','plains',null),
-(341,21,10,'J','plains',null),
-(342,22,10,'J','hills',null),
-(343,23,10,null,'coast',null),
-(344,24,10,null,'coast',null),
-(345,25,10,'A','forest',null),
-(346,26,10,'A','plains',null),
-(347,27,10,'A','plains',null),
-(348,28,10,'A','plains',null),
-(349,29,10,'A','desert','cotton'),
-(350,30,10,'A','plains',null),
-(351,31,10,'A','hills',null),
-(352,0,11,null,'ocean',null),
-(353,1,11,null,'coast',null),
-(354,2,11,'C','mountain',null),
-(355,3,11,'C','hills',null),
-(356,4,11,'C','plains',null),
-(357,5,11,'C','plains',null),
-(358,6,11,'C','mountain',null),
-(359,7,11,'C','desert',null),
-(360,8,11,'C','mountain','cotton'),
-(361,9,11,'C','plains',null),
-(362,10,11,'C','desert',null),
-(363,11,11,'C','plains',null),
-(364,12,11,'C','desert',null),
-(365,13,11,'C','plains',null),
-(366,14,11,null,'coast',null),
-(367,15,11,'K','hills',null),
-(368,16,11,'K','forest',null),
-(369,17,11,'K','hills',null),
-(370,18,11,null,'coast',null),
-(371,19,11,null,'coast',null),
-(372,20,11,null,'coast',null),
-(373,21,11,'J','forest',null),
-(374,22,11,'J','plains',null),
-(375,23,11,null,'coast',null),
-(376,24,11,null,'coast',null),
-(377,25,11,'A','forest',null),
-(378,26,11,'A','desert',null),
-(379,27,11,'A','plains',null),
-(380,28,11,'A','plains',null),
-(381,29,11,'A','plains',null),
-(382,30,11,'A','plains',null),
-(383,31,11,'A','forest',null),
-(384,0,12,null,'ocean',null),
-(385,1,12,null,'coast',null),
-(386,2,12,'C','mountain',null),
-(387,3,12,'C','plains',null),
-(388,4,12,'C','plains',null),
-(389,5,12,'C','forest','cotton'),
-(390,6,12,'C','plains',null),
-(391,7,12,'C','forest',null),
-(392,8,12,'C','mountain',null),
-(393,9,12,'C','hills','iron'),
-(394,10,12,'C','desert',null),
-(395,11,12,'C','hills',null),
-(396,12,12,'C','hills',null),
-(397,13,12,'C','plains',null),
-(398,14,12,null,'coast',null),
-(399,15,12,null,'coast',null),
-(400,16,12,null,'coast',null),
-(401,17,12,null,'coast',null),
-(402,18,12,null,'coast',null),
-(403,19,12,null,'coast',null),
-(404,20,12,null,'coast',null),
-(405,21,12,'J','forest',null),
-(406,22,12,null,'coast',null),
-(407,23,12,null,'coast',null),
-(408,24,12,null,'coast',null),
-(409,25,12,'A','plains',null),
-(410,26,12,'A','plains',null),
-(411,27,12,'A','plains',null),
-(412,28,12,'A','plains',null),
-(413,29,12,'A','forest',null),
-(414,30,12,'A','plains',null),
-(415,31,12,'A','forest',null),
-(416,0,13,null,'ocean',null),
-(417,1,13,null,'coast',null),
-(418,2,13,null,'coast',null),
-(419,3,13,'C','desert',null),
-(420,4,13,'C','forest',null),
-(421,5,13,'C','plains',null),
-(422,6,13,'C','forest',null),
-(423,7,13,'C','desert',null),
-(424,8,13,'C','plains',null),
-(425,9,13,'C','mountain',null),
-(426,10,13,'C','plains',null),
-(427,11,13,'C','hills','aluminum'),
-(428,12,13,'C','plains',null),
-(429,13,13,null,'coast',null),
-(430,14,13,null,'ocean',null),
-(431,15,13,null,'ocean',null),
-(432,16,13,null,'ocean',null),
-(433,17,13,null,'coast',null),
-(434,18,13,'K','plains',null),
-(435,19,13,null,'coast',null),
-(436,20,13,null,'coast',null),
-(437,21,13,null,'coast',null),
-(438,22,13,null,'ocean',null),
-(439,23,13,null,'coast',null),
-(440,24,13,'J','forest',null),
-(441,25,13,'A','plains',null),
-(442,26,13,'A','hills','uranium'),
-(443,27,13,'A','plains',null),
-(444,28,13,'A','desert',null),
-(445,29,13,'A','forest',null),
-(446,30,13,'A','plains',null),
-(447,31,13,'A','forest',null),
-(448,0,14,null,'ocean',null),
-(449,1,14,null,'ocean',null),
-(450,2,14,null,'ocean',null),
-(451,3,14,null,'coast',null),
-(452,4,14,'C','plains',null),
-(453,5,14,'C','hills',null),
-(454,6,14,'C','hills',null),
-(455,7,14,'C','hills',null),
-(456,8,14,'C','plains',null),
-(457,9,14,'C','plains',null),
-(458,10,14,'C','plains',null),
-(459,11,14,'C','desert',null),
-(460,12,14,null,'coast',null),
-(461,13,14,null,'coast',null),
-(462,14,14,null,'ocean',null),
-(463,15,14,null,'ocean',null),
-(464,16,14,null,'ocean',null),
-(465,17,14,null,'ocean',null),
-(466,18,14,null,'coast',null),
-(467,19,14,null,'coast',null),
-(468,20,14,null,'ocean',null),
-(469,21,14,null,'ocean',null),
-(470,22,14,null,'ocean',null),
-(471,23,14,null,'ocean',null),
-(472,24,14,null,'coast',null),
-(473,25,14,null,'coast',null),
-(474,26,14,'A','hills',null),
-(475,27,14,'A','plains',null),
-(476,28,14,'A','plains',null),
-(477,29,14,'A','plains',null),
-(478,30,14,'A','hills','iron'),
-(479,31,14,null,'coast',null),
-(480,0,15,null,'ocean',null),
-(481,1,15,null,'ocean',null),
-(482,2,15,null,'ocean',null),
-(483,3,15,null,'coast',null),
-(484,4,15,null,'coast',null),
-(485,5,15,null,'coast',null),
-(486,6,15,null,'coast',null),
-(487,7,15,'C','forest',null),
-(488,8,15,'C','desert',null),
-(489,9,15,null,'coast',null),
-(490,10,15,'T','hills',null),
-(491,11,15,'T','plains',null),
-(492,12,15,'T','forest',null),
-(493,13,15,null,'coast',null),
-(494,14,15,null,'coast',null),
-(495,15,15,null,'coast',null),
-(496,16,15,null,'ocean',null),
-(497,17,15,null,'ocean',null),
-(498,18,15,null,'ocean',null),
-(499,19,15,null,'ocean',null),
-(500,20,15,null,'ocean',null),
-(501,21,15,null,'ocean',null),
-(502,22,15,null,'ocean',null),
-(503,23,15,null,'ocean',null),
-(504,24,15,null,'ocean',null),
-(505,25,15,null,'coast',null),
-(506,26,15,'A','plains','wine'),
-(507,27,15,'A','forest',null),
-(508,28,15,'A','forest',null),
-(509,29,15,'A','plains',null),
-(510,30,15,'A','plains',null),
-(511,31,15,null,'coast',null),
-(512,0,16,null,'ocean',null),
-(513,1,16,null,'ocean',null),
-(514,2,16,null,'ocean',null),
-(515,3,16,null,'ocean',null),
-(516,4,16,null,'ocean',null),
-(517,5,16,null,'ocean',null),
-(518,6,16,null,'coast',null),
-(519,7,16,'T','plains',null),
-(520,8,16,'T','forest','rubber'),
-(521,9,16,'T','jungle',null),
-(522,10,16,'T','jungle',null),
-(523,11,16,'T','plains',null),
-(524,12,16,'T','jungle',null),
-(525,13,16,'T','jungle',null),
-(526,14,16,'T','jungle',null),
-(527,15,16,'T','jungle',null),
-(528,16,16,null,'coast',null),
-(529,17,16,null,'coast',null),
-(530,18,16,null,'ocean',null),
-(531,19,16,null,'ocean',null),
-(532,20,16,null,'ocean',null),
-(533,21,16,null,'ocean',null),
-(534,22,16,null,'ocean',null),
-(535,23,16,null,'ocean',null),
-(536,24,16,null,'ocean',null),
-(537,25,16,null,'coast',null),
-(538,26,16,'A','mountain',null),
-(539,27,16,'A','plains',null),
-(540,28,16,'A','plains',null),
-(541,29,16,'A','forest',null),
-(542,30,16,'A','desert',null),
-(543,31,16,null,'coast',null),
-(544,0,17,null,'ocean',null),
-(545,1,17,null,'ocean',null),
-(546,2,17,null,'ocean',null),
-(547,3,17,null,'ocean',null),
-(548,4,17,null,'ocean',null),
-(549,5,17,null,'coast',null),
-(550,6,17,'T','jungle',null),
-(551,7,17,'T','plains',null),
-(552,8,17,'T','plains',null),
-(553,9,17,'T','jungle',null),
-(554,10,17,'T','plains',null),
-(555,11,17,'T','plains',null),
-(556,12,17,'T','jungle','spice'),
-(557,13,17,'T','jungle','rubber'),
-(558,14,17,'T','jungle',null),
-(559,15,17,'T','forest',null),
-(560,16,17,'T','plains','rubber'),
-(561,17,17,null,'coast',null),
-(562,18,17,null,'ocean',null),
-(563,19,17,null,'ocean',null),
-(564,20,17,null,'ocean',null),
-(565,21,17,null,'ocean',null),
-(566,22,17,null,'ocean',null),
-(567,23,17,null,'ocean',null),
-(568,24,17,null,'ocean',null),
-(569,25,17,null,'coast',null),
-(570,26,17,null,'coast',null),
-(571,27,17,'A','plains',null),
-(572,28,17,'A','plains',null),
-(573,29,17,'A','plains',null),
-(574,30,17,null,'coast',null),
-(575,31,17,null,'ocean',null),
-(576,0,18,null,'ocean',null),
-(577,1,18,null,'ocean',null),
-(578,2,18,null,'ocean',null),
-(579,3,18,null,'ocean',null),
-(580,4,18,null,'ocean',null),
-(581,5,18,null,'coast',null),
-(582,6,18,'T','hills',null),
-(583,7,18,'T','hills','spice'),
-(584,8,18,'T','jungle',null),
-(585,9,18,'T','jungle',null),
-(586,10,18,'T','jungle',null),
-(587,11,18,'T','forest',null),
-(588,12,18,'T','jungle',null),
-(589,13,18,'T','jungle',null),
-(590,14,18,'T','jungle',null),
-(591,15,18,'T','hills','copper'),
-(592,16,18,'T','plains',null),
-(593,17,18,null,'coast',null),
-(594,18,18,null,'ocean',null),
-(595,19,18,null,'ocean',null),
-(596,20,18,null,'ocean',null),
-(597,21,18,null,'ocean',null),
-(598,22,18,null,'ocean',null),
-(599,23,18,null,'ocean',null),
-(600,24,18,null,'ocean',null),
-(601,25,18,null,'ocean',null),
-(602,26,18,null,'ocean',null),
-(603,27,18,null,'coast',null),
-(604,28,18,null,'coast',null),
-(605,29,18,null,'coast',null),
-(606,30,18,null,'coast',null),
-(607,31,18,null,'ocean',null),
-(608,0,19,null,'ocean',null),
-(609,1,19,null,'ocean',null),
-(610,2,19,null,'ocean',null),
-(611,3,19,null,'ocean',null),
-(612,4,19,null,'ocean',null),
-(613,5,19,null,'coast',null),
-(614,6,19,null,'coast',null),
-(615,7,19,'T','plains',null),
-(616,8,19,'T','jungle',null),
-(617,9,19,'T','forest',null),
-(618,10,19,'T','jungle',null),
-(619,11,19,'T','jungle',null),
-(620,12,19,'T','jungle',null),
-(621,13,19,'T','jungle',null),
-(622,14,19,'T','hills',null),
-(623,15,19,'T','hills',null),
-(624,16,19,'T','jungle',null),
-(625,17,19,null,'coast',null),
-(626,18,19,null,'ocean',null),
-(627,19,19,null,'ocean',null),
-(628,20,19,null,'ocean',null),
-(629,21,19,null,'ocean',null),
-(630,22,19,null,'ocean',null),
-(631,23,19,null,'ocean',null),
-(632,24,19,null,'ocean',null),
-(633,25,19,null,'ocean',null),
-(634,26,19,null,'ocean',null),
-(635,27,19,null,'ocean',null),
-(636,28,19,null,'ocean',null),
-(637,29,19,null,'ocean',null),
-(638,30,19,null,'ocean',null),
-(639,31,19,null,'ocean',null),
-(640,0,20,null,'ocean',null),
-(641,1,20,null,'ocean',null),
-(642,2,20,null,'ocean',null),
-(643,3,20,null,'ocean',null),
-(644,4,20,null,'ocean',null),
-(645,5,20,null,'ocean',null),
-(646,6,20,null,'ocean',null),
-(647,7,20,null,'coast',null),
-(648,8,20,null,'coast',null),
-(649,9,20,'T','jungle',null),
-(650,10,20,'T','jungle',null),
-(651,11,20,'T','forest',null),
-(652,12,20,'T','hills',null),
-(653,13,20,'T','jungle',null),
-(654,14,20,null,'coast',null),
-(655,15,20,null,'coast',null),
-(656,16,20,null,'coast',null),
-(657,17,20,null,'coast',null),
-(658,18,20,null,'ocean',null),
-(659,19,20,null,'ocean',null),
-(660,20,20,null,'ocean',null),
-(661,21,20,null,'ocean',null),
-(662,22,20,null,'ocean',null),
-(663,23,20,null,'ocean',null),
-(664,24,20,null,'ocean',null),
-(665,25,20,null,'ocean',null),
-(666,26,20,null,'ocean',null),
-(667,27,20,null,'ocean',null),
-(668,28,20,null,'ocean',null),
-(669,29,20,null,'ocean',null),
-(670,30,20,null,'ocean',null),
-(671,31,20,null,'ocean',null),
-(672,0,21,null,'ocean',null),
-(673,1,21,null,'ocean',null),
-(674,2,21,null,'ocean',null),
-(675,3,21,null,'ocean',null),
-(676,4,21,null,'ocean',null),
-(677,5,21,null,'ocean',null),
-(678,6,21,null,'ocean',null),
-(679,7,21,null,'ocean',null),
-(680,8,21,null,'coast',null),
-(681,9,21,null,'coast',null),
-(682,10,21,null,'coast',null),
-(683,11,21,null,'coast',null),
-(684,12,21,null,'coast',null),
-(685,13,21,null,'coast',null),
-(686,14,21,null,'ocean',null),
-(687,15,21,null,'ocean',null),
-(688,16,21,null,'ocean',null),
-(689,17,21,null,'ocean',null),
-(690,18,21,null,'ocean',null),
-(691,19,21,null,'ocean',null),
-(692,20,21,null,'ocean',null),
-(693,21,21,null,'ocean',null),
-(694,22,21,null,'ocean',null),
-(695,23,21,null,'ocean',null),
-(696,24,21,null,'ocean',null),
-(697,25,21,null,'ocean',null),
-(698,26,21,null,'ocean',null),
-(699,27,21,null,'ocean',null),
-(700,28,21,null,'ocean',null),
-(701,29,21,null,'ocean',null),
-(702,30,21,null,'ocean',null),
-(703,31,21,null,'ocean',null)
+(22,22,0,'N','tundra',null),
+(23,23,0,'N','snow',null),
+(24,24,0,'N','tundra',null),
+(25,25,0,'N','tundra',null),
+(26,26,0,'N','tundra',null),
+(27,27,0,'N','forest',null),
+(28,28,0,'N','snow',null),
+(29,29,0,'N','tundra',null),
+(30,30,0,null,'coast',null),
+(31,31,0,null,'coast',null),
+(32,32,0,null,'coast',null),
+(33,33,0,null,'ocean',null),
+(34,34,0,null,'ocean',null),
+(35,35,0,null,'ocean',null),
+(36,36,0,null,'ocean',null),
+(37,37,0,null,'ocean',null),
+(38,38,0,null,'ocean',null),
+(39,39,0,null,'ocean',null),
+(40,0,1,null,'ocean',null),
+(41,1,1,null,'coast',null),
+(42,2,1,'N','tundra',null),
+(43,3,1,'N','hills',null),
+(44,4,1,'N','tundra','oil'),
+(45,5,1,'N','tundra',null),
+(46,6,1,'N','tundra',null),
+(47,7,1,'N','tundra',null),
+(48,8,1,'N','tundra',null),
+(49,9,1,'N','forest',null),
+(50,10,1,'N','forest',null),
+(51,11,1,'N','tundra',null),
+(52,12,1,'N','forest',null),
+(53,13,1,'N','hills',null),
+(54,14,1,'N','tundra',null),
+(55,15,1,'N','tundra',null),
+(56,16,1,'N','forest',null),
+(57,17,1,'N','tundra',null),
+(58,18,1,'N','forest',null),
+(59,19,1,'N','forest',null),
+(60,20,1,'N','tundra',null),
+(61,21,1,'N','tundra',null),
+(62,22,1,'N','snow',null),
+(63,23,1,'N','forest',null),
+(64,24,1,'N','tundra','oil'),
+(65,25,1,'N','hills',null),
+(66,26,1,'N','tundra',null),
+(67,27,1,'N','hills','aluminum'),
+(68,28,1,'N','tundra',null),
+(69,29,1,'N','hills',null),
+(70,30,1,'N','tundra',null),
+(71,31,1,'N','hills','uranium'),
+(72,32,1,null,'coast',null),
+(73,33,1,null,'ocean',null),
+(74,34,1,null,'ocean',null),
+(75,35,1,null,'ocean',null),
+(76,36,1,null,'ocean',null),
+(77,37,1,null,'ocean',null),
+(78,38,1,null,'ocean',null),
+(79,39,1,null,'ocean',null),
+(80,0,2,null,'ocean',null),
+(81,1,2,null,'coast',null),
+(82,2,2,'N','tundra',null),
+(83,3,2,'N','tundra',null),
+(84,4,2,'N','tundra',null),
+(85,5,2,'N','tundra',null),
+(86,6,2,'N','forest',null),
+(87,7,2,'N','forest',null),
+(88,8,2,'N','tundra',null),
+(89,9,2,'N','forest',null),
+(90,10,2,'N','forest',null),
+(91,11,2,'N','snow',null),
+(92,12,2,'N','tundra',null),
+(93,13,2,'N','tundra',null),
+(94,14,2,'N','forest',null),
+(95,15,2,'N','plains','oil'),
+(96,16,2,'N','plains',null),
+(97,17,2,'N','tundra',null),
+(98,18,2,'N','forest',null),
+(99,19,2,'N','hills',null),
+(100,20,2,'N','tundra',null),
+(101,21,2,'N','snow',null),
+(102,22,2,'N','tundra',null),
+(103,23,2,'N','tundra',null),
+(104,24,2,'N','hills',null),
+(105,25,2,'N','forest',null),
+(106,26,2,'N','tundra',null),
+(107,27,2,'N','tundra',null),
+(108,28,2,'N','tundra',null),
+(109,29,2,'N','snow',null),
+(110,30,2,'N','forest',null),
+(111,31,2,'X','hills',null),
+(112,32,2,'X','plains',null),
+(113,33,2,null,'coast',null),
+(114,34,2,null,'coast',null),
+(115,35,2,null,'ocean',null),
+(116,36,2,null,'ocean',null),
+(117,37,2,null,'ocean',null),
+(118,38,2,null,'ocean',null),
+(119,39,2,null,'ocean',null),
+(120,0,3,null,'ocean',null),
+(121,1,3,null,'coast',null),
+(122,2,3,'N','forest',null),
+(123,3,3,'N','tundra',null),
+(124,4,3,'N','tundra',null),
+(125,5,3,'N','tundra',null),
+(126,6,3,'N','tundra',null),
+(127,7,3,'N','snow',null),
+(128,8,3,'N','tundra',null),
+(129,9,3,'N','forest',null),
+(130,10,3,'N','forest',null),
+(131,11,3,'N','tundra',null),
+(132,12,3,'N','tundra',null),
+(133,13,3,'N','forest',null),
+(134,14,3,'N','tundra',null),
+(135,15,3,'N','tundra',null),
+(136,16,3,'N','tundra',null),
+(137,17,3,'N','tundra',null),
+(138,18,3,'N','forest',null),
+(139,19,3,'N','snow',null),
+(140,20,3,'N','forest',null),
+(141,21,3,'N','tundra',null),
+(142,22,3,'N','forest',null),
+(143,23,3,'N','forest',null),
+(144,24,3,'N','tundra',null),
+(145,25,3,'N','forest',null),
+(146,26,3,'N','snow',null),
+(147,27,3,'N','forest','gold'),
+(148,28,3,'N','snow',null),
+(149,29,3,'N','tundra',null),
+(150,30,3,'X','forest',null),
+(151,31,3,'X','plains',null),
+(152,32,3,'X','mountain','aluminum'),
+(153,33,3,'X','mountain',null),
+(154,34,3,null,'coast',null),
+(155,35,3,null,'ocean',null),
+(156,36,3,null,'ocean',null),
+(157,37,3,null,'ocean',null),
+(158,38,3,null,'ocean',null),
+(159,39,3,null,'ocean',null),
+(160,0,4,null,'ocean',null),
+(161,1,4,null,'ocean',null),
+(162,2,4,null,'coast',null),
+(163,3,4,'N','tundra',null),
+(164,4,4,'N','tundra',null),
+(165,5,4,'N','snow',null),
+(166,6,4,'N','snow',null),
+(167,7,4,'N','hills','uranium'),
+(168,8,4,'N','hills',null),
+(169,9,4,'N','tundra',null),
+(170,10,4,'N','snow',null),
+(171,11,4,'N','tundra',null),
+(172,12,4,'N','hills',null),
+(173,13,4,'N','tundra',null),
+(174,14,4,'N','hills',null),
+(175,15,4,'N','snow','oil'),
+(176,16,4,'N','forest',null),
+(177,17,4,'N','forest',null),
+(178,18,4,'N','tundra',null),
+(179,19,4,'N','tundra',null),
+(180,20,4,'N','tundra',null),
+(181,21,4,'N','tundra',null),
+(182,22,4,'N','tundra',null),
+(183,23,4,'N','forest',null),
+(184,24,4,'N','tundra',null),
+(185,25,4,'N','tundra',null),
+(186,26,4,'N','tundra',null),
+(187,27,4,'N','hills',null),
+(188,28,4,'N','tundra',null),
+(189,29,4,'N','forest',null),
+(190,30,4,'X','plains',null),
+(191,31,4,'X','plains',null),
+(192,32,4,'X','hills','uranium'),
+(193,33,4,'X','hills',null),
+(194,34,4,null,'coast',null),
+(195,35,4,null,'coast',null),
+(196,36,4,null,'coast',null),
+(197,37,4,null,'coast',null),
+(198,38,4,null,'ocean',null),
+(199,39,4,null,'ocean',null),
+(200,0,5,null,'ocean',null),
+(201,1,5,null,'ocean',null),
+(202,2,5,null,'coast',null),
+(203,3,5,null,'coast',null),
+(204,4,5,null,'coast',null),
+(205,5,5,null,'coast',null),
+(206,6,5,null,'coast',null),
+(207,7,5,'N','tundra',null),
+(208,8,5,'N','tundra',null),
+(209,9,5,'N','tundra',null),
+(210,10,5,'N','tundra',null),
+(211,11,5,'N','forest',null),
+(212,12,5,'N','forest',null),
+(213,13,5,'N','tundra',null),
+(214,14,5,'N','tundra',null),
+(215,15,5,'N','snow',null),
+(216,16,5,'N','tundra',null),
+(217,17,5,'N','forest',null),
+(218,18,5,'N','tundra',null),
+(219,19,5,'N','snow',null),
+(220,20,5,'N','hills','gold'),
+(221,21,5,'N','forest',null),
+(222,22,5,'N','tundra',null),
+(223,23,5,'N','tundra',null),
+(224,24,5,'N','tundra',null),
+(225,25,5,'N','forest',null),
+(226,26,5,'N','tundra',null),
+(227,27,5,null,'coast',null),
+(228,28,5,null,'coast',null),
+(229,29,5,null,'coast',null),
+(230,30,5,null,'coast',null),
+(231,31,5,'X','hills',null),
+(232,32,5,'X','forest',null),
+(233,33,5,null,'coast',null),
+(234,34,5,'A','desert',null),
+(235,35,5,'A','desert',null),
+(236,36,5,'A','forest',null),
+(237,37,5,null,'coast',null),
+(238,38,5,null,'ocean',null),
+(239,39,5,null,'ocean',null),
+(240,0,6,null,'ocean',null),
+(241,1,6,null,'ocean',null),
+(242,2,6,null,'ocean',null),
+(243,3,6,null,'ocean',null),
+(244,4,6,null,'ocean',null),
+(245,5,6,null,'ocean',null),
+(246,6,6,null,'ocean',null),
+(247,7,6,null,'coast',null),
+(248,8,6,null,'coast',null),
+(249,9,6,null,'coast',null),
+(250,10,6,null,'coast',null),
+(251,11,6,null,'coast',null),
+(252,12,6,'C','hills',null),
+(253,13,6,'C','plains','cotton'),
+(254,14,6,'C','plains',null),
+(255,15,6,'C','desert',null),
+(256,16,6,'C','mountain',null),
+(257,17,6,'C','plains',null),
+(258,18,6,null,'coast',null),
+(259,19,6,null,'coast',null),
+(260,20,6,null,'coast',null),
+(261,21,6,null,'coast',null),
+(262,22,6,null,'coast',null),
+(263,23,6,null,'coast',null),
+(264,24,6,null,'coast',null),
+(265,25,6,null,'coast',null),
+(266,26,6,null,'coast',null),
+(267,27,6,null,'coast',null),
+(268,28,6,null,'ocean',null),
+(269,29,6,null,'ocean',null),
+(270,30,6,null,'ocean',null),
+(271,31,6,null,'coast',null),
+(272,32,6,null,'coast',null),
+(273,33,6,'A','plains',null),
+(274,34,6,'A','desert',null),
+(275,35,6,'A','plains',null),
+(276,36,6,'A','desert','oil'),
+(277,37,6,'A','hills',null),
+(278,38,6,null,'coast',null),
+(279,39,6,null,'ocean',null),
+(280,0,7,null,'ocean',null),
+(281,1,7,null,'ocean',null),
+(282,2,7,null,'ocean',null),
+(283,3,7,null,'ocean',null),
+(284,4,7,null,'ocean',null),
+(285,5,7,null,'ocean',null),
+(286,6,7,null,'coast',null),
+(287,7,7,null,'coast',null),
+(288,8,7,null,'coast',null),
+(289,9,7,null,'coast',null),
+(290,10,7,null,'coast',null),
+(291,11,7,null,'coast',null),
+(292,12,7,'C','hills',null),
+(293,13,7,'C','desert',null),
+(294,14,7,'C','plains',null),
+(295,15,7,'C','desert',null),
+(296,16,7,'K','hills',null),
+(297,17,7,'K','hills','copper'),
+(298,18,7,null,'coast',null),
+(299,19,7,null,'coast',null),
+(300,20,7,null,'coast',null),
+(301,21,7,null,'coast',null),
+(302,22,7,null,'ocean',null),
+(303,23,7,null,'ocean',null),
+(304,24,7,null,'ocean',null),
+(305,25,7,null,'coast',null),
+(306,26,7,null,'coast',null),
+(307,27,7,null,'coast',null),
+(308,28,7,null,'ocean',null),
+(309,29,7,null,'ocean',null),
+(310,30,7,null,'ocean',null),
+(311,31,7,null,'coast',null),
+(312,32,7,null,'coast',null),
+(313,33,7,'A','hills',null),
+(314,34,7,'A','plains',null),
+(315,35,7,'A','plains',null),
+(316,36,7,'A','hills',null),
+(317,37,7,'A','plains',null),
+(318,38,7,null,'coast',null),
+(319,39,7,null,'ocean',null),
+(320,0,8,null,'ocean',null),
+(321,1,8,null,'ocean',null),
+(322,2,8,null,'ocean',null),
+(323,3,8,null,'ocean',null),
+(324,4,8,null,'ocean',null),
+(325,5,8,null,'coast',null),
+(326,6,8,null,'coast',null),
+(327,7,8,'C','plains',null),
+(328,8,8,'C','plains',null),
+(329,9,8,'C','hills',null),
+(330,10,8,'C','plains',null),
+(331,11,8,'C','forest',null),
+(332,12,8,'C','desert',null),
+(333,13,8,'C','hills',null),
+(334,14,8,'C','plains',null),
+(335,15,8,'C','desert',null),
+(336,16,8,'C','hills',null),
+(337,17,8,'C','plains',null),
+(338,18,8,'K','hills',null),
+(339,19,8,'K','plains',null),
+(340,20,8,'K','hills',null),
+(341,21,8,'K','hills',null),
+(342,22,8,null,'coast',null),
+(343,23,8,null,'ocean',null),
+(344,24,8,null,'ocean',null),
+(345,25,8,null,'coast',null),
+(346,26,8,'J','forest',null),
+(347,27,8,'J','hills','copper'),
+(348,28,8,null,'coast',null),
+(349,29,8,null,'ocean',null),
+(350,30,8,null,'ocean',null),
+(351,31,8,null,'coast',null),
+(352,32,8,'A','hills',null),
+(353,33,8,'A','hills','copper'),
+(354,34,8,'A','plains',null),
+(355,35,8,'A','plains',null),
+(356,36,8,'A','plains',null),
+(357,37,8,'A','hills',null),
+(358,38,8,'A','hills','uranium'),
+(359,39,8,null,'coast',null),
+(360,0,9,null,'ocean',null),
+(361,1,9,null,'ocean',null),
+(362,2,9,null,'ocean',null),
+(363,3,9,null,'coast',null),
+(364,4,9,null,'coast',null),
+(365,5,9,'C','mountain',null),
+(366,6,9,'C','forest',null),
+(367,7,9,'C','mountain',null),
+(368,8,9,'C','plains',null),
+(369,9,9,'C','forest',null),
+(370,10,9,'C','plains',null),
+(371,11,9,'C','plains',null),
+(372,12,9,'C','desert',null),
+(373,13,9,'C','hills',null),
+(374,14,9,'C','plains',null),
+(375,15,9,null,'coast',null),
+(376,16,9,null,'coast',null),
+(377,17,9,null,'coast',null),
+(378,18,9,'K','forest',null),
+(379,19,9,'K','plains',null),
+(380,20,9,'K','plains',null),
+(381,21,9,'K','mountain',null),
+(382,22,9,null,'coast',null),
+(383,23,9,null,'ocean',null),
+(384,24,9,null,'coast',null),
+(385,25,9,null,'coast',null),
+(386,26,9,'J','forest',null),
+(387,27,9,'J','plains',null),
+(388,28,9,null,'coast',null),
+(389,29,9,null,'ocean',null),
+(390,30,9,null,'ocean',null),
+(391,31,9,null,'coast',null),
+(392,32,9,'A','hills','aluminum'),
+(393,33,9,'A','forest',null),
+(394,34,9,'A','plains',null),
+(395,35,9,'A','mountain',null),
+(396,36,9,'A','plains',null),
+(397,37,9,'A','mountain',null),
+(398,38,9,'A','plains',null),
+(399,39,9,null,'coast',null),
+(400,0,10,null,'ocean',null),
+(401,1,10,null,'ocean',null),
+(402,2,10,null,'ocean',null),
+(403,3,10,null,'coast',null),
+(404,4,10,'C','hills','copper'),
+(405,5,10,'C','desert',null),
+(406,6,10,'C','plains',null),
+(407,7,10,'C','forest',null),
+(408,8,10,'C','mountain',null),
+(409,9,10,'C','desert',null),
+(410,10,10,'C','hills',null),
+(411,11,10,'C','plains',null),
+(412,12,10,'C','plains',null),
+(413,13,10,'C','plains',null),
+(414,14,10,'C','plains',null),
+(415,15,10,'C','forest',null),
+(416,16,10,null,'coast',null),
+(417,17,10,null,'coast',null),
+(418,18,10,null,'coast',null),
+(419,19,10,'K','plains',null),
+(420,20,10,'K','plains',null),
+(421,21,10,'K','forest',null),
+(422,22,10,null,'coast',null),
+(423,23,10,null,'ocean',null),
+(424,24,10,null,'coast',null),
+(425,25,10,'J','plains',null),
+(426,26,10,'J','plains',null),
+(427,27,10,'J','forest',null),
+(428,28,10,'J','plains',null),
+(429,29,10,null,'coast',null),
+(430,30,10,null,'ocean',null),
+(431,31,10,null,'coast',null),
+(432,32,10,'A','plains',null),
+(433,33,10,'A','hills',null),
+(434,34,10,'A','forest',null),
+(435,35,10,'A','desert',null),
+(436,36,10,'A','plains',null),
+(437,37,10,'A','plains',null),
+(438,38,10,'A','plains','wine'),
+(439,39,10,null,'coast',null),
+(440,0,11,null,'ocean',null),
+(441,1,11,null,'coast',null),
+(442,2,11,null,'coast',null),
+(443,3,11,'C','plains',null),
+(444,4,11,'C','hills',null),
+(445,5,11,'C','plains',null),
+(446,6,11,'C','forest',null),
+(447,7,11,'C','plains',null),
+(448,8,11,'C','hills','iron'),
+(449,9,11,'C','desert',null),
+(450,10,11,'C','forest','cotton'),
+(451,11,11,'C','plains',null),
+(452,12,11,'C','forest',null),
+(453,13,11,'C','desert',null),
+(454,14,11,'C','plains',null),
+(455,15,11,'C','mountain',null),
+(456,16,11,'C','plains',null),
+(457,17,11,null,'coast',null),
+(458,18,11,null,'coast',null),
+(459,19,11,'K','plains',null),
+(460,20,11,'K','plains',null),
+(461,21,11,'K','plains',null),
+(462,22,11,null,'coast',null),
+(463,23,11,null,'ocean',null),
+(464,24,11,null,'coast',null),
+(465,25,11,'J','plains',null),
+(466,26,11,'J','plains',null),
+(467,27,11,'J','forest',null),
+(468,28,11,'J','forest',null),
+(469,29,11,null,'coast',null),
+(470,30,11,null,'ocean',null),
+(471,31,11,null,'coast',null),
+(472,32,11,'A','desert',null),
+(473,33,11,'A','forest','wine'),
+(474,34,11,'A','plains',null),
+(475,35,11,'A','forest',null),
+(476,36,11,'A','plains','oil'),
+(477,37,11,'A','desert',null),
+(478,38,11,'A','desert',null),
+(479,39,11,null,'coast',null),
+(480,0,12,null,'ocean',null),
+(481,1,12,null,'coast',null),
+(482,2,12,'C','forest',null),
+(483,3,12,'C','plains',null),
+(484,4,12,'C','plains',null),
+(485,5,12,'C','hills',null),
+(486,6,12,'C','desert',null),
+(487,7,12,'C','desert',null),
+(488,8,12,'C','plains',null),
+(489,9,12,'C','hills',null),
+(490,10,12,'C','hills','iron'),
+(491,11,12,'C','forest',null),
+(492,12,12,'C','forest',null),
+(493,13,12,'C','desert',null),
+(494,14,12,'C','desert',null),
+(495,15,12,'C','hills',null),
+(496,16,12,'C','desert','cotton'),
+(497,17,12,'C','plains',null),
+(498,18,12,null,'coast',null),
+(499,19,12,'K','plains',null),
+(500,20,12,'K','plains',null),
+(501,21,12,'K','hills',null),
+(502,22,12,null,'coast',null),
+(503,23,12,null,'ocean',null),
+(504,24,12,null,'coast',null),
+(505,25,12,'J','hills',null),
+(506,26,12,'J','plains',null),
+(507,27,12,'J','mountain',null),
+(508,28,12,'J','hills',null),
+(509,29,12,null,'coast',null),
+(510,30,12,null,'ocean',null),
+(511,31,12,null,'coast',null),
+(512,32,12,'A','desert',null),
+(513,33,12,'A','plains',null),
+(514,34,12,'A','plains',null),
+(515,35,12,'A','plains',null),
+(516,36,12,'A','forest',null),
+(517,37,12,'A','plains',null),
+(518,38,12,'A','mountain',null),
+(519,39,12,null,'coast',null),
+(520,0,13,null,'ocean',null),
+(521,1,13,null,'coast',null),
+(522,2,13,'C','plains',null),
+(523,3,13,'C','plains',null),
+(524,4,13,'C','mountain',null),
+(525,5,13,'C','hills',null),
+(526,6,13,'C','plains',null),
+(527,7,13,'C','forest',null),
+(528,8,13,'C','mountain',null),
+(529,9,13,'C','plains',null),
+(530,10,13,'C','plains',null),
+(531,11,13,'C','mountain',null),
+(532,12,13,'C','hills',null),
+(533,13,13,'C','plains',null),
+(534,14,13,'C','plains',null),
+(535,15,13,'C','desert',null),
+(536,16,13,'C','mountain',null),
+(537,17,13,'C','plains',null),
+(538,18,13,null,'coast',null),
+(539,19,13,'K','hills',null),
+(540,20,13,'K','mountain','iron'),
+(541,21,13,'K','plains',null),
+(542,22,13,null,'coast',null),
+(543,23,13,null,'ocean',null),
+(544,24,13,null,'coast',null),
+(545,25,13,'J','plains',null),
+(546,26,13,'J','hills',null),
+(547,27,13,'J','hills',null),
+(548,28,13,'J','hills',null),
+(549,29,13,null,'coast',null),
+(550,30,13,null,'ocean',null),
+(551,31,13,null,'coast',null),
+(552,32,13,'A','hills',null),
+(553,33,13,'A','plains','oil'),
+(554,34,13,'A','plains',null),
+(555,35,13,'A','plains',null),
+(556,36,13,'A','plains',null),
+(557,37,13,'A','desert',null),
+(558,38,13,'A','desert',null),
+(559,39,13,null,'coast',null),
+(560,0,14,null,'ocean',null),
+(561,1,14,null,'coast',null),
+(562,2,14,'C','hills','copper'),
+(563,3,14,'C','hills','aluminum'),
+(564,4,14,'C','plains',null),
+(565,5,14,'C','plains',null),
+(566,6,14,'C','hills',null),
+(567,7,14,'C','plains',null),
+(568,8,14,'C','desert',null),
+(569,9,14,'C','desert',null),
+(570,10,14,'C','hills',null),
+(571,11,14,'C','plains',null),
+(572,12,14,'C','plains',null),
+(573,13,14,'C','desert',null),
+(574,14,14,'C','desert',null),
+(575,15,14,'C','plains',null),
+(576,16,14,'C','hills',null),
+(577,17,14,'C','forest',null),
+(578,18,14,null,'coast',null),
+(579,19,14,'K','hills',null),
+(580,20,14,'K','hills',null),
+(581,21,14,'K','plains',null),
+(582,22,14,null,'coast',null),
+(583,23,14,null,'ocean',null),
+(584,24,14,null,'ocean',null),
+(585,25,14,null,'coast',null),
+(586,26,14,'J','forest',null),
+(587,27,14,'J','mountain',null),
+(588,28,14,null,'coast',null),
+(589,29,14,null,'coast',null),
+(590,30,14,null,'ocean',null),
+(591,31,14,null,'coast',null),
+(592,32,14,'A','plains',null),
+(593,33,14,'A','plains',null),
+(594,34,14,'A','forest',null),
+(595,35,14,'A','hills','cotton'),
+(596,36,14,'A','plains',null),
+(597,37,14,'A','forest',null),
+(598,38,14,'A','desert',null),
+(599,39,14,null,'coast',null),
+(600,0,15,null,'ocean',null),
+(601,1,15,null,'coast',null),
+(602,2,15,'C','plains',null),
+(603,3,15,'C','hills',null),
+(604,4,15,'C','desert',null),
+(605,5,15,'C','plains',null),
+(606,6,15,'C','plains',null),
+(607,7,15,'C','plains',null),
+(608,8,15,'C','mountain',null),
+(609,9,15,'C','hills',null),
+(610,10,15,'C','plains',null),
+(611,11,15,'C','forest',null),
+(612,12,15,'C','desert',null),
+(613,13,15,'C','plains',null),
+(614,14,15,'C','desert',null),
+(615,15,15,'C','plains',null),
+(616,16,15,'C','plains',null),
+(617,17,15,'C','plains',null),
+(618,18,15,null,'coast',null),
+(619,19,15,null,'coast',null),
+(620,20,15,null,'coast',null),
+(621,21,15,null,'coast',null),
+(622,22,15,null,'ocean',null),
+(623,23,15,null,'ocean',null),
+(624,24,15,null,'ocean',null),
+(625,25,15,null,'coast',null),
+(626,26,15,'J','forest',null),
+(627,27,15,'J','forest',null),
+(628,28,15,null,'coast',null),
+(629,29,15,null,'ocean',null),
+(630,30,15,null,'ocean',null),
+(631,31,15,null,'coast',null),
+(632,32,15,'A','desert',null),
+(633,33,15,'A','plains',null),
+(634,34,15,'A','plains',null),
+(635,35,15,'A','plains',null),
+(636,36,15,'A','forest',null),
+(637,37,15,'A','plains',null),
+(638,38,15,'A','mountain',null),
+(639,39,15,null,'coast',null),
+(640,0,16,null,'ocean',null),
+(641,1,16,null,'ocean',null),
+(642,2,16,null,'coast',null),
+(643,3,16,'C','hills',null),
+(644,4,16,'C','plains',null),
+(645,5,16,'C','hills',null),
+(646,6,16,'C','hills',null),
+(647,7,16,'C','forest',null),
+(648,8,16,'C','plains',null),
+(649,9,16,'C','hills',null),
+(650,10,16,'C','plains',null),
+(651,11,16,'C','plains',null),
+(652,12,16,'C','forest',null),
+(653,13,16,'C','forest',null),
+(654,14,16,'C','plains',null),
+(655,15,16,'C','mountain',null),
+(656,16,16,'C','hills','iron'),
+(657,17,16,null,'coast',null),
+(658,18,16,null,'coast',null),
+(659,19,16,null,'ocean',null),
+(660,20,16,null,'ocean',null),
+(661,21,16,null,'ocean',null),
+(662,22,16,null,'ocean',null),
+(663,23,16,null,'coast',null),
+(664,24,16,null,'coast',null),
+(665,25,16,null,'ocean',null),
+(666,26,16,null,'coast',null),
+(667,27,16,null,'coast',null),
+(668,28,16,null,'coast',null),
+(669,29,16,null,'ocean',null),
+(670,30,16,null,'coast',null),
+(671,31,16,null,'coast',null),
+(672,32,16,'A','plains',null),
+(673,33,16,'A','plains',null),
+(674,34,16,'A','plains',null),
+(675,35,16,'A','plains',null),
+(676,36,16,'A','plains',null),
+(677,37,16,'A','plains',null),
+(678,38,16,'A','hills',null),
+(679,39,16,null,'coast',null),
+(680,0,17,null,'ocean',null),
+(681,1,17,null,'ocean',null),
+(682,2,17,null,'coast',null),
+(683,3,17,null,'coast',null),
+(684,4,17,'C','mountain',null),
+(685,5,17,'C','plains',null),
+(686,6,17,'C','forest',null),
+(687,7,17,'C','hills','aluminum'),
+(688,8,17,'C','plains',null),
+(689,9,17,'C','plains',null),
+(690,10,17,'C','forest','copper'),
+(691,11,17,'C','plains',null),
+(692,12,17,'C','plains',null),
+(693,13,17,'C','desert',null),
+(694,14,17,'C','forest',null),
+(695,15,17,'C','plains',null),
+(696,16,17,null,'coast',null),
+(697,17,17,null,'ocean',null),
+(698,18,17,null,'ocean',null),
+(699,19,17,null,'ocean',null),
+(700,20,17,null,'ocean',null),
+(701,21,17,null,'ocean',null),
+(702,22,17,null,'coast',null),
+(703,23,17,'K','forest',null),
+(704,24,17,null,'coast',null),
+(705,25,17,null,'ocean',null),
+(706,26,17,null,'ocean',null),
+(707,27,17,null,'ocean',null),
+(708,28,17,null,'ocean',null),
+(709,29,17,null,'coast',null),
+(710,30,17,'J','forest',null),
+(711,31,17,null,'coast',null),
+(712,32,17,'A','hills',null),
+(713,33,17,'A','forest','iron'),
+(714,34,17,'A','plains',null),
+(715,35,17,'A','forest',null),
+(716,36,17,'A','desert',null),
+(717,37,17,'A','forest',null),
+(718,38,17,'A','forest',null),
+(719,39,17,null,'coast',null),
+(720,0,18,null,'ocean',null),
+(721,1,18,null,'ocean',null),
+(722,2,18,null,'ocean',null),
+(723,3,18,null,'ocean',null),
+(724,4,18,null,'coast',null),
+(725,5,18,'C','desert',null),
+(726,6,18,'C','forest',null),
+(727,7,18,'C','hills',null),
+(728,8,18,'C','plains',null),
+(729,9,18,'C','plains',null),
+(730,10,18,'C','plains',null),
+(731,11,18,'C','plains',null),
+(732,12,18,'C','desert',null),
+(733,13,18,'C','desert',null),
+(734,14,18,'C','mountain',null),
+(735,15,18,null,'coast',null),
+(736,16,18,null,'coast',null),
+(737,17,18,null,'ocean',null),
+(738,18,18,null,'ocean',null),
+(739,19,18,null,'ocean',null),
+(740,20,18,null,'ocean',null),
+(741,21,18,null,'ocean',null),
+(742,22,18,null,'ocean',null),
+(743,23,18,null,'coast',null),
+(744,24,18,null,'coast',null),
+(745,25,18,null,'ocean',null),
+(746,26,18,null,'ocean',null),
+(747,27,18,null,'ocean',null),
+(748,28,18,null,'ocean',null),
+(749,29,18,null,'ocean',null),
+(750,30,18,null,'coast',null),
+(751,31,18,null,'coast',null),
+(752,32,18,'A','hills','gold'),
+(753,33,18,'A','hills',null),
+(754,34,18,'A','desert',null),
+(755,35,18,'A','plains',null),
+(756,36,18,'A','plains',null),
+(757,37,18,'A','plains',null),
+(758,38,18,'A','hills','aluminum'),
+(759,39,18,null,'coast',null),
+(760,0,19,null,'ocean',null),
+(761,1,19,null,'ocean',null),
+(762,2,19,null,'ocean',null),
+(763,3,19,null,'ocean',null),
+(764,4,19,null,'coast',null),
+(765,5,19,null,'coast',null),
+(766,6,19,null,'coast',null),
+(767,7,19,'C','mountain',null),
+(768,8,19,'C','mountain',null),
+(769,9,19,'C','desert',null),
+(770,10,19,'C','desert',null),
+(771,11,19,'C','desert',null),
+(772,12,19,'C','hills',null),
+(773,13,19,null,'coast',null),
+(774,14,19,null,'coast',null),
+(775,15,19,null,'coast',null),
+(776,16,19,null,'coast',null),
+(777,17,19,null,'coast',null),
+(778,18,19,null,'coast',null),
+(779,19,19,null,'ocean',null),
+(780,20,19,null,'ocean',null),
+(781,21,19,null,'ocean',null),
+(782,22,19,null,'ocean',null),
+(783,23,19,null,'ocean',null),
+(784,24,19,null,'ocean',null),
+(785,25,19,null,'ocean',null),
+(786,26,19,null,'ocean',null),
+(787,27,19,null,'ocean',null),
+(788,28,19,null,'ocean',null),
+(789,29,19,null,'ocean',null),
+(790,30,19,null,'ocean',null),
+(791,31,19,null,'coast',null),
+(792,32,19,'A','plains',null),
+(793,33,19,'A','desert',null),
+(794,34,19,'A','forest',null),
+(795,35,19,'A','plains',null),
+(796,36,19,'A','desert',null),
+(797,37,19,'A','plains',null),
+(798,38,19,'A','hills',null),
+(799,39,19,null,'coast',null),
+(800,0,20,null,'ocean',null),
+(801,1,20,null,'ocean',null),
+(802,2,20,null,'ocean',null),
+(803,3,20,null,'ocean',null),
+(804,4,20,null,'ocean',null),
+(805,5,20,null,'ocean',null),
+(806,6,20,null,'ocean',null),
+(807,7,20,null,'coast',null),
+(808,8,20,null,'coast',null),
+(809,9,20,null,'coast',null),
+(810,10,20,'T','jungle',null),
+(811,11,20,'T','plains',null),
+(812,12,20,'T','hills','rubber'),
+(813,13,20,'T','jungle',null),
+(814,14,20,'T','jungle',null),
+(815,15,20,'T','plains',null),
+(816,16,20,'T','forest',null),
+(817,17,20,'T','plains',null),
+(818,18,20,'T','plains',null),
+(819,19,20,null,'coast',null),
+(820,20,20,null,'coast',null),
+(821,21,20,null,'ocean',null),
+(822,22,20,null,'ocean',null),
+(823,23,20,null,'ocean',null),
+(824,24,20,null,'ocean',null),
+(825,25,20,null,'ocean',null),
+(826,26,20,null,'ocean',null),
+(827,27,20,null,'ocean',null),
+(828,28,20,null,'ocean',null),
+(829,29,20,null,'ocean',null),
+(830,30,20,null,'ocean',null),
+(831,31,20,null,'ocean',null),
+(832,32,20,null,'coast',null),
+(833,33,20,'A','plains',null),
+(834,34,20,'A','plains',null),
+(835,35,20,'A','desert',null),
+(836,36,20,'A','plains',null),
+(837,37,20,'A','desert',null),
+(838,38,20,null,'coast',null),
+(839,39,20,null,'coast',null),
+(840,0,21,null,'ocean',null),
+(841,1,21,null,'ocean',null),
+(842,2,21,null,'ocean',null),
+(843,3,21,null,'ocean',null),
+(844,4,21,null,'ocean',null),
+(845,5,21,null,'ocean',null),
+(846,6,21,null,'ocean',null),
+(847,7,21,null,'coast',null),
+(848,8,21,null,'coast',null),
+(849,9,21,'T','jungle',null),
+(850,10,21,'T','jungle',null),
+(851,11,21,'T','jungle',null),
+(852,12,21,'T','jungle',null),
+(853,13,21,'T','plains',null),
+(854,14,21,'T','jungle',null),
+(855,15,21,'T','jungle','spice'),
+(856,16,21,'T','jungle',null),
+(857,17,21,'T','plains','cotton'),
+(858,18,21,'T','jungle',null),
+(859,19,21,'T','jungle',null),
+(860,20,21,null,'coast',null),
+(861,21,21,null,'ocean',null),
+(862,22,21,null,'ocean',null),
+(863,23,21,null,'coast',null),
+(864,24,21,null,'coast',null),
+(865,25,21,null,'coast',null),
+(866,26,21,null,'coast',null),
+(867,27,21,null,'coast',null),
+(868,28,21,null,'ocean',null),
+(869,29,21,null,'ocean',null),
+(870,30,21,null,'ocean',null),
+(871,31,21,null,'ocean',null),
+(872,32,21,null,'coast',null),
+(873,33,21,'A','plains',null),
+(874,34,21,'A','hills',null),
+(875,35,21,'A','forest',null),
+(876,36,21,'A','hills','uranium'),
+(877,37,21,'A','plains',null),
+(878,38,21,null,'coast',null),
+(879,39,21,null,'ocean',null),
+(880,0,22,null,'ocean',null),
+(881,1,22,null,'ocean',null),
+(882,2,22,null,'coast',null),
+(883,3,22,null,'coast',null),
+(884,4,22,null,'coast',null),
+(885,5,22,null,'coast',null),
+(886,6,22,null,'ocean',null),
+(887,7,22,null,'coast',null),
+(888,8,22,'T','jungle',null),
+(889,9,22,'T','hills',null),
+(890,10,22,'T','forest',null),
+(891,11,22,'T','jungle',null),
+(892,12,22,'T','hills',null),
+(893,13,22,'T','plains',null),
+(894,14,22,'T','plains',null),
+(895,15,22,'T','plains',null),
+(896,16,22,'T','plains',null),
+(897,17,22,'T','jungle',null),
+(898,18,22,'T','jungle',null),
+(899,19,22,'T','plains',null),
+(900,20,22,'T','jungle',null),
+(901,21,22,null,'coast',null),
+(902,22,22,null,'ocean',null),
+(903,23,22,null,'coast',null),
+(904,24,22,'X','mountain','uranium'),
+(905,25,22,'X','hills',null),
+(906,26,22,'X','plains',null),
+(907,27,22,'X','hills',null),
+(908,28,22,null,'coast',null),
+(909,29,22,null,'coast',null),
+(910,30,22,null,'ocean',null),
+(911,31,22,null,'ocean',null),
+(912,32,22,null,'ocean',null),
+(913,33,22,null,'coast',null),
+(914,34,22,'A','plains',null),
+(915,35,22,'A','hills',null),
+(916,36,22,'A','desert',null),
+(917,37,22,null,'coast',null),
+(918,38,22,null,'coast',null),
+(919,39,22,null,'ocean',null),
+(920,0,23,null,'coast',null),
+(921,1,23,null,'coast',null),
+(922,2,23,'X','hills',null),
+(923,3,23,'X','hills',null),
+(924,4,23,'X','hills',null),
+(925,5,23,null,'coast',null),
+(926,6,23,null,'ocean',null),
+(927,7,23,null,'coast',null),
+(928,8,23,'T','plains',null),
+(929,9,23,'T','forest','spice'),
+(930,10,23,'T','forest',null),
+(931,11,23,'T','plains',null),
+(932,12,23,'T','forest',null),
+(933,13,23,'T','jungle',null),
+(934,14,23,'T','jungle',null),
+(935,15,23,'T','hills',null),
+(936,16,23,'T','hills','copper'),
+(937,17,23,'T','jungle',null),
+(938,18,23,'T','plains',null),
+(939,19,23,'T','plains',null),
+(940,20,23,'T','plains',null),
+(941,21,23,null,'coast',null),
+(942,22,23,null,'coast',null),
+(943,23,23,'X','forest',null),
+(944,24,23,'X','hills',null),
+(945,25,23,'X','plains',null),
+(946,26,23,'X','hills','gold'),
+(947,27,23,'X','hills','aluminum'),
+(948,28,23,'X','plains',null),
+(949,29,23,null,'coast',null),
+(950,30,23,null,'ocean',null),
+(951,31,23,null,'ocean',null),
+(952,32,23,null,'ocean',null),
+(953,33,23,null,'coast',null),
+(954,34,23,null,'coast',null),
+(955,35,23,null,'coast',null),
+(956,36,23,null,'coast',null),
+(957,37,23,null,'ocean',null),
+(958,38,23,null,'ocean',null),
+(959,39,23,null,'ocean',null),
+(960,0,24,null,'coast',null),
+(961,1,24,'X','hills','gold'),
+(962,2,24,'X','forest',null),
+(963,3,24,'X','hills',null),
+(964,4,24,'X','hills',null),
+(965,5,24,null,'coast',null),
+(966,6,24,null,'ocean',null),
+(967,7,24,null,'ocean',null),
+(968,8,24,null,'coast',null),
+(969,9,24,'T','hills','copper'),
+(970,10,24,'T','forest',null),
+(971,11,24,'T','jungle','rubber'),
+(972,12,24,'T','plains',null),
+(973,13,24,'T','jungle',null),
+(974,14,24,'T','jungle',null),
+(975,15,24,'T','jungle',null),
+(976,16,24,'T','hills',null),
+(977,17,24,'T','plains',null),
+(978,18,24,'T','jungle',null),
+(979,19,24,'T','jungle',null),
+(980,20,24,'T','hills',null),
+(981,21,24,null,'coast',null),
+(982,22,24,null,'ocean',null),
+(983,23,24,null,'coast',null),
+(984,24,24,'X','plains',null),
+(985,25,24,'X','hills',null),
+(986,26,24,'X','hills',null),
+(987,27,24,'X','hills',null),
+(988,28,24,null,'coast',null),
+(989,29,24,null,'coast',null),
+(990,30,24,null,'ocean',null),
+(991,31,24,null,'ocean',null),
+(992,32,24,null,'ocean',null),
+(993,33,24,null,'ocean',null),
+(994,34,24,null,'ocean',null),
+(995,35,24,null,'ocean',null),
+(996,36,24,null,'ocean',null),
+(997,37,24,null,'ocean',null),
+(998,38,24,null,'ocean',null),
+(999,39,24,null,'ocean',null),
+(1000,0,25,null,'coast',null),
+(1001,1,25,null,'coast',null),
+(1002,2,25,'X','forest',null),
+(1003,3,25,'X','hills',null),
+(1004,4,25,'X','forest',null),
+(1005,5,25,null,'coast',null),
+(1006,6,25,null,'ocean',null),
+(1007,7,25,null,'ocean',null),
+(1008,8,25,null,'coast',null),
+(1009,9,25,null,'coast',null),
+(1010,10,25,'T','jungle',null),
+(1011,11,25,'T','plains',null),
+(1012,12,25,'T','forest',null),
+(1013,13,25,'T','plains',null),
+(1014,14,25,'T','forest',null),
+(1015,15,25,'T','forest','spice'),
+(1016,16,25,'T','jungle',null),
+(1017,17,25,'T','jungle',null),
+(1018,18,25,'T','hills',null),
+(1019,19,25,'T','hills','gold'),
+(1020,20,25,'T','jungle',null),
+(1021,21,25,null,'coast',null),
+(1022,22,25,null,'ocean',null),
+(1023,23,25,null,'coast',null),
+(1024,24,25,null,'coast',null),
+(1025,25,25,null,'coast',null),
+(1026,26,25,null,'coast',null),
+(1027,27,25,null,'coast',null),
+(1028,28,25,null,'ocean',null),
+(1029,29,25,null,'ocean',null),
+(1030,30,25,null,'ocean',null),
+(1031,31,25,null,'ocean',null),
+(1032,32,25,null,'ocean',null),
+(1033,33,25,null,'ocean',null),
+(1034,34,25,null,'ocean',null),
+(1035,35,25,null,'ocean',null),
+(1036,36,25,null,'ocean',null),
+(1037,37,25,null,'ocean',null),
+(1038,38,25,null,'ocean',null),
+(1039,39,25,null,'ocean',null),
+(1040,0,26,null,'ocean',null),
+(1041,1,26,null,'ocean',null),
+(1042,2,26,null,'coast',null),
+(1043,3,26,null,'coast',null),
+(1044,4,26,null,'coast',null),
+(1045,5,26,null,'coast',null),
+(1046,6,26,null,'ocean',null),
+(1047,7,26,null,'ocean',null),
+(1048,8,26,null,'ocean',null),
+(1049,9,26,null,'ocean',null),
+(1050,10,26,null,'coast',null),
+(1051,11,26,null,'coast',null),
+(1052,12,26,null,'coast',null),
+(1053,13,26,null,'coast',null),
+(1054,14,26,null,'coast',null),
+(1055,15,26,null,'coast',null),
+(1056,16,26,null,'coast',null),
+(1057,17,26,null,'coast',null),
+(1058,18,26,null,'coast',null),
+(1059,19,26,null,'coast',null),
+(1060,20,26,null,'coast',null),
+(1061,21,26,null,'coast',null),
+(1062,22,26,null,'ocean',null),
+(1063,23,26,null,'ocean',null),
+(1064,24,26,null,'ocean',null),
+(1065,25,26,null,'ocean',null),
+(1066,26,26,null,'ocean',null),
+(1067,27,26,null,'ocean',null),
+(1068,28,26,null,'ocean',null),
+(1069,29,26,null,'ocean',null),
+(1070,30,26,null,'ocean',null),
+(1071,31,26,null,'ocean',null),
+(1072,32,26,null,'ocean',null),
+(1073,33,26,null,'ocean',null),
+(1074,34,26,null,'ocean',null),
+(1075,35,26,null,'ocean',null),
+(1076,36,26,null,'ocean',null),
+(1077,37,26,null,'ocean',null),
+(1078,38,26,null,'ocean',null),
+(1079,39,26,null,'ocean',null),
+(1080,0,27,null,'ocean',null),
+(1081,1,27,null,'ocean',null),
+(1082,2,27,null,'ocean',null),
+(1083,3,27,null,'ocean',null),
+(1084,4,27,null,'ocean',null),
+(1085,5,27,null,'ocean',null),
+(1086,6,27,null,'ocean',null),
+(1087,7,27,null,'ocean',null),
+(1088,8,27,null,'ocean',null),
+(1089,9,27,null,'ocean',null),
+(1090,10,27,null,'ocean',null),
+(1091,11,27,null,'ocean',null),
+(1092,12,27,null,'ocean',null),
+(1093,13,27,null,'ocean',null),
+(1094,14,27,null,'ocean',null),
+(1095,15,27,null,'ocean',null),
+(1096,16,27,null,'ocean',null),
+(1097,17,27,null,'ocean',null),
+(1098,18,27,null,'ocean',null),
+(1099,19,27,null,'ocean',null),
+(1100,20,27,null,'ocean',null),
+(1101,21,27,null,'ocean',null),
+(1102,22,27,null,'ocean',null),
+(1103,23,27,null,'ocean',null),
+(1104,24,27,null,'ocean',null),
+(1105,25,27,null,'ocean',null),
+(1106,26,27,null,'ocean',null),
+(1107,27,27,null,'ocean',null),
+(1108,28,27,null,'ocean',null),
+(1109,29,27,null,'ocean',null),
+(1110,30,27,null,'ocean',null),
+(1111,31,27,null,'ocean',null),
+(1112,32,27,null,'ocean',null),
+(1113,33,27,null,'ocean',null),
+(1114,34,27,null,'ocean',null),
+(1115,35,27,null,'ocean',null),
+(1116,36,27,null,'ocean',null),
+(1117,37,27,null,'ocean',null),
+(1118,38,27,null,'ocean',null),
+(1119,39,27,null,'ocean',null)
   on conflict (id) do update set c = excluded.c, r = excluded.r, zone = excluded.zone, terrain = excluded.terrain, res = excluded.res;
 
-insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech) values
-('K',304,'capital','K','수도',0,false,null),
-('J',309,'capital','J','수도',0,false,null),
-('C',328,'capital','C','수도',0,false,null),
-('A',348,'capital','A','수도',0,false,null),
-('N',77,'capital','N','수도',0,false,null),
-('T',555,'capital','T','수도',0,false,null),
-('K1',240,'cs','K','소나무골',5,false,null),
-('K2',368,'cs','K','푸른나루',10,false,null),
-('K4',204,'cs','K','솔바람재',12,false,null),
-('K3',434,'cs','K','물새섬',15,true,null),
-('J1',245,'cs','J','안개곶',5,false,null),
-('J2',373,'cs','J','붉은항',10,false,null),
-('J3',440,'cs','J','등대섬',15,true,null),
-('C1',262,'cs','C','황토성',5,false,null),
-('C2',266,'cs','C','붉은강',9,false,null),
-('C3',357,'cs','C','비단마을',13,false,'chipmaking'),
-('C4',395,'cs','C','철산성',17,false,'rubberwork'),
-('C5',424,'cs','C','모래성',21,false,'refining'),
-('C6',291,'cs','C','서쪽관문',24,false,null),
-('A1',252,'cs','A','들판마을',5,false,null),
-('A2',411,'cs','A','큰강나루',9,false,null),
-('A3',189,'cs','A','검은샘',13,false,null),
-('A4',474,'cs','A','포도골',17,false,null),
-('A5',509,'cs','A','바위성',21,false,null),
-('A6',218,'cs','A','은빛고원',24,false,null),
-('N1',74,'cs','N','눈꽃마을',5,false,null),
-('N2',80,'cs','N','얼음항',9,false,null),
-('N3',39,'cs','N','금빛골',13,false,'metalcraft'),
-('N4',51,'cs','N','북극성',17,false,null),
-('N5',100,'cs','N','서리성',21,false,null),
-('N6',118,'cs','N','오로라성',24,false,null),
-('T1',521,'cs','T','야자마을',5,false,'jungle'),
-('T2',525,'cs','T','고무나무골',9,false,'rubberwork'),
-('T3',584,'cs','T','향기섬',13,false,null),
-('T4',622,'cs','T','구리곶',17,false,null),
-('T5',592,'cs','T','산호섬',21,false,null)
-  on conflict (id) do update set tile_id = excluded.tile_id, kind = excluded.kind, type = excluded.type, name = excluded.name, def = excluded.def, sea = excluded.sea, tech = excluded.tech;
+delete from priv.cities where id not in ('K','J','C','A','N','T','K1','K2','K3','K4','K5','J1','J2','J3','J4','J5','C1','C2','C3','C4','C5','C6','C7','C8','A1','A2','A3','A4','A5','A6','A7','A8','N1','N2','N3','N4','N5','N6','N7','N8','T1','T2','T3','T4','T5','T6','T7','X1','X2','X3','X4','X5');
+
+delete from priv.tiles where id >= 1120;
+
+insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech, tier, max_hp, bonus, tutorial, boss) values
+('K',460,'capital','K','수도',0,false,null,0,0,0,false,false),
+('J',466,'capital','J','수도',0,false,null,0,0,0,false,false),
+('C',530,'capital','C','수도',0,false,null,0,0,0,false,false),
+('A',555,'capital','A','수도',0,false,null,0,0,0,false,false),
+('N',96,'capital','N','수도',0,false,null,0,0,0,false,false),
+('T',894,'capital','T','수도',0,false,null,0,0,0,false,false),
+('K1',379,'cs','K','소나무골',6,false,'shipbuilding,steelmaking,chipmaking',0,60,100,true,false),
+('K2',579,'cs','K','푸른나루',12,false,null,1,100,40,false,false),
+('K3',581,'cs','K','솔바람재',22,false,'navigation',2,150,60,false,false),
+('K4',703,'cs','K','물새섬',40,true,'economics',3,220,90,false,false),
+('K5',296,'cs','K','단풍고개',70,false,null,4,320,150,false,false),
+('J1',546,'cs','J','안개곶',6,false,'shipbuilding,metalcraft,rubberwork',0,60,100,true,false),
+('J2',346,'cs','J','붉은항',12,false,null,1,100,40,false,false),
+('J3',548,'cs','J','벚꽃마을',22,false,'navigation',2,150,60,false,false),
+('J4',626,'cs','J','등대섬',40,false,'economics',3,220,90,false,false),
+('J5',710,'cs','J','파도곶',70,true,null,4,320,150,false,false),
+('C1',449,'cs','C','황토성',6,false,'textile,steelmaking,woodwork',0,60,100,true,false),
+('C2',691,'cs','C','붉은강',12,false,'engineering',1,100,40,false,false),
+('C3',495,'cs','C','비단마을',12,false,null,1,100,40,false,false),
+('C4',727,'cs','C','철산성',22,false,'gunpowder',2,150,60,false,false),
+('C5',695,'cs','C','모래성',22,false,null,2,150,60,false,false),
+('C6',405,'cs','C','옥수마을',40,false,'economics',3,220,90,false,false),
+('C7',252,'cs','C','대나무성',40,false,null,3,220,90,false,false),
+('C8',602,'cs','C','황하나루',70,false,'electricity',4,320,150,false,false),
+('A1',474,'cs','A','들판마을',6,false,'oil_drill,refining,radar',0,60,100,true,false),
+('A2',593,'cs','A','큰강나루',12,false,'engineering',1,100,40,false,false),
+('A3',718,'cs','A','검은샘',12,false,null,1,100,40,false,false),
+('A4',398,'cs','A','포도골',22,false,'electricity',2,150,60,false,false),
+('A5',754,'cs','A','바위성',22,false,null,2,150,60,false,false),
+('A6',352,'cs','A','은빛고원',40,false,'combustion',3,220,90,false,false),
+('A7',235,'cs','A','독수리봉',70,false,null,4,320,150,false,false),
+('A8',916,'cs','A','황금평원',70,false,null,4,320,150,false,false),
+('N1',54,'cs','N','눈꽃마을',6,false,'oil_drill,refining,nuclear',0,60,100,true,false),
+('N2',180,'cs','N','얼음항',12,false,'chivalry',1,100,40,false,false),
+('N3',10,'cs','N','금빛골',12,false,null,1,100,40,false,false),
+('N4',24,'cs','N','자작나무골',22,false,'munitions',2,150,60,false,false),
+('N5',207,'cs','N','서리성',22,false,null,2,150,60,false,false),
+('N6',107,'cs','N','북극성',40,false,'electricity',3,220,90,false,false),
+('N7',4,'cs','N','오로라성',70,false,null,4,320,150,false,false),
+('N8',70,'cs','N','늑대고개',70,false,null,4,320,150,false,false),
+('T1',852,'cs','T','야자마을',6,false,'jungle,rubberwork,textile',0,60,100,true,false),
+('T2',1014,'cs','T','고무나무골',12,false,'navigation',1,100,40,false,false),
+('T3',977,'cs','T','향기섬',12,false,null,1,100,40,false,false),
+('T4',1011,'cs','T','구리곶',22,false,'woodwork',2,150,60,false,false),
+('T5',818,'cs','T','산호섬',22,false,null,2,150,60,false,false),
+('T6',928,'cs','T','망고나루',40,false,'economics',3,220,90,false,false),
+('T7',1020,'cs','T','코코넛만',70,false,null,4,320,150,false,false),
+('X1',945,'cs','X','잊힌 제국 아르카',110,true,null,5,1200,500,false,true),
+('X2',907,'cs','X','수호자의 탑',70,true,null,4,320,150,false,false),
+('X3',151,'cs','X','폭풍섬',40,true,null,3,220,90,false,false),
+('X4',193,'cs','X','천둥 요새',70,true,null,4,320,150,false,false),
+('X5',962,'cs','X','해적만',40,true,null,3,220,90,false,false)
+  on conflict (id) do update set tile_id = excluded.tile_id, kind = excluded.kind, type = excluded.type, name = excluded.name, def = excluded.def, sea = excluded.sea, tech = excluded.tech, tier = excluded.tier, max_hp = excluded.max_hp, bonus = excluded.bonus, tutorial = excluded.tutorial, boss = excluded.boss;
 
 -- ---------------------------------------------------------------------
 -- 내부 도우미 (priv: 화면에서 직접 호출 불가)
@@ -1007,10 +1457,18 @@ begin
   if auth.uid() is null then perform priv.err('NO_AUTH', '접속 정보가 없어요. 새로고침해 주세요.'); end if;
   -- 선생님 관전: admin_observe 안에서만 잠깐 그 나라 학생처럼 보기 (아무것도 바꿀 수 없음)
   if obs is not null and obs <> '' and exists(select 1 from priv.admins where uid = auth.uid()) then
-    r.id := 0; r.country_id := obs::int; r.name := '선생님 관전'; r.is_leader := false; return r;
+    r.id := 0; r.country_id := obs::int; r.name := '선생님 관전'; r.is_leader := false; r.roles := '{}'; return r;
   end if;
   select * into r from priv.students where uid = auth.uid();
-  if not found then perform priv.err('NOT_JOINED', '아직 나라에 입장하지 않았어요.'); end if;
+  if not found then
+    -- 선생님 체험 모드: 관제실에서 고른 나라의 모든 역할로 직접 조작
+    select control into obs from priv.admins where uid = auth.uid() and control is not null;
+    if found then
+      r.id := 0; r.country_id := obs::int; r.name := '선생님'; r.is_leader := true;
+      r.roles := array(select jsonb_array_elements_text(priv.cfg()->'ROLES')); return r;
+    end if;
+    perform priv.err('NOT_JOINED', '아직 나라에 입장하지 않았어요.');
+  end if;
   return r;
 end $$;
 
@@ -1054,7 +1512,7 @@ language sql stable as $$ select case when item = 'coin' then '코인' else coal
 create or replace function priv.city_art(p_id text) returns text
 language sql stable as $$
   select case when c.kind = 'capital' then coalesce((select type from priv.countries where id = c.country), c.type)
-              when c.sea then 'harbor' when c.def >= 13 then 'fortress' else 'village' end
+              when c.tier >= 3 then 'fortress' when c.sea then 'harbor' else 'village' end
   from priv.cities c where c.id = p_id
 $$;
 
@@ -1112,12 +1570,12 @@ create or replace function priv.has_tech(c int, t text) returns boolean
 language sql stable as $$ select t = any(techs) from priv.countries where id = c $$;
 
 create or replace function priv.military(c int) returns int
-language sql stable as $$ select count(*)::int from priv.units where country = c and kind in ('spear', 'catapult', 'ballista', 'cannon') $$;
+language sql stable as $$ select count(*)::int from priv.units where country = c and kind not in ('worker', 'scout') $$;
 
 create or replace function priv.strength(c int, t int) returns int
 language sql stable as $$
   select coalesce(sum((priv.cfg()->'UNITS'->kind->>'str')::int), 0)::int
-  from priv.units where country = c and kind in ('spear', 'catapult', 'ballista', 'cannon') and acted_turn < t
+  from priv.units where country = c and kind not in ('worker', 'scout') and attacked_turn < t
 $$;
 
 -- 시야 넓히기 + 발견 확인
@@ -1167,7 +1625,7 @@ language plpgsql as $$
 declare cfg jsonb := priv.cfg(); co record; cap priv.cities; k text; v text;
 begin
   update priv.tiles set owner = null, imp = null where true;
-  update priv.cities set country = null, buildings = '{}', built_turn = -1, trained_turn = -1, unrest = false, taken_turn = null, def_help = 0 where true;
+  update priv.cities set country = null, buildings = '{}', built_turn = -1, trained_turn = -1, unrest = false, taken_turn = null, def_help = 0, hp = max_hp where true;
   delete from priv.units where true;
   delete from priv.inventory where true;
   delete from priv.factories where true;
@@ -1183,8 +1641,9 @@ begin
     fair_cap = true, tariff = 0, banned = '{}'::jsonb, cold_snap = null, world_first = null, locked = false, timer_end = null where id = 1;
   for co in select * from priv.countries order by id loop
     update priv.countries set coin = (cfg->'START'->>'coin')::int, happy = (cfg->'HAPPY'->>'base')::int, glory = '{}',
-      techs = array(select jsonb_array_elements_text(cfg->'TYPES'->co.type->'techs')),
-      discovered = '{}', explored = '{}', title = null, lux_types = 0, income = 0, short = '{}', tariff_turn = 0, attacked_turn = -1
+      techs = '{}',
+      discovered = '{}', explored = '{}', title = null, lux_types = 0, income = 0, short = '{}', tariff_turn = 0, attacked_turn = -1,
+      ready_turn = 0, research_turn = -1
      where id = co.id;
     for k, v in select key, value from jsonb_each_text(cfg->'START') loop
       if k <> 'coin' then perform priv.add(co.id, k, v::int); end if;
@@ -1196,10 +1655,11 @@ begin
     update priv.tiles t set owner = null
      where t.owner = co.id and priv.tdist(t.id, cap.tile_id) >= 2
        and exists(select 1 from priv.cities c2 where c2.kind = 'cs' and priv.tdist(t.id, c2.tile_id) <= 1);
-    -- 우리 나라 주변 도시국가는 처음부터 지도에 보임 (확장 목표)
+    -- 우리 나라 쪽 도시국가는 처음부터 지도에 보임 (확장 목표)
     perform priv.reveal(co.id, coalesce((select array_agg(x) from priv.cities c2, unnest(priv.within(c2.tile_id, 1)) x
       where c2.kind = 'cs' and c2.type = co.type), '{}'));
-    insert into priv.units(country, kind, tile_id) values (co.id, 'worker', cap.tile_id), (co.id, 'scout', cap.tile_id), (co.id, 'spear', cap.tile_id);
+    -- 시작 병력 (노동자·정찰병·창병 2·투석기)
+    insert into priv.units(country, kind, tile_id) select co.id, su.kind, cap.tile_id from jsonb_array_elements_text(cfg->'START_UNITS') as su(kind);
   end loop;
   perform priv.check_discovery();
   perform priv.bump_game(); perform priv.bump_all();
@@ -1311,7 +1771,7 @@ begin
     -- 행복도
     v := (h->>'base')::int + types * (h->>'perLuxType')::int
        + (select count(*) from priv.cities where country = co.id and 'plaza' = any(buildings))::int * (h->>'perPlaza')::int
-       + case when exists(select 1 from priv.advanced where country = co.id and kind = 'theater') then (cfg->'ADVANCED'->'theater'->>'happy')::int else 0 end
+       + coalesce((select sum(coalesce((cfg->'ADVANCED'->kind->>'happy')::int, 0)) from priv.advanced where country = co.id), 0)::int
        + (ncity - 1) * (h->>'perCity')::int
        + coalesce((select sum(x) from unnest(co.glory) x), 0)::int
        - ceil(co.tariff_turn::numeric / (h->>'tariffPer')::int)::int;
@@ -1348,6 +1808,10 @@ begin
     if array_length(shortl, 1) > 0 then
       perform priv.notice('부족해요: ' || array_to_string(shortl, ', ') || ' → 행복도가 떨어졌어요.', 'short', co.id);
     end if;
+    -- 병력 회복: 우리 땅 +20, 밖 +10
+    update priv.units u set hp = least(100, hp + case when exists(select 1 from priv.tiles tt where tt.id = u.tile_id and tt.owner = co.id)
+        then (cfg->'COMBAT'->>'healHome')::int else (cfg->'COMBAT'->>'healField')::int end)
+     where u.country = co.id and u.hp < 100;
     insert into priv.snapshots(turn, country, data)
       select g.turn, co.id, jsonb_build_object('coin', c.coin, 'happy', c.happy, 'income', c.income, 'lux', c.lux_types,
         'cities', ncity, 'short', c.short,
@@ -1486,6 +1950,7 @@ begin
     'country', jsonb_build_object('id', co.id, 'type', co.type, 'name', priv.cname(co.id), 'flag_url', co.flag_url, 'emblem_url', co.emblem_url,
       'coin', co.coin, 'happy', co.happy, 'income', co.income, 'lux_types', co.lux_types, 'short', co.short, 'techs', co.techs,
       'title', co.title, 'glory', coalesce((select sum(x) from unnest(co.glory) x), 0), 'attacked', co.attacked_turn >= g.turn,
+      'ready', co.ready_turn = g.turn, 'researched', co.research_turn >= g.turn,
       'discovered', co.discovered, 'explored_count', coalesce(array_length(co.explored, 1), 0)),
     'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}') from priv.inventory where country = co.id and qty <> 0),
     'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
@@ -1493,18 +1958,19 @@ begin
         'coastal', exists(select 1 from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.terrain in ('ocean', 'coast') and priv.hdist(t.c, t.r, ct.c, ct.r) = 1))
         order by c.kind, c.taken_turn), '[]') from priv.cities c where c.country = co.id),
     'targets', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'name', c.name, 'art', priv.city_art(c.id), 'def', greatest(1, c.def - c.def_help),
-        'sea', c.sea, 'tech', c.tech, 'taken', c.country is not null,
-        'res', (select coalesce(jsonb_agg(t.res), '[]') from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.res is not null and t.zone = c.type and priv.hdist(t.c, t.r, ct.c, ct.r) <= 1))
-        order by c.def), '[]') from priv.cities c where c.kind = 'cs' and c.type = co.type),
+        'sea', c.sea, 'tech', c.tech, 'taken', c.country is not null, 'mine', c.type = co.type, 'owner', c.country,
+        'tier', c.tier, 'hp', c.hp, 'max_hp', c.max_hp, 'bonus', c.bonus, 'tutorial', c.tutorial, 'boss', c.boss,
+        'res', (select coalesce(jsonb_agg(t.res), '[]') from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.res is not null and priv.hdist(t.c, t.r, ct.c, ct.r) <= 1))
+        order by c.tier, c.id), '[]') from priv.cities c where c.kind = 'cs' and (c.type = co.type or c.tile_id = any(co.explored))),
     'units', (select coalesce(jsonb_agg(jsonb_build_object('id', u.id, 'kind', u.kind, 'tile', u.tile_id, 'acted', u.acted_turn >= g.turn,
-        'moves', case when u.moves_turn >= g.turn then u.moves_left else (priv.cfg()->>'SCOUT_MOVE')::int end) order by u.id), '[]')
+        'hp', u.hp, 'attacked', u.attacked_turn >= g.turn, 'moves', priv.unit_moves_left(u), 'max_moves', priv.unit_max_moves(u)) order by u.id), '[]')
         from priv.units u where u.country = co.id),
-    'strength', priv.strength(co.id, g.turn),
+    'strength', 0,
     'factories', (select coalesce(jsonb_agg(kind), '[]') from priv.factories where country = co.id),
     'advanced', (select coalesce(jsonb_agg(kind), '[]') from priv.advanced where country = co.id),
     'countries', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'type_name', priv.cfg()->'TYPES'->c.type->>'name',
         'name', priv.cname(c.id), 'flag_url', c.flag_url, 'emblem_url', c.emblem_url, 'title', c.title,
-        'known', c.id = any(known), 'happy', case when c.id = any(known) then c.happy end) order by c.id), '[]') from priv.countries c),
+        'known', c.id = any(known), 'happy', case when c.id = any(known) then c.happy end, 'ready', c.ready_turn = g.turn) order by c.id), '[]') from priv.countries c),
     'offers', (select coalesce(jsonb_agg(to_jsonb(o) order by o.id desc), '[]') from priv.offers o
         where (o.from_c = co.id or o.to_c = co.id) and (o.status = 'pending' or o.turn >= g.turn - 1)),
     'trades', (select coalesce(jsonb_agg(to_jsonb(t) order by t.id desc), '[]') from (select * from priv.trades
@@ -1530,8 +1996,9 @@ begin
     'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
         'country', c.country, 'mine', c.type = co.type, 'buildings', case when c.country = co.id then c.buildings end,
         'unrest', case when c.country = co.id then c.unrest end,
-        'def', case when c.kind = 'cs' and c.country is null then greatest(1, c.def - c.def_help) end)), '[]')
-      from priv.cities c where c.tile_id = any(co.explored) and (c.country is null or c.country = co.id or c.kind = 'capital'))
+        'def', case when c.kind = 'cs' and c.country is null then greatest(1, c.def - c.def_help) end,
+        'hp', case when c.kind = 'cs' and c.country is null then c.hp end, 'max_hp', c.max_hp, 'tier', c.tier, 'boss', c.boss, 'tutorial', c.tutorial)), '[]')
+      from priv.cities c where c.tile_id = any(co.explored))
   );
 end $$;
 
@@ -1563,7 +2030,7 @@ end $$;
 
 create or replace function public.worker_build(p_tile int, p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '개척자'); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '대지 개척자'); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
 begin
   select * into t from priv.tiles where id = p_tile;
   if not found or t.owner is distinct from me.country_id then perform priv.err('NOT_MINE', '우리 나라 땅에만 개발할 수 있어요.'); end if;
@@ -1588,7 +2055,7 @@ end $$;
 
 create or replace function public.hire_worker(p_city text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '개척자'); c priv.cities;
+declare me priv.students := priv.act_start(1, '대지 개척자'); c priv.cities;
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시에서만 고용할 수 있어요.'); end if;
@@ -1600,7 +2067,7 @@ end $$;
 
 create or replace function public.city_build(p_city text, p_building text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '건축가'); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '수석 건축가'); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
@@ -1620,79 +2087,67 @@ end $$;
 
 create or replace function public.train_unit(p_city text, p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '장군'); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '총사령관'); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
-  if not ('barracks' = any(c.buildings)) then perform priv.err('NO_BARRACKS', '병영이 있는 도시에서만 훈련할 수 있어요.'); end if;
   if c.trained_turn >= tn then perform priv.err('BUSY', '이 도시는 이번 턴에 이미 훈련했어요.'); end if;
   u := cfg->'UNITS'->p_kind;
   if u is null then perform priv.err('BAD_KIND', '없는 병력이에요.'); end if;
+  if (u->>'sea')::boolean is true then
+    if not ('harbor' = any(c.buildings)) then perform priv.err('NO_HARBOR', '배는 항구가 있는 도시에서 만들어요.'); end if;
+  elsif not ('barracks' = any(c.buildings)) then perform priv.err('NO_BARRACKS', '병영이 있는 도시에서만 훈련할 수 있어요.'); end if;
+  if u ? 'tech' and not priv.has_tech(me.country_id, u->>'tech') then
+    perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(u->>'tech')) || '」 기술이 있어야 해요.'); end if;
   if u ? 'needs' and not exists(select 1 from priv.advanced where country = me.country_id and kind = u->>'needs') then
     perform priv.err('LOCKED', '「' || (cfg->'ADVANCED'->(u->>'needs')->>'name') || '」을(를) 먼저 지어야 해요.'); end if;
   perform priv.pay(me.country_id, u->'cost');
-  insert into priv.units(country, kind, tile_id) values (me.country_id, p_kind, c.tile_id);
+  insert into priv.units(country, kind, tile_id) values (me.country_id, p_kind,
+    case when (u->>'sea')::boolean is true then coalesce((select t.id from priv.tiles t where t.id = any(priv.within(c.tile_id, 1)) and t.terrain in ('coast', 'ocean') order by t.id limit 1), c.tile_id)
+         else c.tile_id end);
   update priv.cities set trained_turn = tn where id = c.id;
   perform priv.bump(me.country_id);
   return jsonb_build_object('ok', true);
 end $$;
 
-create or replace function public.attack_city(p_city text) returns jsonb
-language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '장군'); cfg jsonb := priv.cfg(); c priv.cities; co priv.countries; tn int := priv.turn();
-  str int; need int; techmsg text := null; res jsonb; units jsonb;
-begin
-  select * into co from priv.countries where id = me.country_id;
-  select * into c from priv.cities where id = p_city for update;
-  if not found or c.kind <> 'cs' then perform priv.err('BAD_CITY', '공격할 수 있는 도시국가가 아니에요.'); end if;
-  if c.type <> co.type then perform priv.err('NOT_TARGET', '이 도시국가는 다른 나라 쪽에 있어요. 우리 나라 주변 도시국가만 차지할 수 있어요.'); end if;
-  if c.country is not null then perform priv.err('TAKEN', '이미 우리 나라 도시예요.'); end if;
-  if co.attacked_turn >= tn then perform priv.err('BUSY', '이번 턴에는 이미 공격했어요. 다음 턴에 다시 공격해요.'); end if;
-  if c.sea and not exists(select 1 from priv.cities where country = co.id and 'harbor' = any(buildings)) then
-    perform priv.err('NEED_HARBOR', '바다 건너 도시국가예요. 항구를 먼저 지어야 해요.'); end if;
-  str := priv.strength(co.id, tn);
-  need := greatest(1, c.def - c.def_help);
-  if str < need then perform priv.err('WEAK', '힘이 모자라요. (지금 ' || str || ' / 필요 ' || need || ')'); end if;
-  select coalesce(jsonb_agg(kind), '[]') into units from priv.units where country = co.id and kind in ('spear', 'catapult', 'ballista', 'cannon') and acted_turn < tn;
-  update priv.units set acted_turn = tn where country = co.id and kind in ('spear', 'catapult', 'ballista', 'cannon') and acted_turn < tn;
-  update priv.cities set country = co.id, taken_turn = tn where id = c.id;
-  update priv.countries set attacked_turn = tn, glory = glory || ((cfg->'HAPPY'->>'glory')::int) where id = co.id;
-  perform priv.claim(co.id, c.tile_id, 1);
-  if c.tech is not null and not priv.has_tech(co.id, c.tech) then
-    update priv.countries set techs = techs || c.tech where id = co.id;
-    techmsg := cfg->'TECHS'->>c.tech;
-  end if;
-  select coalesce(jsonb_agg(t.res), '[]') into res from priv.tiles t, priv.tiles ct
-    where ct.id = c.tile_id and t.owner = co.id and t.res is not null and priv.hdist(t.c, t.r, ct.c, ct.r) <= 1;
-  perform priv.check_discovery();
-  perform priv.notice(c.name || '을(를) 차지했어요! 주변을 굴복시키고 부국강병을 이룬 지도자에게 시민들이 환호합니다.', 'capture', co.id);
-  if techmsg is not null then
-    perform priv.notice(c.name || '의 기술자들이 우리 나라에 합류해 「' || techmsg || '」 기술을 쓸 수 있게 되었어요.', 'tech', co.id);
-  end if;
-  perform priv.event('capture', priv.cname(co.id) || ' → ' || c.name, jsonb_build_object('country', co.id, 'city', c.id));
-  perform priv.bump(co.id); perform priv.bump_game();
-  return jsonb_build_object('ok', true, 'city', c.id, 'name', c.name, 'tile', c.tile_id, 'strength', str, 'def', need,
-    'units', units, 'res', res, 'tech', techmsg);
-end $$;
+-- 병력·정찰병 이동: 화면에서 계산한 길(칸 번호 목록)을 받아 한 칸씩 검사
+create or replace function priv.unit_max_moves(u priv.units) returns int
+language sql stable as $$
+  select case when u.kind = 'scout' then (priv.cfg()->>'SCOUT_MOVE')::int + case when priv.has_tech(u.country, 'navigation') then 2 else 0 end
+              else coalesce((priv.cfg()->'UNITS'->u.kind->>'move')::int, 0) end
+$$;
+create or replace function priv.unit_moves_left(u priv.units) returns int
+language sql stable as $$
+  select case when u.attacked_turn >= priv.turn() then 0 when u.moves_turn >= priv.turn() then u.moves_left else priv.unit_max_moves(u) end
+$$;
 
--- 정찰: 화면에서 계산한 길(칸 번호 목록)을 받아 한 칸씩 검사
-create or replace function public.scout_move(p_unit int, p_path int[]) returns jsonb
+create or replace function public.unit_move(p_unit int, p_path int[]) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '탐험가'); cfg jsonb := priv.cfg(); u priv.units; tn int := priv.turn();
+declare me priv.students := priv.act_start(1); cfg jsonb := priv.cfg(); u priv.units; tn int := priv.turn();
   left_ int; prev int; step int; t priv.tiles; before int; seen int[] := '{}'; disc_before int[]; disc_after int[];
+  sea boolean; water boolean; sight int;
 begin
-  select * into u from priv.units where id = p_unit and country = me.country_id and kind = 'scout' for update;
-  if not found then perform priv.err('NO_UNIT', '우리 정찰병이 아니에요.'); end if;
-  left_ := case when u.moves_turn >= tn then u.moves_left else (cfg->>'SCOUT_MOVE')::int end;
+  select * into u from priv.units where id = p_unit and country = me.country_id for update;
+  if not found or u.kind = 'worker' then perform priv.err('NO_UNIT', '움직일 수 있는 우리 병력이 아니에요.'); end if;
+  perform priv.need_role(me, case when u.kind = 'scout' then cfg->'ROLE_KEY'->>'explore' else cfg->'ROLE_KEY'->>'army' end);
+  left_ := priv.unit_moves_left(u);
+  sea := (cfg->'UNITS'->u.kind->>'sea')::boolean is true;
+  sight := case when u.kind = 'scout' then (cfg->>'SCOUT_SIGHT')::int else 1 end;
   if coalesce(array_length(p_path, 1), 0) = 0 then perform priv.err('NO_PATH', '갈 곳을 골라 주세요.'); end if;
+  if left_ <= 0 then perform priv.err('NO_MOVES', '이번 턴에는 더 움직일 수 없어요.'); end if;
   if array_length(p_path, 1) > left_ then perform priv.err('TOO_FAR', '이번 턴에는 ' || left_ || '칸까지만 갈 수 있어요.'); end if;
   prev := u.tile_id;
   foreach step in array p_path loop
     select * into t from priv.tiles where id = step;
     if not found or priv.tdist(prev, step) <> 1 then perform priv.err('BAD_PATH', '이어지지 않는 길이에요.'); end if;
-    if not (t.terrain in ('ocean', 'coast') or t.owner is null or t.owner = me.country_id) then
+    water := t.terrain in ('ocean', 'coast');
+    if u.kind <> 'scout' and sea and not water then perform priv.err('LAND', '배는 바다로만 다녀요.'); end if;
+    if u.kind <> 'scout' and not sea and water then perform priv.err('WATER', '육군은 바다를 건널 수 없어요. 배가 필요해요.'); end if;
+    if not water and t.owner is not null and t.owner <> me.country_id then
       perform priv.err('BORDER', '다른 나라 국경 안으로는 들어갈 수 없어요.'); end if;
-    seen := seen || priv.within(step, (cfg->>'SCOUT_SIGHT')::int);
+    if exists(select 1 from priv.cities c where c.tile_id = step and c.country is distinct from me.country_id) then
+      perform priv.err('CITY', '도시국가 안으로는 들어갈 수 없어요. 바로 옆에서 공격해요.'); end if;
+    seen := seen || priv.within(step, sight);
     prev := step;
   end loop;
   select coalesce(array_length(explored, 1), 0), discovered into before, disc_before from priv.countries where id = me.country_id;
@@ -1701,14 +2156,110 @@ begin
   perform priv.check_discovery();
   select discovered into disc_after from priv.countries where id = me.country_id;
   perform priv.bump(me.country_id);
-  return jsonb_build_object('ok', true, 'to', prev,
+  return jsonb_build_object('ok', true, 'to', prev, 'left', left_ - array_length(p_path, 1),
     'new_tiles', (select coalesce(array_length(explored, 1), 0) from priv.countries where id = me.country_id) - before,
     'discovered', (select coalesce(jsonb_agg(x), '[]') from unnest(disc_after) x where not (x = any(disc_before))));
 end $$;
 
+-- 예전 이름 (정찰병)
+create or replace function public.scout_move(p_unit int, p_path int[]) returns jsonb
+language sql security definer set search_path = public, priv as $$ select public.unit_move(p_unit, p_path) $$;
+
+-- 전투 미리보기 (화면과 서버가 같은 식): 피해 = 30 × 공격힘/방어력
+create or replace function priv.combat(p_str int, p_hp int, p_def int, p_ranged boolean) returns int[]
+language plpgsql stable as $$
+declare cb jsonb := priv.cfg()->'COMBAT'; a numeric; ratio numeric; dc int; du int;
+begin
+  a := p_str * (0.5 + 0.5 * p_hp / 100.0);
+  ratio := a / greatest(1, p_def);
+  dc := greatest((cb->>'min')::int, least((cb->>'max')::int, round((cb->>'base')::int * ratio)::int));
+  du := greatest(1, least(150, round((cb->>'base')::int / ratio)::int));
+  if p_ranged then du := round(du * (cb->>'rangedCounter')::numeric)::int; end if;
+  return array[dc, du];
+end $$;
+
+-- 공격: 도시국가 바로 옆(원거리 병력은 사거리 안)에서. 도시가 반격해서 우리 병력도 다쳐요
+create or replace function public.unit_attack(p_unit int, p_city text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(1, '총사령관'); cfg jsonb := priv.cfg(); u priv.units; c priv.cities; co priv.countries;
+  tn int := priv.turn(); ud jsonb; d int; rng int; ranged boolean; dmg int[]; def int; chp int; uhp int;
+  captured boolean := false; died boolean := false; got text[] := '{}'; tk text; res jsonb := '[]'; bonus int := 0;
+begin
+  select * into co from priv.countries where id = me.country_id;
+  select * into u from priv.units where id = p_unit and country = co.id for update;
+  if not found or u.kind in ('worker', 'scout') then perform priv.err('NO_UNIT', '공격할 수 있는 우리 병력이 아니에요.'); end if;
+  if u.attacked_turn >= tn then perform priv.err('BUSY', '이 병력은 이번 턴에 이미 공격했어요.'); end if;
+  select * into c from priv.cities where id = p_city for update;
+  if not found or c.kind <> 'cs' then perform priv.err('BAD_CITY', '공격할 수 있는 도시국가가 아니에요.'); end if;
+  if c.country is not null then perform priv.err('TAKEN', '이미 ' || priv.cname(c.country) || '의 도시예요.'); end if;
+  if c.tutorial and c.type <> co.type then perform priv.err('PROTECTED', '각 나라의 첫 도시국가는 그 나라만 차지할 수 있어요.'); end if;
+  ud := cfg->'UNITS'->u.kind;
+  ranged := ud ? 'range';
+  rng := coalesce((ud->>'range')::int, 1);
+  d := priv.tdist(u.tile_id, c.tile_id);
+  if d > rng then perform priv.err('FAR', case when ranged then '사거리 ' || rng || '칸 안까지 다가가야 해요.' else '도시국가 바로 옆 칸까지 움직여야 공격할 수 있어요.' end); end if;
+  def := greatest(1, c.def - c.def_help);
+  dmg := priv.combat((ud->>'str')::int, u.hp, def, ranged and d > 1);
+  chp := greatest(0, c.hp - dmg[1]);
+  uhp := u.hp - dmg[2];
+  update priv.cities set hp = chp where id = c.id;
+  if uhp <= 0 then
+    died := true; delete from priv.units where id = u.id;
+    perform priv.notice((ud->>'name') || '이(가) ' || c.name || '의 반격에 쓰러졌어요.', 'alert', co.id);
+  else
+    update priv.units set hp = uhp, attacked_turn = tn, moves_turn = tn, moves_left = 0 where id = u.id;
+  end if;
+  if chp = 0 then
+    captured := true;
+    update priv.cities set country = co.id, taken_turn = tn, hp = max_hp where id = c.id;
+    -- 주변 땅 (주인 없는 땅이면 어느 지역이든)
+    update priv.tiles set owner = co.id where id = any(priv.within(c.tile_id, 1)) and owner is null and terrain not in ('ocean', 'coast');
+    perform priv.reveal(co.id, priv.within(c.tile_id, (cfg->>'CITY_SIGHT')::int));
+    update priv.countries set glory = glory || ((cfg->'HAPPY'->>'glory')::int), coin = coin + c.bonus where id = co.id;
+    bonus := c.bonus;
+    if c.tech is not null then
+      foreach tk in array string_to_array(c.tech, ',') loop
+        if not priv.has_tech(co.id, tk) then update priv.countries set techs = techs || tk where id = co.id; got := got || (cfg->'TECHS'->>tk); end if;
+      end loop;
+    end if;
+    select coalesce(jsonb_agg(t.res), '[]') into res from priv.tiles t where t.id = any(priv.within(c.tile_id, 1)) and t.owner = co.id and t.res is not null;
+    perform priv.check_discovery();
+    perform priv.notice(c.name || '을(를) 차지했어요! 시민들이 환호합니다.' || case when bonus > 0 then ' (코인 +' || bonus || ')' else '' end, 'capture', co.id);
+    if array_length(got, 1) > 0 then
+      perform priv.notice(c.name || '의 기술자들이 합류해 「' || array_to_string(got, '」·「') || '」 기술을 얻었어요.', 'tech', co.id);
+    end if;
+    if c.boss then perform priv.notice(priv.cname(co.id) || '이(가) 최종 보스 「' || c.name || '」을(를) 무너뜨렸어요!', 'world'); end if;
+    perform priv.event('capture', priv.cname(co.id) || ' → ' || c.name, jsonb_build_object('country', co.id, 'city', c.id));
+  end if;
+  perform priv.bump(co.id); perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true, 'city', c.id, 'name', c.name, 'tile', c.tile_id, 'from', u.tile_id,
+    'city_dmg', dmg[1], 'unit_dmg', dmg[2], 'city_hp', chp, 'max_hp', c.max_hp, 'unit_hp', greatest(0, uhp), 'ranged', ranged and d > 1,
+    'captured', captured, 'died', died, 'techs', to_jsonb(got), 'coin', bonus, 'res', res);
+end $$;
+
+-- 기술 연구 (별빛 탐험가): 먼저 배울 기술을 다 알아야 하고, 한 턴에 하나
+create or replace function public.research_tech(p_tech text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(1, '별빛 탐험가'); cfg jsonb := priv.cfg(); t jsonb; co priv.countries; q text; tn int := priv.turn();
+begin
+  select * into co from priv.countries where id = me.country_id;
+  t := cfg->'TECH_TREE'->p_tech;
+  if t is null then perform priv.err('BAD_TECH', '없는 기술이에요.'); end if;
+  if p_tech = any(co.techs) then perform priv.err('HAVE', '이미 아는 기술이에요.'); end if;
+  if co.research_turn >= tn then perform priv.err('BUSY', '이번 턴에는 이미 연구했어요. 다음 턴에 또 연구해요.'); end if;
+  for q in select jsonb_array_elements_text(t->'req') loop
+    if not (q = any(co.techs)) then perform priv.err('NEED', '「' || (cfg->'TECHS'->>q) || '」을(를) 먼저 연구해야 해요.'); end if;
+  end loop;
+  perform priv.pay(co.id, t->'cost');
+  update priv.countries set techs = techs || p_tech, research_turn = tn where id = co.id;
+  perform priv.notice('「' || (t->>'name') || '」 연구 완료! ' || (t->>'unlock'), 'tech', co.id);
+  perform priv.bump(co.id);
+  return jsonb_build_object('ok', true, 'tech', p_tech);
+end $$;
+
 create or replace function public.factory_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2, '건축가'); cfg jsonb := priv.cfg(); f jsonb; tp text;
+declare me priv.students := priv.act_start(2, '수석 건축가'); cfg jsonb := priv.cfg(); f jsonb; tp text;
 begin
   tp := priv.ctype(me.country_id);
   f := cfg->'FACTORIES'->p_kind;
@@ -1724,7 +2275,7 @@ end $$;
 
 create or replace function public.advanced_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2, '건축가'); cfg jsonb := priv.cfg(); a jsonb;
+declare me priv.students := priv.act_start(2, '수석 건축가'); cfg jsonb := priv.cfg(); a jsonb;
 begin
   a := cfg->'ADVANCED'->p_kind;
   if a is null then perform priv.err('BAD_KIND', '없는 건물이에요.'); end if;
@@ -1895,7 +2446,8 @@ language sql stable security definer set search_path = public, priv as $$
         'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker)) order by c.id), '[]') from priv.countries c),
     'tiles', (select jsonb_agg(jsonb_build_array(t.id, t.terrain, t.res, t.owner, t.imp) order by t.id) from priv.tiles t),
     'cities', (select jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'country', c.country, 'art', priv.city_art(c.id),
-        'buildings', c.buildings, 'unrest', c.unrest)) from priv.cities c),
+        'buildings', c.buildings, 'unrest', c.unrest, 'tier', c.tier, 'boss', c.boss, 'max_hp', c.max_hp,
+        'hp', case when c.kind = 'cs' and c.country is null then c.hp end)) from priv.cities c),
     'volume', (select coalesce(jsonb_agg(jsonb_build_object('turn', t, 'qty', priv.trade_volume(t)) order by t), '[]')
         from generate_series(greatest(1, (select turn from public.game where id = 1) - 12), (select turn from public.game where id = 1)) t),
     'events', (select coalesce(jsonb_agg(to_jsonb(e) order by e.id desc), '[]') from (select * from priv.events order by id desc limit 10) e),
@@ -1935,7 +2487,18 @@ begin
 end $$;
 
 create or replace function public.admin_check() returns jsonb
-language sql stable security definer set search_path = public, priv as $$ select jsonb_build_object('admin', priv.is_admin()) $$;
+language sql stable security definer set search_path = public, priv as $$
+  select jsonb_build_object('admin', priv.is_admin(), 'control', (select control from priv.admins where uid = auth.uid())) $$;
+
+-- 선생님 체험 모드: 고른 나라를 모든 역할로 직접 조작 (null이면 끄기)
+create or replace function public.admin_control(p_country int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  if p_country is not null and not exists(select 1 from priv.countries where id = p_country) then perform priv.err('BAD_COUNTRY', '없는 나라예요.'); end if;
+  update priv.admins set control = p_country where uid = auth.uid();
+  return jsonb_build_object('ok', true, 'control', p_country);
+end $$;
 
 -- 선생님 관전 모드 (투명한 무적 정찰병): 고른 나라의 화면 + 온 세상 지도와 모든 병력
 create or replace function public.admin_observe(p_country int) returns jsonb
@@ -1951,8 +2514,9 @@ begin
     'tiles', (select jsonb_agg(jsonb_build_array(t.id, t.terrain, t.res, t.owner, t.imp) order by t.id) from priv.tiles t),
     'cities', (select jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
         'country', c.country, 'buildings', c.buildings, 'unrest', c.unrest,
-        'def', case when c.kind = 'cs' and c.country is null then greatest(1, c.def - c.def_help) end)) from priv.cities c),
-    'units', (select coalesce(jsonb_agg(jsonb_build_object('id', u.id, 'country', u.country, 'kind', u.kind, 'tile', u.tile_id) order by u.id), '[]') from priv.units u),
+        'def', case when c.kind = 'cs' and c.country is null then greatest(1, c.def - c.def_help) end,
+        'hp', case when c.kind = 'cs' and c.country is null then c.hp end, 'max_hp', c.max_hp, 'tier', c.tier, 'boss', c.boss)) from priv.cities c),
+    'units', (select coalesce(jsonb_agg(jsonb_build_object('id', u.id, 'country', u.country, 'kind', u.kind, 'tile', u.tile_id, 'hp', u.hp) order by u.id), '[]') from priv.units u),
     'countries', (select jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'name', priv.cname(c.id), 'flag_url', c.flag_url,
         'happy', c.happy, 'coin', c.coin, 'discovered', coalesce(array_length(c.discovered, 1), 0)) order by c.id) from priv.countries c)));
 end $$;
@@ -2049,6 +2613,24 @@ end $$;
 
 -- 다음 턴: 이번 턴 정산 후 턴 번호 +1
 drop function if exists public.admin_next_turn();
+-- 다음 턴 (관제실 버튼, 자동 넘김, 모든 나라 준비 완료가 같이 씀)
+create or replace function priv.advance_turn() returns int
+language plpgsql as $$
+declare g public.game; cfg jsonb := priv.cfg();
+begin
+  select * into g from public.game where id = 1 for update;
+  perform priv.end_turn();
+  -- 도시국가 성벽 회복 (한 번에 못 무너뜨리면 다시 단단해져요)
+  update priv.cities set hp = least(max_hp, hp + coalesce((cfg->'CS_TIERS'->tier->>'heal')::int, 10))
+   where kind = 'cs' and country is null and hp < max_hp;
+  update priv.offers set status = 'expired', decided_at = now() where status = 'pending';
+  update public.game set turn = turn + 1, turn_end = case when auto_turn > 0 then now() + make_interval(secs => auto_turn) end,
+    cold_snap = null where id = 1;
+  perform priv.notice('턴 ' || (g.turn + 1) || ' 시작! 생산한 자원이 창고에 들어왔어요.', 'turn');
+  perform priv.bump_game(); perform priv.bump_all();
+  return g.turn + 1;
+end $$;
+
 create or replace function public.admin_next_turn(p_from int default null) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
 declare g public.game;
@@ -2058,13 +2640,25 @@ begin
   if g.phase < 1 or g.turn < 1 then perform priv.err('PHASE', '먼저 1단계 「나라 키우기」를 시작해 주세요.'); end if;
   -- 자동 넘김이 두 번 겹치지 않게: 화면이 알던 턴과 다르면 그냥 둠
   if p_from is not null and p_from <> g.turn then return jsonb_build_object('ok', true, 'turn', g.turn, 'skipped', true); end if;
-  perform priv.end_turn();
-  update priv.offers set status = 'expired', decided_at = now() where status = 'pending';
-  update public.game set turn = turn + 1, turn_end = case when auto_turn > 0 then now() + make_interval(secs => auto_turn) end,
-    cold_snap = null where id = 1;
-  perform priv.notice('턴 ' || (g.turn + 1) || ' 시작! 생산한 자원이 창고에 들어왔어요.', 'turn');
-  perform priv.bump_game(); perform priv.bump_all();
-  return jsonb_build_object('ok', true, 'turn', g.turn + 1);
+  return jsonb_build_object('ok', true, 'turn', priv.advance_turn());
+end $$;
+
+-- 턴 끝내기 (국가 대표): 학생이 있는 모든 나라가 누르면 바로 다음 턴. 다시 누르면 취소
+create or replace function public.turn_ready() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(1, '국가 대표'); tn int := priv.turn(); waiting int; nt int;
+begin
+  update priv.countries set ready_turn = case when ready_turn = tn then 0 else tn end where id = me.country_id;
+  select count(*) into waiting from priv.countries c
+   where c.ready_turn <> tn and (exists(select 1 from priv.students s where s.country_id = c.id and s.uid is not null)
+                                or exists(select 1 from priv.admins a where a.control = c.id));
+  perform priv.bump_all();
+  if waiting = 0 then
+    nt := priv.advance_turn();
+    return jsonb_build_object('ok', true, 'next', true, 'turn', nt);
+  end if;
+  return jsonb_build_object('ok', true, 'next', false, 'waiting', waiting,
+    'ready', (select ready_turn = tn from priv.countries where id = me.country_id));
 end $$;
 
 create or replace function public.admin_auto_turn(p_seconds int) returns jsonb

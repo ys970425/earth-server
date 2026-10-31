@@ -65,10 +65,13 @@ await shot(A, '03-map-before');
 // 나라 이름
 await A.click('.nav >> text=우리 나라'); await wait(500);
 await A.fill('#cname', '푸른반도'); await A.click('text=이름 저장'); await wait(800);
-await A.click('.role-card:has-text("개척자")'); await wait(700);
-await A.click('.role-card:has-text("건축가")'); await wait(700);
+await A.click('.role-card:has-text("대지 개척자")'); await wait(700);
+await shot(A, '04b-role-intro');
+await A.click('.modal-x'); await wait(300);
+await A.click('.role-card:has-text("수석 건축가")'); await wait(700);
+await A.click('.modal-x'); await wait(300);
 ok((await one(`select roles from priv.students where name = '학생1'`)).roles.length === 3, 'UI: 역할 고르기 (대표+개척자+건축가)');
-ok(await A.$eval('.role-card:has-text("장군")', b => b.disabled), 'UI: 3개 넘으면 더 못 고름');
+ok(await A.$eval('.role-card:has-text("총사령관")', b => b.disabled), 'UI: 3개 넘으면 더 못 고름');
 await shot(A, '04-nation');
 await A.click('.nav >> text=지도'); await wait(800);
 
@@ -99,20 +102,28 @@ await clickTile(A, cap.tile_id);
 await shot(A, '08-city-window');
 await cardBtn(A, '도시 시장', '짓기'); await wait(1000);
 ok((await one(`select buildings from priv.cities where id = 'K'`)).buildings.includes('market'), 'UI: 도시 시장 짓기');
-// 도시국가 공격
-const k1 = await one(`select tile_id from priv.cities where id = 'K1'`);
+// 도시국가 공격: 투석기(사거리 2)는 수도에서, 창병은 옆으로 걸어가서
+const k1 = await one(`select id, tile_id from priv.cities where type = 'K' and tutorial`);
 await clickTile(A, k1.tile_id);
 await shot(A, '09-citystate');
-await A.click('button:has-text("공격!")'); await wait(900);
+await A.click('button:has-text("투석기로 공격")'); await wait(600);
+await shot(A, '09b-unit-window');
+await A.click('.bcard.atk button:has-text("공격")'); await wait(2600);
 await shot(A, '10-siege');
+ok((await one(`select hp from priv.cities where id = '${k1.id}'`)).hp < 60, 'UI: 투석기 공격으로 성벽 깎임');
+await A.click('button:has-text("다음 병력")'); await wait(500);
+const near = await A.evaluate(ct => [...window.__map.st.hint].find(id => HexMap.hexDist(id, ct) === 1), k1.tile_id);
+await clickTile(A, near); await wait(1500);
+await shot(A, '10b-spear-moved');
+await A.click('.bcard.atk button:has-text("공격")'); await wait(400);
 await A.waitForSelector('.capture', { timeout: 8000 }).catch(() => errors.push('점령 창 안 뜸'));
 await wait(400);
 await shot(A, '11-captured');
 await A.click('.modal-x').catch(() => {}); await wait(300);
-ok((await one(`select country from priv.cities where id = 'K1'`)).country === 1, 'UI: 도시국가 점령');
+ok((await one(`select country from priv.cities where id = '${k1.id}'`)).country === 1, 'UI: 도시국가 점령 (이동 → 공격)');
 // 정찰
 await A.click('.side-head button').catch(() => {}); await wait(300);
-await A.click('button:has-text("정찰병 움직이기")'); await wait(600);
+await A.click('#btn-scout'); await wait(600);
 await shot(A, '12-scout-mode');
 const scout = await one(`select tile_id from priv.units where country = 1 and kind = 'scout'`);
 const far = await A.evaluate(() => { const ids = [...window.__map.st.hint]; return ids[ids.length - 1]; });
@@ -121,10 +132,12 @@ ok((await one(`select tile_id from priv.units where country = 1 and kind = 'scou
 await shot(A, '13-after-scout');
 
 // 다른 나라 봇: 첫 점령
-for (let c = 2; c <= 6; c++) { if (c === 3) continue; const t = (await call(lead(c), 'my_state', {})).targets[0]; await call(lead(c), 'attack_city', { p_city: t.id }).catch(e => errors.push('bot attack ' + e.message)); }
-// B(대륙) UI로 첫 점령
-const c1 = await one(`select tile_id from priv.cities where id = 'C1'`);
-await clickTile(B, c1.tile_id); await B.click('button:has-text("공격!")'); await wait(3500); await B.click('.modal-x').catch(() => {});
+for (let c = 2; c <= 6; c++) {
+  const cs = await one(`select id, tile_id from priv.cities where tutorial and type = (select type from priv.countries where id = ${c})`);
+  const spot = await one(`select t.id from priv.tiles t, priv.tiles ct where ct.id = ${cs.tile_id} and priv.hdist(t.c, t.r, ct.c, ct.r) = 1 and t.terrain not in ('ocean', 'coast') and t.id not in (select tile_id from priv.cities) and (t.owner is null or t.owner = ${c}) limit 1`);
+  const us = (await db.query(`select id from priv.units where country = ${c} and kind in ('spear', 'catapult')`)).rows;
+  for (const u of us) { await db.query(`update priv.units set tile_id = ${spot.id} where id = ${u.id}`); const r = await call(c === 3 ? (await one(`select uid from priv.students where name = '학생10'`)).uid : lead(c), 'unit_attack', { p_unit: u.id, p_city: cs.id }).catch(e => (errors.push('bot attack ' + e.message), {})); if (r.captured) break; }
+}
 // 턴 넘기기 (관제실 UI)
 await adm.click('button.gold.big'); await wait(1000);
 await A.reload(); await A.waitForSelector('.hexmap'); await wait(1200);
@@ -136,6 +149,11 @@ await call(ADMIN, 'admin_next_turn', {});
 await A.reload(); await A.waitForSelector('.hexmap'); await wait(1000);
 await A.click('.nav >> text=우리 나라'); await wait(500);
 await shot(A, '15-nation-crisis');
+await A.click('.nav >> text=기술'); await wait(800);
+await shot(A, '15b-tech');
+await A.click('.tcard.open button:has-text("연구")'); await wait(900);
+ok((await one(`select research_turn from priv.countries where id = 1`)).research_turn > 0, 'UI: 기술 연구');
+await shot(A, '15c-tech-after');
 // 세계 시장 개방
 await call(ADMIN, 'admin_set_phase', { p_target: 3 });
 await call(ADMIN, 'admin_grant', { p_country: 1, p_items: { wood: 6 }, p_reason: '테스트' });
@@ -172,6 +190,16 @@ await adm.selectOption('.obs-sel', '1'); await wait(1500);
 const before = (await one(`select coin from priv.countries where id = 1`)).coin;
 await adm.click('.nav >> text=우리 나라'); await wait(500);
 await shot(adm, '25-observe-nation');
+// 체험 조작: 선생님이 그 나라를 직접 움직여 봄
+await adm.click('.me-chip.obs button:has-text("직접 조작")'); await wait(1500);
+ok((await one(`select max(control) control from priv.admins`)).control === 1, 'UI: 체험 조작 켜기');
+await adm.click('.nav >> text=지도'); await wait(1000);
+await adm.click('#btn-scout'); await wait(500);
+const farS = await adm.evaluate(() => { const ids = [...window.__map.st.hint]; return ids[ids.length - 1]; });
+const sBefore = (await one(`select tile_id from priv.units where country = 1 and kind = 'scout'`)).tile_id;
+if (farS !== undefined) { await clickTile(adm, farS); await wait(2000); }
+ok((await one(`select tile_id from priv.units where country = 1 and kind = 'scout'`)).tile_id !== sBefore, 'UI: 체험 조작으로 정찰병 이동');
+await shot(adm, '26-control');
 ok((await one(`select coin from priv.countries where id = 1`)).coin === before, 'UI: 관전은 아무것도 안 바꿈');
 console.log('ERRORS:', errors.length ? '\n' + errors.join('\n') : 'none');
 await browser.close();

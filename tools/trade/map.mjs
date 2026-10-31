@@ -1,76 +1,63 @@
-// 지구 서버 세계 지도 (육각, pointy-top, odd-r 오프셋 좌표 col,row)
-export const W = 32, H = 22;
+// 지구 서버 세계 지도 (육각, pointy-top, odd-r 오프셋 좌표 col,row) — 40×28
+// 도시국가는 나라 땅 안에 자동으로 흩어 놓고, 수도에서 가까울수록 약하게(맨 앞은 튜토리얼), 먼 곳 1~2개는 철옹성.
+export const W = 40, H = 28;
 
-// 나라 6유형 (화면에는 학생이 정한 이름이 나옴)
 export const COUNTRIES = {
-  K: { type: '반도의 용', model: '한국', capital: [16, 9], techs: ['steelmaking', 'refining', 'chipmaking', 'shipbuilding', 'internet'],
-       capitalRes: [] },
-  J: { type: '파도의 섬왕국', model: '일본', capital: [21, 9], techs: ['metalcraft', 'rubberwork', 'munitions', 'tourism', 'shipbuilding', 'chipmaking'],
-       capitalRes: [] },
-  C: { type: '대륙의 제국', model: '중국', capital: [8, 10], techs: ['textile', 'steelmaking', 'woodwork'],
-       capitalRes: ['iron', 'cotton'] },
-  A: { type: '신대륙의 강국', model: '미국', capital: [28, 10], techs: ['oil_drill', 'refining', 'nuclear', 'satellite', 'internet', 'chipmaking', 'textile'],
-       capitalRes: ['oil', 'cotton'] },
-  N: { type: '북방의 대국', model: '러시아', capital: [13, 2], techs: ['oil_drill', 'refining', 'nuclear', 'satellite'],
-       capitalRes: ['oil'] },
-  T: { type: '열대 해양국', model: '동남아 여러 나라', capital: [11, 17], techs: ['textile'],
-       capitalRes: ['spice'] }
+  K: { capital: [20, 11], capitalRes: [] },
+  J: { capital: [26, 11], capitalRes: [] },
+  C: { capital: [10, 13], capitalRes: ['iron', 'cotton'] },
+  A: { capital: [35, 13], capitalRes: ['oil', 'cotton'] },
+  N: { capital: [16, 2], capitalRes: ['oil'] },
+  T: { capital: [14, 22], capitalRes: ['spice'] }
 };
 
-// 중립 도시국가: 확장 대상 나라, 방어력, 가진 자원, 합류하는 기술자(기술), 바다 건너 여부
-export const CITYSTATES = [
-  { id: 'K1', name: '소나무골', owner: 'K', at: [16, 7], def: 5, res: [] },
-  { id: 'K2', name: '푸른나루', owner: 'K', at: [16, 11], def: 10, res: [] },
-  { id: 'K4', name: '솔바람재', owner: 'K', at: [12, 6], def: 12, res: [] },   // 대륙과 북방 사이 고갯마루
-  { id: 'K3', name: '물새섬', owner: 'K', at: [18, 13], def: 15, res: [], sea: true },
-  { id: 'J1', name: '안개곶', owner: 'J', at: [21, 7], def: 5, res: ['copper'] },
-  { id: 'J2', name: '붉은항', owner: 'J', at: [21, 11], def: 10, res: [] },
-  { id: 'J3', name: '등대섬', owner: 'J', at: [24, 13], def: 15, res: [], sea: true },
-  { id: 'C1', name: '황토성', owner: 'C', at: [6, 8], def: 5, res: ['iron'] },
-  { id: 'C2', name: '붉은강', owner: 'C', at: [10, 8], def: 9, res: ['copper'] },
-  { id: 'C3', name: '비단마을', owner: 'C', at: [5, 11], def: 13, res: ['cotton'], tech: 'chipmaking' },
-  { id: 'C4', name: '철산성', owner: 'C', at: [11, 12], def: 17, res: ['aluminum'], tech: 'rubberwork' },
-  { id: 'C5', name: '모래성', owner: 'C', at: [8, 13], def: 21, res: ['iron'], tech: 'refining' },
-  { id: 'C6', name: '서쪽관문', owner: 'C', at: [3, 9], def: 24, res: ['aluminum', 'copper'] },
-  { id: 'A1', name: '들판마을', owner: 'A', at: [28, 7], def: 5, res: ['wine'] },
-  { id: 'A2', name: '큰강나루', owner: 'A', at: [27, 12], def: 9, res: [] },
-  { id: 'A3', name: '검은샘', owner: 'A', at: [29, 5], def: 13, res: ['oil'] },
-  { id: 'A4', name: '포도골', owner: 'A', at: [26, 14], def: 17, res: ['wine', 'uranium'] },
-  { id: 'A5', name: '바위성', owner: 'A', at: [29, 15], def: 21, res: ['iron'] },
-  { id: 'A6', name: '은빛고원', owner: 'A', at: [26, 6], def: 24, res: ['aluminum'] },
-  { id: 'N1', name: '눈꽃마을', owner: 'N', at: [10, 2], def: 5, res: [] },
-  { id: 'N2', name: '얼음항', owner: 'N', at: [16, 2], def: 9, res: ['oil'] },
-  { id: 'N3', name: '금빛골', owner: 'N', at: [7, 1], def: 13, res: ['gold'], tundra: true, tech: 'metalcraft' },
-  { id: 'N4', name: '북극성', owner: 'N', at: [19, 1], def: 17, res: ['uranium'], tundra: true },
-  { id: 'N5', name: '서리성', owner: 'N', at: [4, 3], def: 21, res: ['oil'], tundra: true },
-  { id: 'N6', name: '오로라성', owner: 'N', at: [22, 3], def: 24, res: ['gold'], tundra: true },
-  { id: 'T1', name: '야자마을', owner: 'T', at: [9, 16], def: 5, res: ['rubber'], tech: 'jungle' },
-  { id: 'T2', name: '고무나무골', owner: 'T', at: [13, 16], def: 9, res: ['rubber'], tech: 'rubberwork' },
-  { id: 'T3', name: '향기섬', owner: 'T', at: [8, 18], def: 13, res: ['spice'] },
-  { id: 'T4', name: '구리곶', owner: 'T', at: [14, 19], def: 17, res: ['copper'] },
-  { id: 'T5', name: '산호섬', owner: 'T', at: [16, 18], def: 21, res: ['rubber'], sea: false }
-];
-
-// 땅 모양 (오프셋 좌표 기준 타원 + 사각형)
+// 땅 모양 (뒤에 오는 것이 앞의 것을 덮음). X는 주인 없는 땅(강한 도시국가·최종 보스)
 const LAND = [
-  { z: 'N', e: [13, 1.6, 12.5, 3.2] },
-  { z: 'C', e: [7.5, 10.5, 6.5, 4.6] },
-  { z: 'C', r: [10, 5, 14, 6] },          // 대륙과 북방 사이 땅
-  { z: 'K', r: [15, 6, 17, 11] }, { z: 'K', r: [14, 6, 14, 7] },
-  { z: 'K', r: [18, 13, 18, 13] },        // 반도 앞바다 섬
-  { z: 'K', r: [11, 6, 13, 6] },          // 솔바람재 고개 (반도 북서쪽 땅)
-  { z: 'J', e: [21.3, 9, 1.4, 3.3] }, { z: 'J', r: [24, 13, 24, 13] },
-  { z: 'T', e: [11, 17.6, 5.2, 2.8] }, { z: 'T', r: [15, 18, 16, 19] },
-  { z: 'A', e: [28, 10.5, 3.2, 7.2] }
+  { z: 'N', e: [16.5, 2.2, 15.5, 3.8] },
+  { z: 'C', e: [9.5, 13.5, 8, 5.8] },
+  { z: 'C', r: [12, 6, 17, 8] },            // 대륙과 북방 사이 땅
+  { z: 'K', r: [19, 8, 21, 14] }, { z: 'K', r: [18, 8, 18, 9] }, { z: 'K', r: [16, 7, 17, 7] },
+  { z: 'K', r: [23, 17, 23, 17] },          // 반도 앞바다 섬
+  { z: 'J', e: [26.5, 11.5, 1.7, 4.2] }, { z: 'J', r: [30, 17, 30, 17] },   // 섬나라 + 앞바다 섬
+  { z: 'T', e: [14, 22.5, 6.5, 3.4] }, { z: 'T', r: [19, 24, 20, 25] },
+  { z: 'A', e: [35, 13.5, 4, 9] },
+  { z: 'X', e: [25.5, 23, 2.6, 1.7] },      // 남쪽 바다 한가운데: 최종 보스 섬
+  { z: 'X', e: [31.5, 3.5, 2.6, 1.6] },     // 북동쪽 폭풍 군도
+  { z: 'X', e: [2.6, 24, 2, 1.6] }          // 남서쪽 해적 섬
 ];
 const TERRAIN = {
-  N: [['tundra', 55], ['forest', 30], ['snow', 10], ['hills', 5]],
-  C: [['plains', 45], ['hills', 15], ['forest', 15], ['mountain', 10], ['desert', 15]],
-  K: [['mountain', 30], ['hills', 25], ['plains', 30], ['forest', 15]],
+  N: [['tundra', 50], ['forest', 30], ['snow', 12], ['hills', 8]],
+  C: [['plains', 42], ['hills', 15], ['forest', 15], ['mountain', 10], ['desert', 18]],
+  K: [['mountain', 28], ['hills', 25], ['plains', 32], ['forest', 15]],
   J: [['hills', 30], ['forest', 35], ['plains', 25], ['mountain', 10]],
   T: [['jungle', 55], ['plains', 25], ['hills', 10], ['forest', 10]],
-  A: [['plains', 45], ['desert', 20], ['forest', 20], ['hills', 10], ['mountain', 5]]
+  A: [['plains', 45], ['desert', 20], ['forest', 20], ['hills', 10], ['mountain', 5]],
+  X: [['hills', 40], ['plains', 30], ['forest', 20], ['mountain', 10]]
 };
+
+// 나라별 도시국가 수, 등급(가까운 순), 이름, 자원, 합류 기술
+const ZONES = {
+  K: { n: 5, tiers: [0, 1, 2, 3, 4], names: ['소나무골', '푸른나루', '솔바람재', '물새섬', '단풍고개', '매화마을', '은하포구'],
+       res: [[], [], ['iron'], [], ['copper']], tech: [null, null, 'navigation', 'economics', null] },
+  J: { n: 5, tiers: [0, 1, 2, 3, 4], names: ['안개곶', '붉은항', '벚꽃마을', '등대섬', '파도곶', '달빛섬', '소금포구'],
+       res: [[], ['copper'], [], [], ['gold']], tech: [null, null, 'navigation', 'economics', null] },
+  C: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 3, 4], names: ['황토성', '붉은강', '비단마을', '철산성', '모래성', '옥수마을', '대나무성', '황하나루', '서쪽관문', '만리관'],
+       res: [['iron'], ['copper'], ['cotton'], ['aluminum'], ['iron'], ['copper'], ['cotton'], ['aluminum', 'copper']], tech: [null, 'engineering', null, 'gunpowder', null, 'economics', null, 'electricity'] },
+  A: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 4, 4], names: ['들판마을', '큰강나루', '검은샘', '포도골', '바위성', '은빛고원', '독수리봉', '황금평원', '협곡성'],
+       res: [['wine'], ['oil'], ['aluminum'], ['wine', 'uranium'], ['iron'], ['aluminum', 'copper'], ['oil'], ['uranium']], tech: [null, 'engineering', null, 'electricity', null, 'combustion', null, null] },
+  N: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 4, 4], names: ['눈꽃마을', '얼음항', '금빛골', '자작나무골', '서리성', '북극성', '오로라성', '늑대고개', '백야마을'],
+       res: [['oil'], ['gold'], ['aluminum'], ['oil'], ['uranium'], ['gold', 'aluminum'], ['oil'], ['uranium']], tech: [null, 'chivalry', null, 'munitions', null, 'electricity', null, null] },
+  T: { n: 7, tiers: [0, 1, 1, 2, 2, 3, 4], names: ['야자마을', '고무나무골', '향기섬', '구리곶', '산호섬', '망고나루', '코코넛만', '맹그로브숲'],
+       res: [['rubber'], ['spice'], ['copper'], ['rubber'], ['cotton'], ['copper', 'spice'], ['gold']], tech: [null, 'navigation', null, 'woodwork', null, 'economics', null] }
+};
+// 주인 없는 땅의 도시국가 (누구나 차지할 수 있고, 최종 보스는 여러 나라가 힘을 합쳐야 해요)
+const NEUTRAL = [
+  { id: 'X1', name: '잊힌 제국 아르카', at: [25, 23], tier: 5, res: ['gold', 'uranium', 'aluminum'], boss: true },
+  { id: 'X2', name: '수호자의 탑', at: [27, 22], tier: 4, res: [] },
+  { id: 'X3', name: '폭풍섬', at: [31, 3], tier: 3, res: ['aluminum'] },
+  { id: 'X4', name: '천둥 요새', at: [33, 4], tier: 4, res: ['uranium'] },
+  { id: 'X5', name: '해적만', at: [2, 24], tier: 3, res: ['gold'] }
+];
 
 function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 export const key = (c, r) => c + ',' + r;
@@ -87,6 +74,8 @@ export function within(c, r, rad) {
     if (dist([c, r], [x, y]) <= rad) out.push([x, y]);
   return out;
 }
+
+export let CITYSTATES = [];
 
 export function buildMap(seed = 7) {
   const rand = rng(seed);
@@ -105,44 +94,90 @@ export function buildMap(seed = 7) {
     }
     tiles[key(c, r)] = { c, r, zone, terrain, res: null, owner: null, city: null, imp: null };
   }
-  // 바다 중 땅 옆은 해안
   for (const t of Object.values(tiles)) if (t.terrain === 'ocean' && neighbors(t.c, t.r).some(([x, y]) => tiles[key(x, y)].zone)) t.terrain = 'coast';
 
   const land = (c, r) => tiles[key(c, r)] && tiles[key(c, r)].zone;
-  // 수도·도시국가 칸은 평원으로, 자원 배치
+  const T = (c, r) => tiles[key(c, r)];
   const placeRes = (center, list, rad, zone) => {
     for (const res of list) {
-      const cand = within(center[0], center[1], rad).filter(([x, y]) => land(x, y) && tiles[key(x, y)].zone === zone && !tiles[key(x, y)].res && !tiles[key(x, y)].city && !(x === center[0] && y === center[1]));
+      let cand = within(center[0], center[1], rad).filter(([x, y]) => land(x, y) && T(x, y).zone === zone && !T(x, y).res && !T(x, y).city && !(x === center[0] && y === center[1]));
+      if (!cand.length) cand = within(center[0], center[1], rad + 1).filter(([x, y]) => land(x, y) && !T(x, y).res && !T(x, y).city);
       if (!cand.length) throw new Error('자원 자리 없음 ' + res + ' @' + center);
       const [x, y] = cand[Math.floor(rand() * cand.length)];
-      tiles[key(x, y)].res = res;
-      if (res === 'oil' && tiles[key(x, y)].terrain === 'mountain') tiles[key(x, y)].terrain = 'plains';
-      if (['iron', 'copper', 'aluminum', 'gold', 'uranium'].includes(res) && ['plains', 'tundra', 'jungle', 'desert', 'snow'].includes(tiles[key(x, y)].terrain)) tiles[key(x, y)].terrain = 'hills';
+      T(x, y).res = res;
+      if (res === 'oil' && T(x, y).terrain === 'mountain') T(x, y).terrain = 'plains';
+      if (['iron', 'copper', 'aluminum', 'gold', 'uranium'].includes(res) && ['plains', 'tundra', 'jungle', 'desert', 'snow'].includes(T(x, y).terrain)) T(x, y).terrain = 'hills';
+      if (['cotton', 'spice', 'wine', 'rubber'].includes(res) && ['mountain', 'snow'].includes(T(x, y).terrain)) T(x, y).terrain = 'plains';
     }
   };
+  const flat = (c, r, tundra) => { const t = T(c, r); t.terrain = tundra ? 'tundra' : (['mountain', 'snow'].includes(t.terrain) ? 'hills' : t.terrain); };
+
   for (const [id, co] of Object.entries(COUNTRIES)) {
     const [c, r] = co.capital;
-    if (!land(c, r)) throw new Error('수도가 바다 ' + id);
-    Object.assign(tiles[key(c, r)], { terrain: 'plains', city: id });
-    // 수도 주변에 농사지을 평원과 숲을 최소 하나씩 보장
+    if (!land(c, r) || T(c, r).zone !== id) throw new Error('수도 자리 ' + id);
+    Object.assign(T(c, r), { terrain: 'plains', city: id });
     const ring = within(c, r, 1).filter(([x, y]) => land(x, y) && !(x === c && y === r));
-    tiles[key(...ring[0])].terrain = id === 'N' ? 'tundra' : 'plains';
-    tiles[key(...ring[1])].terrain = id === 'T' ? 'jungle' : 'forest';
+    T(...ring[0]).terrain = id === 'N' ? 'tundra' : 'plains';
+    T(...ring[1]).terrain = id === 'T' ? 'jungle' : 'forest';
+    T(...ring[2]).terrain = 'plains';
     placeRes(co.capital, co.capitalRes, 2, id);
   }
-  for (const cs of CITYSTATES) {
-    const [c, r] = cs.at;
-    if (!land(c, r)) throw new Error('도시국가가 바다 ' + cs.id);
-    if (tiles[key(c, r)].zone !== cs.owner) throw new Error('도시국가가 다른 영역 ' + cs.id);
-    Object.assign(tiles[key(c, r)], { terrain: cs.tundra ? 'tundra' : (tiles[key(c, r)].terrain === 'mountain' ? 'hills' : tiles[key(c, r)].terrain), city: cs.id });
-    placeRes(cs.at, cs.res, 1, cs.owner);
+
+  // 도시국가 자리: 튜토리얼은 수도에서 2칸(땅으로 이어진 곳), 나머지는 서로 멀리 떨어지게
+  const cs = [];
+  const cities = () => [...Object.values(COUNTRIES).map(co => co.capital), ...cs.map(x => x.at)];
+  for (const [id, Z] of Object.entries(ZONES)) {
+    const cap = COUNTRIES[id].capital;
+    const zoneTiles = Object.values(tiles).filter(t => t.zone === id && !t.city).map(t => [t.c, t.r]);
+    const landN = ([x, y]) => neighbors(x, y).filter(([a, b]) => land(a, b)).length;
+    const tut = zoneTiles.filter(p => dist(p, cap) === 2).sort((a, b) => landN(b) - landN(a))[0];
+    if (!tut) throw new Error('튜토리얼 자리 없음 ' + id);
+    const picked = [tut];
+    while (picked.length < Z.n) {
+      const all = [...cities(), ...picked];
+      let best = null, bestD = -1;
+      for (const p of zoneTiles) {
+        if (picked.some(q => q[0] === p[0] && q[1] === p[1])) continue;
+        if (dist(p, cap) < 3) continue;
+        const d = Math.min(...all.map(q => dist(p, q))) + rand() * 0.6;
+        if (d > bestD) { bestD = d; best = p; }
+      }
+      if (!best || bestD < 2) throw new Error('도시국가 자리 부족 ' + id);
+      picked.push(best);
+    }
+    // 수도에서 가까운 순 → 약한 순
+    const order = [picked[0], ...picked.slice(1).sort((a, b) => dist(a, cap) - dist(b, cap))];
+    order.forEach((at, i) => {
+      const sea = neighbors(...at).every(([x, y]) => !land(x, y) || T(x, y).zone !== id || dist([x, y], cap) > 20) && false;
+      cs.push({ id: id + (i + 1), name: Z.names[i], owner: id, at, tier: Z.tiers[i], res: Z.res[i] || [], tech: Z.tech[i] || null, tutorial: i === 0,
+        island: !landPath(tiles, cap, at) });
+    });
   }
+  for (const x of NEUTRAL) cs.push({ ...x, owner: 'X', tech: null, island: true });
+  for (const x of cs) {
+    const [c, r] = x.at;
+    if (!land(c, r)) throw new Error('도시국가가 바다 ' + x.id);
+    flat(c, r, x.owner === 'N'); T(c, r).city = x.id;
+  }
+  for (const x of cs) placeRes(x.at, x.res, x.boss ? 2 : 1, x.owner);
+  CITYSTATES = cs;
   return tiles;
 }
 
+// 수도에서 땅으로만 걸어서 갈 수 있는지
+function landPath(tiles, from, to) {
+  const seen = new Set([key(...from)]); const q = [from];
+  while (q.length) {
+    const [c, r] = q.shift();
+    if (c === to[0] && r === to[1]) return true;
+    for (const [x, y] of neighbors(c, r)) { const k = key(x, y); if (seen.has(k) || !tiles[k].zone) continue; seen.add(k); q.push([x, y]); }
+  }
+  return false;
+}
+
 // 미리보기용 글자 지도
-export function ascii(tiles, owners) {
-  const ch = { ocean: ' ', coast: '~', plains: '.', grass: ',', hills: 'n', mountain: '^', forest: 'f', jungle: 'j', tundra: '_', snow: '*', desert: ':' };
+export function ascii(tiles) {
+  const ch = { ocean: ' ', coast: '~', plains: '.', hills: 'n', mountain: '^', forest: 'f', jungle: 'j', tundra: '_', snow: '*', desert: ':' };
   const lines = [];
   for (let r = 0; r < H; r++) {
     let s = (r & 1) ? ' ' : '';
@@ -150,7 +185,7 @@ export function ascii(tiles, owners) {
       const t = tiles[key(c, r)];
       let x = ch[t.terrain] || '?';
       if (t.res) x = { iron: 'I', copper: 'U', aluminum: 'L', uranium: 'R', gold: 'G', oil: 'O', cotton: 'M', rubber: 'B', spice: 'S', wine: 'V' }[t.res];
-      if (t.city) x = t.city.length === 1 ? t.city : '#';
+      if (t.city) { const cs = CITYSTATES.find(z => z.id === t.city); x = cs ? String(cs.tier) : '@'; }
       s += x + ' ';
     }
     lines.push(s);

@@ -85,6 +85,7 @@ create table if not exists priv.students (
 
 alter table priv.students add column if not exists roles text[] not null default '{}';
 
+
 create table if not exists priv.pairing_requests (
   id         serial primary key,
   student_id int not null references priv.students(id) on delete cascade,
@@ -205,6 +206,19 @@ create table if not exists priv.snapshots (
 );
 
 create table if not exists priv.admins (uid uuid primary key, at timestamptz not null default now());
+alter table priv.admins add column if not exists control int;
+
+-- v2: 병력 이동·전투, 도시국가 체력, 기술 연구, 턴 준비, 선생님 체험 조작
+alter table priv.cities add column if not exists tier int not null default 0;
+alter table priv.cities add column if not exists hp int not null default 0;
+alter table priv.cities add column if not exists max_hp int not null default 0;
+alter table priv.cities add column if not exists bonus int not null default 0;
+alter table priv.cities add column if not exists tutorial boolean not null default false;
+alter table priv.cities add column if not exists boss boolean not null default false;
+alter table priv.units add column if not exists hp int not null default 100;
+alter table priv.units add column if not exists attacked_turn int not null default -1;
+alter table priv.countries add column if not exists ready_turn int not null default 0;
+alter table priv.countries add column if not exists research_turn int not null default -1;
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 

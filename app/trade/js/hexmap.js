@@ -13,9 +13,9 @@
     document.fonts ? document.fonts.load('700 16px Galmuri11').catch(() => null) : null,
     ...Object.keys(R.TERRAIN).map(t => load('t:' + t, 'img/terrain/' + t + '.png')),
     ...Object.keys(R.ITEMS).map(i => load('r:' + i, 'img/res/' + i + '.png')),
-    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
+    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery', 'swordsman', 'infantry', 'tank', 'destroyer', 'battleship', 'carrier'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
     // 나라 색 병력 (K는 원래 파랑)
-    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, 'img/unit/' + u + '_' + t + '.png'))),
+    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery', 'knight'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, 'img/unit/' + u + '_' + t + '.png'))),
     ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, 'img/bld/' + b + '.png')),
     ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, 'img/city/' + f + '.png'))
   ]);
@@ -69,7 +69,7 @@
     const ctx = canvas.getContext('2d');
     const st = {
       tiles: new Map(), cities: [], units: [], countries: {}, me: null, all: false,
-      sel: null, hint: new Set(), pathPrev: [], fx: [], cam: { x: 0, y: 0, z: 0.5 }, flags: {}
+      sel: null, hint: new Set(), atk: new Set(), pathPrev: [], fx: [], cam: { x: 0, y: 0, z: 0.5 }, flags: {}
     };
     let dirty = true, raf = 0;
     const worldW = W * TW + TW / 2, worldH = (H - 1) * ROW + 2 * HALF_H + BAND;
@@ -121,6 +121,12 @@
       ctx.fillStyle = fill; ctx.fillRect(px, py, w, hh);
       ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(px, py, w, Math.max(2, hh * 0.18));
       ctx.strokeStyle = gold ? '#E2B85C' : 'rgba(255,230,170,.45)'; ctx.lineWidth = gold ? 2 : 1.5; ctx.strokeRect(px + 2, py + 2, w - 4, hh - 4);
+    }
+    function hpBar(px, py, w, hh, k) {
+      k = Math.max(0, Math.min(1, k));
+      ctx.fillStyle = '#120C06'; ctx.fillRect(px - 1, py - 1, w + 2, hh + 2);
+      ctx.fillStyle = '#3A2A20'; ctx.fillRect(px, py, w, hh);
+      ctx.fillStyle = k > 0.6 ? '#4FD06A' : k > 0.3 ? '#F2B530' : '#E8443C'; ctx.fillRect(px, py, w * k, hh);
     }
     function drawImgAnchor(im, cx, cy, w) {
       if (!im) return;
@@ -185,6 +191,9 @@
       }
       // 3) 선택·안내 표시
       for (const id of st.hint) { const [x, y] = center(id); hexPath(ctx, x, y, SIDE - 6); ctx.fillStyle = 'rgba(255,224,122,.28)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,224,122,.9)'; ctx.lineWidth = 3; ctx.stroke(); }
+      // 공격할 수 있는 도시국가: 붉은 고리 (깜빡임)
+      if (st.atk.size) { const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 220);
+        for (const id of st.atk) { const [x, y] = center(id); hexPath(ctx, x, y, SIDE - 4); ctx.fillStyle = `rgba(224,60,60,${0.18 + 0.15 * pulse})`; ctx.fill(); ctx.strokeStyle = `rgba(255,90,80,${0.6 + 0.4 * pulse})`; ctx.lineWidth = 6; ctx.stroke(); } }
       if (st.pathPrev.length) {
         ctx.strokeStyle = '#FFE07A'; ctx.lineWidth = 6; ctx.setLineDash([10, 8]); ctx.beginPath();
         st.pathPrev.forEach((id, i) => { const [x, y] = center(id); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); ctx.setLineDash([]);
@@ -216,8 +225,11 @@
             ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(label, x, ly + th / 2 + 1); ctx.fillText(label, x, ly + th / 2 + 1);
           }
           if (!far && !city.country && city.def != null) {
-            plate(x - 30, y - 110, 60, 24, '#8E1F2F', false);
-            ctx.fillStyle = '#FFE9C2'; ctx.font = '700 14px Galmuri11, Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('방어 ' + city.def, x, y - 97);
+            const bw = city.boss ? 110 : 76;
+            plate(x - bw / 2, y - 112, bw, 24, city.boss ? '#4A0E5C' : city.tier >= 4 ? '#5A0F18' : '#8E1F2F', city.tier >= 4);
+            ctx.fillStyle = '#FFE9C2'; ctx.font = '700 14px Galmuri11, Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText((city.boss ? '최종 보스 · ' : '') + '방어 ' + city.def, x, y - 99);
+            if (city.max_hp) hpBar(x - bw / 2, y - 86, bw, 7, city.hp / city.max_hp);
           }
           if (city.unrest) { ctx.fillStyle = '#FF5D73'; ctx.font = '700 18px Galmuri11, Jua, sans-serif'; ctx.fillText('불안!', x, y - 128); }
         } else {
@@ -246,22 +258,28 @@
     }
     function drawUnits(us, x, y, t, onCity, tint) {
       const sea = t.terrain === 'ocean' || t.terrain === 'coast';
-      const order = ['cannon', 'ballista', 'catapult', 'spear', 'scout', 'worker'];
-      const mil = us.filter(u => ['spear', 'catapult', 'ballista', 'cannon'].includes(u.kind));
+      const order = ['cruiser', 'battleship', 'tank', 'artillery', 'frigate', 'infantry', 'cannon', 'musket', 'knight', 'trireme', 'catapult', 'spear'];
+      const mil = us.filter(u => u.kind !== 'worker' && u.kind !== 'scout');
       const others = us.filter(u => !mil.includes(u));
       const list = [];
-      if (mil.length) { const top = order.find(k => mil.some(u => u.kind === k)); list.push({ kind: top, n: mil.length, country: mil[0].country }); }
-      for (const u of others) list.push({ kind: u.kind, n: 1, anim: u.anim, country: u.country });
+      if (mil.length) { const top = order.find(k => mil.some(u => u.kind === k)) || mil[0].kind; const pick = mil.find(u => u.kind === top) || mil[0];
+        list.push({ kind: top, n: mil.length, country: mil[0].country, hp: Math.min(...mil.map(u => u.hp == null ? 100 : u.hp)), sel: mil.some(u => u.id === st.selUnit), done: mil.every(u => u.done) }); }
+      for (const u of others) list.push({ kind: u.kind, n: 1, anim: u.anim, country: u.country, hp: u.hp, sel: u.id === st.selUnit, done: u.done });
       const sx = onCity ? -38 : -18;
       list.slice(0, 3).forEach((u, i) => {
-        let key = u.kind === 'scout' && sea ? 'u:ship' : u.kind === 'cannon' ? 'u:artillery' : 'u:' + u.kind;   // 정찰병이 바다에 있으면 배로 (탑승)
+        const img = (R.UNITS[u.kind] || {}).img || u.kind;
+        let key = u.kind === 'scout' && sea ? 'u:ship' : 'u:' + img;   // 정찰병이 바다에 있으면 배로 (탑승)
         const tp = u.country ? (st.countries[u.country] || {}).type : st.myType;
         if (tp && IMG[key + '_' + tp]) key = key + '_' + tp;
         const px = x + sx + i * 30, py = y + (onCity ? 22 : 34);
         ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(px, py, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
         if (tint) { ctx.globalAlpha = .9; ctx.strokeStyle = tint; ctx.lineWidth = 4; ctx.stroke(); }
         ctx.restore();
-        drawImgBottom(IMG[key], px, py, u.kind === 'catapult' || u.kind === 'ballista' ? 58 : 50);
+        if (u.sel) { ctx.save(); ctx.strokeStyle = '#FFE07A'; ctx.lineWidth = 4; ctx.shadowColor = '#FFE07A'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.ellipse(px, py, 26, 10, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+        if (u.done) ctx.globalAlpha = 0.6;
+        drawImgBottom(IMG[key], px, py, ['catapult', 'cannon', 'artillery', 'tank', 'trireme', 'frigate', 'battleship', 'cruiser'].includes(u.kind) ? 62 : 52);
+        ctx.globalAlpha = 1;
+        if (u.hp != null && u.hp < 100) hpBar(px - 18, py + 6, 36, 5, u.hp / 100);
         if (u.n > 1) {
           ctx.fillStyle = '#FFC83D'; ctx.beginPath(); ctx.arc(px + 18, py - 46, 12, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#3A2600'; ctx.lineWidth = 2; ctx.stroke();
           ctx.fillStyle = '#3A2600'; ctx.font = '600 15px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(u.n, px + 18, py - 45);
@@ -296,6 +314,18 @@
       }
       mark();
       setTimeout(() => { done && done(); }, shots * 420 + dur + 400);
+    }
+    // 근접 공격: 칼날 번쩍임 + 흔들림
+    function strike(fromId, toId, done) {
+      const [x1, y1] = center(fromId), [x2, y2] = center(toId), t0 = performance.now();
+      st.fx.push({ draw(c, now) { const k = (now - t0) / 650; if (k > 1) return false;
+        const m = Math.sin(Math.PI * Math.min(1, k * 1.6));
+        const x = x1 + (x2 - x1) * 0.55 * m, y = y1 + (y2 - y1) * 0.55 * m;
+        c.save(); c.globalAlpha = 1 - k; c.strokeStyle = '#FFF2A8'; c.lineWidth = 7; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(x - 22, y - 60); c.lineTo(x + 22, y - 18); c.moveTo(x + 22, y - 60); c.lineTo(x - 22, y - 18); c.stroke();
+        if (k > 0.45) { c.fillStyle = '#FF6A4A'; c.beginPath(); c.arc(x2, y2 - 34, 14 + (k - 0.45) * 60, 0, Math.PI * 2); c.globalAlpha = (1 - k) * 0.8; c.fill(); }
+        c.restore(); } });
+      mark(); setTimeout(() => done && done(), 700);
     }
     function moveUnit(unitId, pathIds, done) {
       const u = st.units.find(x => x.id === unitId); if (!u || !pathIds.length) { done && done(); return; }
@@ -339,11 +369,13 @@
     ready.then(mark);
 
     return {
-      st, mark, center, centerOn, fitAll, floatText, siege, moveUnit, pick,
+      st, mark, center, centerOn, fitAll, floatText, siege, strike, moveUnit, pick,
       zoom: f => { const r = canvas.getBoundingClientRect(); zoomAt(f, r.width / 2, r.height / 2); },
       setData(d) { Object.assign(st, d); mark(); },
       select(id) { st.sel = id; mark(); },
       setHint(ids) { st.hint = new Set(ids || []); mark(); },
+      setAtk(ids) { st.atk = new Set(ids || []); if (st.atk.size) { const loop = () => { if (!st.atk.size) return; mark(); requestAnimationFrame(loop); }; loop(); } else mark(); },
+      selectUnit(id) { st.selUnit = id; mark(); },
       setPath(p) { st.pathPrev = p || []; mark(); }
     };
   }
