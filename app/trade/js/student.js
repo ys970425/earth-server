@@ -64,7 +64,7 @@
     root.innerHTML = '';
     root.appendChild(h('div', { class: 'entry-bg trade' }));
     root.appendChild(h('a', { href: 'admin.html', class: 'teacher-link' }, h('button', { class: 'small ghost' }, '교사')));
-    root.appendChild(h('div', { class: 'entry wide' }, h('div', { class: 'title' }, '지구 서버'), h('div', { class: 'title-sub' }, h('span', {}, '문명의 시대')), ...kids));
+    root.appendChild(h('div', { class: 'entry wide' }, h('div', { class: 'title' }, '지구 서버'), h('div', { class: 'title-sub' }, h('span', {}, '문명의 시대')), h('div', { class: 'credit' }, '제작 · 조영산'), ...kids));
   }
   const orn = text => h('div', { class: 'orn-head' }, h('i'), h('span', {}, text), h('i'));
   async function pickCountry() {
@@ -268,6 +268,7 @@
     nav.append(...tabs.map(([k, label]) => h('button', { class: S.view === k ? 'on' : '', 'data-v': k, onclick: () => go(k) }, h('span', { class: 'dot' }), label,
       k === 'trade' && pendingIn() ? h('span', { class: 'badge' }, pendingIn()) : null,
       k === 'diplo' && g.diplomacy_open ? null : null)),
+      h('span', { class: 'credit-nav' }, '제작 · 조영산'),
       S.obs ? h('a', { href: 'admin.html', class: 'leave' }, h('button', { class: 'ghost small' }, '관제실로')) : h('button', { class: 'ghost small leave', onclick: leave }, '나가기'));
   }
   const pendingIn = () => S.st.offers.filter(o => o.to_c === S.st.country.id && o.status === 'pending').length;
