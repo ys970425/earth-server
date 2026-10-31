@@ -1,0 +1,2299 @@
+-- =====================================================================
+-- 지구 서버: 문명의 시대 (무역 게임) — Supabase 설치 스크립트
+-- 신발 게임과 다른 "새 Supabase 프로젝트"의 SQL Editor에 전체를 붙여넣고 Run 하세요.
+-- 여러 번 실행해도 진행 중인 게임 기록은 지워지지 않고, 규칙 숫자와 함수만 최신으로 바뀝니다.
+-- 이 파일은 node tools/trade/build-sql.mjs 로 만들어집니다. 직접 고치지 마세요.
+-- =====================================================================
+
+create schema if not exists priv;
+revoke all on schema priv from public;
+
+-- 규칙 숫자 (app/trade/js/rules.js 에서 생성)
+create table if not exists priv.config (id int primary key default 1 check (id = 1), data jsonb not null);
+
+create table if not exists public.game (
+  id               int primary key default 1 check (id = 1),
+  phase            int not null default 0,
+  turn             int not null default 0,
+  turn_end         timestamptz,
+  auto_turn        int not null default 0,
+  market_open      boolean not null default false,
+  diplomacy_open   boolean not null default false,
+  crisis           boolean not null default false,
+  fair_cap         boolean not null default true,
+  tariff           numeric not null default 0,
+  banned           jsonb not null default '{}'::jsonb,
+  cold_snap        int,
+  world_first      int,
+  base_vol         int not null default 24,
+  locked           boolean not null default false,
+  require_approval boolean not null default false,
+  timer_end        timestamptz,
+  timer_label      text,
+  ver              bigint not null default 0,
+  updated_at       timestamptz not null default now()
+);
+insert into public.game(id) values (1) on conflict do nothing;
+
+create table if not exists public.notices (
+  id         bigserial primary key,
+  country    int,               -- null이면 모두에게
+  kind       text not null default 'info',
+  message    text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.country_ticks (
+  country_id int primary key,
+  ver        bigint not null default 0
+);
+insert into public.country_ticks(country_id) select g from generate_series(1, 6) g on conflict do nothing;
+
+create table if not exists priv.countries (
+  id            int primary key,
+  type          text not null,
+  name          text,
+  flag_url      text,
+  emblem_url    text,
+  coin          int not null default 0,
+  happy         int not null default 55,
+  glory         int[] not null default '{}',
+  techs         text[] not null default '{}',
+  discovered    int[] not null default '{}',
+  explored      int[] not null default '{}',
+  title         text,
+  lux_types     int not null default 0,
+  income        int not null default 0,
+  short         text[] not null default '{}',
+  tariff_turn   int not null default 0,
+  attacked_turn int not null default -1,
+  updated_at    timestamptz not null default now()
+);
+insert into priv.countries(id, type) values (1, 'K'), (2, 'J'), (3, 'C'), (4, 'A'), (5, 'N'), (6, 'T') on conflict do nothing;
+
+create table if not exists priv.students (
+  id         serial primary key,
+  country_id int not null references priv.countries(id),
+  no         int,
+  name       text not null,
+  role       text,
+  is_leader  boolean not null default false,
+  uid        uuid unique,
+  bound_at   timestamptz,
+  last_seen  timestamptz
+);
+
+create table if not exists priv.pairing_requests (
+  id         serial primary key,
+  student_id int not null references priv.students(id) on delete cascade,
+  uid        uuid not null,
+  status     text not null default 'pending',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists priv.tiles (
+  id      int primary key,
+  c       int not null,
+  r       int not null,
+  zone    text,
+  terrain text not null,
+  res     text,
+  owner   int,
+  imp     text
+);
+
+create table if not exists priv.cities (
+  id           text primary key,
+  tile_id      int not null,
+  kind         text not null,          -- capital | cs
+  type         text not null,          -- 수도: 나라 유형 / 도시국가: 확장 대상 나라 유형
+  name         text not null,
+  def          int not null default 0,
+  sea          boolean not null default false,
+  tech         text,
+  country      int,
+  buildings    text[] not null default '{}',
+  built_turn   int not null default -1,
+  trained_turn int not null default -1,
+  unrest       boolean not null default false,
+  taken_turn   int,
+  def_help     int not null default 0
+);
+
+create table if not exists priv.units (
+  id         serial primary key,
+  country    int not null,
+  kind       text not null,             -- worker | scout | spear | catapult | ballista | cannon
+  tile_id    int not null,
+  acted_turn int not null default -1,
+  moves_turn int not null default -1,
+  moves_left int not null default 0
+);
+
+create table if not exists priv.inventory (
+  country int not null,
+  item    text not null,
+  qty     int not null default 0,
+  primary key (country, item)
+);
+
+create table if not exists priv.factories (country int not null, kind text not null, primary key (country, kind));
+create table if not exists priv.advanced  (country int not null, kind text not null, primary key (country, kind));
+
+create table if not exists priv.offers (
+  id         serial primary key,
+  turn       int not null,
+  from_c     int not null,
+  to_c       int not null,
+  give_item  text not null,
+  give_qty   int not null,
+  get_item   text not null,
+  get_qty    int not null,
+  status     text not null default 'pending',   -- pending | accepted | declined | cancelled | expired
+  by_student int,
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+
+create table if not exists priv.trades (
+  id         serial primary key,
+  turn       int not null,
+  phase      int not null,
+  from_c     int,           -- 판 나라 (null이면 중립 상인)
+  to_c       int,           -- 산 나라 (null이면 중립 상인)
+  item       text not null,
+  qty        int not null,
+  price      int,           -- 1개 값 (물물교환이면 null)
+  value      int not null,  -- 거래 가치(코인)
+  tariff     int not null default 0,
+  broker     boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists priv.events (
+  id         serial primary key,
+  turn       int,
+  kind       text not null,
+  message    text,
+  data       jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists priv.treaties (
+  country    int primary key,
+  focus      text,
+  problem    text,
+  promise    text,
+  reason     text,
+  agreed     int[] not null default '{}',
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists priv.reflections (
+  student_id int primary key,
+  body       text not null,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists priv.snapshots (
+  turn    int not null,
+  country int not null,
+  data    jsonb not null,
+  primary key (turn, country)
+);
+
+create table if not exists priv.admins (uid uuid primary key, at timestamptz not null default now());
+create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
+create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
+
+-- 공개 테이블: 실시간 알림용 (비밀 정보 없음)
+alter table public.game          enable row level security;
+alter table public.notices       enable row level security;
+alter table public.country_ticks enable row level security;
+drop policy if exists game_read on public.game;
+create policy game_read on public.game for select using (true);
+drop policy if exists notices_read on public.notices;
+create policy notices_read on public.notices for select using (true);
+drop policy if exists ticks_read on public.country_ticks;
+create policy ticks_read on public.country_ticks for select using (true);
+revoke insert, update, delete on public.game, public.notices, public.country_ticks from public;
+do $$ begin
+  execute 'revoke insert, update, delete on public.game, public.notices, public.country_ticks from anon, authenticated';
+exception when others then null; end $$;
+
+do $$ begin
+  begin execute 'alter publication supabase_realtime add table public.game'; exception when others then null; end;
+  begin execute 'alter publication supabase_realtime add table public.notices'; exception when others then null; end;
+  begin execute 'alter publication supabase_realtime add table public.country_ticks'; exception when others then null; end;
+end $$;
+
+
+-- ---------------------------------------------------------------------
+
+-- 규칙 숫자와 지도 (자동 생성)
+
+-- ---------------------------------------------------------------------
+
+insert into priv.config(id, data) values (1, $cfg${"W":32,"H":22,"START":{"coin":150,"food":4,"wood":5,"iron":1},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"TECHS":{"steelmaking":"제철","oil_drill":"석유 추출","refining":"석유 정제","munitions":"군수품 공장","nuclear":"원자력","chipmaking":"반도체 제조","rubberwork":"고무 가공","woodwork":"목재 가공","metalcraft":"금속 세공","textile":"섬유 가공","satellite":"인공위성","internet":"인터넷","tourism":"관광산업","shipbuilding":"조선","jungle":"밀림 개발"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium"],"cost":{"coin":15,"wood":1},"yield":2},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"oil_drill","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"바다 건너 도시국가 공격, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":60,"wood":2},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"textile","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"rubberwork","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"metalcraft","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2}},"PROC_COST":{"K":{"steel":4,"fuel":3,"chip":5},"J":{"chip":15,"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5,"tire":12,"chip":50,"fuel":15},"A":{"chip":20,"clothes":20,"fuel":6},"N":{"jewelry":12,"fuel":10},"T":{"clothes":4,"tire":8}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"internet","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"satellite","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"munitions","cost":{"coin":60,"steel":2,"aluminum":1},"unlock":"cannon"}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","str":5,"cost":{"coin":20,"food":1}},"catapult":{"name":"투석기","str":9,"cost":{"coin":30,"wood":2}},"ballista":{"name":"발리스타","str":14,"cost":{"coin":40,"wood":2,"iron":1}},"cannon":{"name":"대포","str":24,"cost":{"coin":60,"steel":1,"fuel":1},"needs":"arsenal"}},"UNIT_UPKEEP":2,"SCOUT_MOVE":5,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":55,"perLuxType":6,"perPlaza":6,"glory":10,"gloryDecay":5,"perCity":-3,"hunger":-8,"tariffPer":8,"crisis":{"perCity":-2,"fewLux":-8,"fewLuxUnder":2,"armyNeedsSteel":3,"noSteel":-5,"fuelCities":4,"noFuel":-6},"golden":70,"unhappy":40,"unrest":25,"revolt":15},"TYPES":{"K":{"name":"반도의 나라","color":"#2F6FE0","techs":["steelmaking","refining","chipmaking","shipbuilding","internet"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"섬의 나라","color":"#E0463C","techs":["metalcraft","rubberwork","munitions","tourism","shipbuilding","chipmaking"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 공장","color":"#F29A2E","techs":["textile","steelmaking","woodwork"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["oil_drill","refining","nuclear","satellite","internet","chipmaking","textile"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["oil_drill","refining","nuclear","satellite"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["textile"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","도시·내정","군사·정찰","자원·생산","기록관"],"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요."},{"n":9,"name":"무역 갈등","desc":"거래 조건이 갑자기 바뀌었어요."},{"n":10,"name":"조약 회의","desc":"피해를 살펴보고 약속을 만들어요."},{"n":11,"name":"무역 헌장","desc":"함께 만든 약속으로 세계를 되살려요."}]}$cfg$::jsonb)
+  on conflict (id) do update set data = excluded.data;
+
+insert into priv.tiles(id, c, r, zone, terrain, res) values
+(0,0,0,null,'ocean',null),
+(1,1,0,null,'coast',null),
+(2,2,0,null,'coast',null),
+(3,3,0,'N','tundra',null),
+(4,4,0,'N','snow',null),
+(5,5,0,'N','forest',null),
+(6,6,0,'N','snow',null),
+(7,7,0,'N','tundra',null),
+(8,8,0,'N','snow',null),
+(9,9,0,'N','tundra',null),
+(10,10,0,'N','tundra',null),
+(11,11,0,'N','tundra',null),
+(12,12,0,'N','hills',null),
+(13,13,0,'N','hills',null),
+(14,14,0,'N','tundra',null),
+(15,15,0,'N','tundra',null),
+(16,16,0,'N','tundra',null),
+(17,17,0,'N','forest',null),
+(18,18,0,'N','forest',null),
+(19,19,0,'N','forest','uranium'),
+(20,20,0,'N','tundra',null),
+(21,21,0,'N','tundra',null),
+(22,22,0,'N','snow',null),
+(23,23,0,'N','tundra',null),
+(24,24,0,null,'coast',null),
+(25,25,0,null,'coast',null),
+(26,26,0,null,'coast',null),
+(27,27,0,null,'ocean',null),
+(28,28,0,null,'ocean',null),
+(29,29,0,null,'ocean',null),
+(30,30,0,null,'ocean',null),
+(31,31,0,null,'ocean',null),
+(32,0,1,null,'coast',null),
+(33,1,1,'N','tundra',null),
+(34,2,1,'N','tundra',null),
+(35,3,1,'N','forest',null),
+(36,4,1,'N','forest',null),
+(37,5,1,'N','tundra',null),
+(38,6,1,'N','tundra',null),
+(39,7,1,'N','tundra',null),
+(40,8,1,'N','hills','gold'),
+(41,9,1,'N','tundra',null),
+(42,10,1,'N','tundra',null),
+(43,11,1,'N','tundra',null),
+(44,12,1,'N','tundra',null),
+(45,13,1,'N','forest',null),
+(46,14,1,'N','forest',null),
+(47,15,1,'N','tundra',null),
+(48,16,1,'N','forest',null),
+(49,17,1,'N','snow',null),
+(50,18,1,'N','tundra',null),
+(51,19,1,'N','tundra',null),
+(52,20,1,'N','tundra',null),
+(53,21,1,'N','tundra',null),
+(54,22,1,'N','tundra',null),
+(55,23,1,'N','forest',null),
+(56,24,1,'N','tundra',null),
+(57,25,1,'N','tundra',null),
+(58,26,1,null,'coast',null),
+(59,27,1,null,'ocean',null),
+(60,28,1,null,'ocean',null),
+(61,29,1,null,'ocean',null),
+(62,30,1,null,'ocean',null),
+(63,31,1,null,'ocean',null),
+(64,0,2,null,'coast',null),
+(65,1,2,'N','snow',null),
+(66,2,2,'N','forest',null),
+(67,3,2,'N','tundra',null),
+(68,4,2,'N','hills',null),
+(69,5,2,'N','tundra',null),
+(70,6,2,'N','tundra',null),
+(71,7,2,'N','tundra',null),
+(72,8,2,'N','snow',null),
+(73,9,2,'N','forest',null),
+(74,10,2,'N','tundra',null),
+(75,11,2,'N','tundra',null),
+(76,12,2,'N','tundra',null),
+(77,13,2,'N','plains',null),
+(78,14,2,'N','tundra',null),
+(79,15,2,'N','forest','oil'),
+(80,16,2,'N','forest',null),
+(81,17,2,'N','tundra',null),
+(82,18,2,'N','tundra',null),
+(83,19,2,'N','forest',null),
+(84,20,2,'N','snow',null),
+(85,21,2,'N','tundra',null),
+(86,22,2,'N','tundra',null),
+(87,23,2,'N','forest',null),
+(88,24,2,'N','forest',null),
+(89,25,2,'N','tundra',null),
+(90,26,2,null,'coast',null),
+(91,27,2,null,'ocean',null),
+(92,28,2,null,'ocean',null),
+(93,29,2,null,'ocean',null),
+(94,30,2,null,'ocean',null),
+(95,31,2,null,'ocean',null),
+(96,0,3,null,'coast',null),
+(97,1,3,null,'coast',null),
+(98,2,3,'N','tundra',null),
+(99,3,3,'N','forest',null),
+(100,4,3,'N','tundra',null),
+(101,5,3,'N','tundra','oil'),
+(102,6,3,'N','snow',null),
+(103,7,3,'N','tundra',null),
+(104,8,3,'N','tundra',null),
+(105,9,3,'N','snow',null),
+(106,10,3,'N','forest',null),
+(107,11,3,'N','tundra',null),
+(108,12,3,'N','tundra',null),
+(109,13,3,'N','tundra',null),
+(110,14,3,'N','forest',null),
+(111,15,3,'N','forest','oil'),
+(112,16,3,'N','tundra',null),
+(113,17,3,'N','tundra',null),
+(114,18,3,'N','forest',null),
+(115,19,3,'N','tundra',null),
+(116,20,3,'N','tundra',null),
+(117,21,3,'N','tundra',null),
+(118,22,3,'N','tundra',null),
+(119,23,3,'N','hills','gold'),
+(120,24,3,'N','tundra',null),
+(121,25,3,null,'coast',null),
+(122,26,3,null,'coast',null),
+(123,27,3,null,'coast',null),
+(124,28,3,null,'coast',null),
+(125,29,3,null,'coast',null),
+(126,30,3,null,'ocean',null),
+(127,31,3,null,'ocean',null),
+(128,0,4,null,'ocean',null),
+(129,1,4,null,'ocean',null),
+(130,2,4,null,'coast',null),
+(131,3,4,null,'coast',null),
+(132,4,4,null,'coast',null),
+(133,5,4,'N','forest',null),
+(134,6,4,'N','forest',null),
+(135,7,4,'N','tundra',null),
+(136,8,4,'N','tundra',null),
+(137,9,4,'N','tundra',null),
+(138,10,4,'N','tundra',null),
+(139,11,4,'N','tundra',null),
+(140,12,4,'N','tundra',null),
+(141,13,4,'N','tundra',null),
+(142,14,4,'N','forest',null),
+(143,15,4,'N','snow',null),
+(144,16,4,'N','forest',null),
+(145,17,4,'N','tundra',null),
+(146,18,4,'N','forest',null),
+(147,19,4,'N','forest',null),
+(148,20,4,'N','tundra',null),
+(149,21,4,'N','forest',null),
+(150,22,4,null,'coast',null),
+(151,23,4,null,'coast',null),
+(152,24,4,null,'coast',null),
+(153,25,4,null,'coast',null),
+(154,26,4,null,'coast',null),
+(155,27,4,'A','forest',null),
+(156,28,4,'A','desert',null),
+(157,29,4,'A','hills',null),
+(158,30,4,null,'coast',null),
+(159,31,4,null,'coast',null),
+(160,0,5,null,'ocean',null),
+(161,1,5,null,'ocean',null),
+(162,2,5,null,'ocean',null),
+(163,3,5,null,'ocean',null),
+(164,4,5,null,'coast',null),
+(165,5,5,null,'coast',null),
+(166,6,5,null,'coast',null),
+(167,7,5,null,'coast',null),
+(168,8,5,null,'coast',null),
+(169,9,5,null,'coast',null),
+(170,10,5,'C','plains',null),
+(171,11,5,'C','forest',null),
+(172,12,5,'C','plains',null),
+(173,13,5,'C','desert',null),
+(174,14,5,'C','desert',null),
+(175,15,5,null,'coast',null),
+(176,16,5,null,'coast',null),
+(177,17,5,null,'coast',null),
+(178,18,5,null,'coast',null),
+(179,19,5,null,'coast',null),
+(180,20,5,null,'coast',null),
+(181,21,5,null,'coast',null),
+(182,22,5,null,'ocean',null),
+(183,23,5,null,'ocean',null),
+(184,24,5,null,'ocean',null),
+(185,25,5,null,'coast',null),
+(186,26,5,'A','hills','aluminum'),
+(187,27,5,'A','plains',null),
+(188,28,5,'A','forest',null),
+(189,29,5,'A','forest',null),
+(190,30,5,'A','plains','oil'),
+(191,31,5,null,'coast',null),
+(192,0,6,null,'ocean',null),
+(193,1,6,null,'ocean',null),
+(194,2,6,null,'ocean',null),
+(195,3,6,null,'ocean',null),
+(196,4,6,null,'coast',null),
+(197,5,6,null,'coast',null),
+(198,6,6,null,'coast',null),
+(199,7,6,'C','desert',null),
+(200,8,6,'C','plains',null),
+(201,9,6,null,'coast',null),
+(202,10,6,'C','desert',null),
+(203,11,6,'C','plains',null),
+(204,12,6,'C','desert',null),
+(205,13,6,'C','plains',null),
+(206,14,6,'K','forest',null),
+(207,15,6,'K','plains',null),
+(208,16,6,'K','plains',null),
+(209,17,6,'K','plains',null),
+(210,18,6,null,'coast',null),
+(211,19,6,null,'ocean',null),
+(212,20,6,null,'coast',null),
+(213,21,6,'J','forest',null),
+(214,22,6,null,'coast',null),
+(215,23,6,null,'coast',null),
+(216,24,6,null,'ocean',null),
+(217,25,6,null,'coast',null),
+(218,26,6,'A','plains',null),
+(219,27,6,'A','plains',null),
+(220,28,6,'A','plains','wine'),
+(221,29,6,'A','plains',null),
+(222,30,6,'A','forest',null),
+(223,31,6,null,'coast',null),
+(224,0,7,null,'ocean',null),
+(225,1,7,null,'ocean',null),
+(226,2,7,null,'coast',null),
+(227,3,7,null,'coast',null),
+(228,4,7,'C','plains',null),
+(229,5,7,'C','plains',null),
+(230,6,7,'C','hills','iron'),
+(231,7,7,'C','desert',null),
+(232,8,7,'C','plains',null),
+(233,9,7,'C','hills',null),
+(234,10,7,'C','hills','copper'),
+(235,11,7,'C','plains',null),
+(236,12,7,null,'coast',null),
+(237,13,7,null,'coast',null),
+(238,14,7,'K','hills',null),
+(239,15,7,'K','mountain',null),
+(240,16,7,'K','plains',null),
+(241,17,7,'K','mountain',null),
+(242,18,7,null,'coast',null),
+(243,19,7,null,'coast',null),
+(244,20,7,null,'coast',null),
+(245,21,7,'J','forest',null),
+(246,22,7,'J','hills',null),
+(247,23,7,null,'coast',null),
+(248,24,7,null,'coast',null),
+(249,25,7,null,'coast',null),
+(250,26,7,'A','forest',null),
+(251,27,7,'A','forest',null),
+(252,28,7,'A','plains',null),
+(253,29,7,'A','plains',null),
+(254,30,7,'A','hills',null),
+(255,31,7,null,'coast',null),
+(256,0,8,null,'ocean',null),
+(257,1,8,null,'ocean',null),
+(258,2,8,null,'coast',null),
+(259,3,8,'C','plains',null),
+(260,4,8,'C','hills',null),
+(261,5,8,'C','plains',null),
+(262,6,8,'C','hills',null),
+(263,7,8,'C','plains',null),
+(264,8,8,'C','forest',null),
+(265,9,8,'C','hills',null),
+(266,10,8,'C','plains',null),
+(267,11,8,'C','plains',null),
+(268,12,8,'C','forest',null),
+(269,13,8,null,'coast',null),
+(270,14,8,null,'coast',null),
+(271,15,8,'K','hills',null),
+(272,16,8,'K','plains',null),
+(273,17,8,'K','forest',null),
+(274,18,8,null,'coast',null),
+(275,19,8,null,'coast',null),
+(276,20,8,'J','forest',null),
+(277,21,8,'J','plains',null),
+(278,22,8,'J','forest','copper'),
+(279,23,8,null,'coast',null),
+(280,24,8,null,'coast',null),
+(281,25,8,'A','desert',null),
+(282,26,8,'A','plains',null),
+(283,27,8,'A','plains',null),
+(284,28,8,'A','mountain',null),
+(285,29,8,'A','forest',null),
+(286,30,8,'A','plains',null),
+(287,31,8,'A','plains',null),
+(288,0,9,null,'ocean',null),
+(289,1,9,null,'coast',null),
+(290,2,9,'C','hills','copper'),
+(291,3,9,'C','plains',null),
+(292,4,9,'C','hills',null),
+(293,5,9,'C','desert',null),
+(294,6,9,'C','plains',null),
+(295,7,9,'C','plains',null),
+(296,8,9,'C','forest',null),
+(297,9,9,'C','desert',null),
+(298,10,9,'C','plains',null),
+(299,11,9,'C','plains',null),
+(300,12,9,'C','desert',null),
+(301,13,9,'C','plains',null),
+(302,14,9,null,'coast',null),
+(303,15,9,'K','mountain',null),
+(304,16,9,'K','plains',null),
+(305,17,9,'K','mountain',null),
+(306,18,9,null,'coast',null),
+(307,19,9,null,'coast',null),
+(308,20,9,'J','forest',null),
+(309,21,9,'J','plains',null),
+(310,22,9,'J','forest',null),
+(311,23,9,null,'coast',null),
+(312,24,9,null,'coast',null),
+(313,25,9,'A','plains',null),
+(314,26,9,'A','forest',null),
+(315,27,9,'A','plains',null),
+(316,28,9,'A','forest',null),
+(317,29,9,'A','plains','oil'),
+(318,30,9,'A','hills',null),
+(319,31,9,'A','desert',null),
+(320,0,10,null,'ocean',null),
+(321,1,10,null,'coast',null),
+(322,2,10,'C','plains',null),
+(323,3,10,'C','hills','aluminum'),
+(324,4,10,'C','forest',null),
+(325,5,10,'C','plains',null),
+(326,6,10,'C','plains',null),
+(327,7,10,'C','hills','iron'),
+(328,8,10,'C','plains',null),
+(329,9,10,'C','desert',null),
+(330,10,10,'C','forest',null),
+(331,11,10,'C','plains',null),
+(332,12,10,'C','plains',null),
+(333,13,10,'C','plains',null),
+(334,14,10,null,'coast',null),
+(335,15,10,'K','forest',null),
+(336,16,10,'K','plains',null),
+(337,17,10,'K','plains',null),
+(338,18,10,null,'coast',null),
+(339,19,10,null,'coast',null),
+(340,20,10,'J','plains',null),
+(341,21,10,'J','plains',null),
+(342,22,10,'J','hills',null),
+(343,23,10,null,'coast',null),
+(344,24,10,null,'coast',null),
+(345,25,10,'A','forest',null),
+(346,26,10,'A','plains',null),
+(347,27,10,'A','plains',null),
+(348,28,10,'A','plains',null),
+(349,29,10,'A','desert','cotton'),
+(350,30,10,'A','plains',null),
+(351,31,10,'A','hills',null),
+(352,0,11,null,'ocean',null),
+(353,1,11,null,'coast',null),
+(354,2,11,'C','mountain',null),
+(355,3,11,'C','hills',null),
+(356,4,11,'C','plains',null),
+(357,5,11,'C','plains',null),
+(358,6,11,'C','mountain',null),
+(359,7,11,'C','desert',null),
+(360,8,11,'C','mountain','cotton'),
+(361,9,11,'C','plains',null),
+(362,10,11,'C','desert',null),
+(363,11,11,'C','plains',null),
+(364,12,11,'C','desert',null),
+(365,13,11,'C','plains',null),
+(366,14,11,null,'coast',null),
+(367,15,11,'K','hills',null),
+(368,16,11,'K','forest',null),
+(369,17,11,'K','hills',null),
+(370,18,11,null,'coast',null),
+(371,19,11,null,'coast',null),
+(372,20,11,null,'coast',null),
+(373,21,11,'J','forest',null),
+(374,22,11,'J','plains',null),
+(375,23,11,null,'coast',null),
+(376,24,11,null,'coast',null),
+(377,25,11,'A','forest',null),
+(378,26,11,'A','desert',null),
+(379,27,11,'A','plains',null),
+(380,28,11,'A','plains',null),
+(381,29,11,'A','plains',null),
+(382,30,11,'A','plains',null),
+(383,31,11,'A','forest',null),
+(384,0,12,null,'ocean',null),
+(385,1,12,null,'coast',null),
+(386,2,12,'C','mountain',null),
+(387,3,12,'C','plains',null),
+(388,4,12,'C','plains',null),
+(389,5,12,'C','forest','cotton'),
+(390,6,12,'C','plains',null),
+(391,7,12,'C','forest',null),
+(392,8,12,'C','mountain',null),
+(393,9,12,'C','hills','iron'),
+(394,10,12,'C','desert',null),
+(395,11,12,'C','hills',null),
+(396,12,12,'C','hills',null),
+(397,13,12,'C','plains',null),
+(398,14,12,null,'coast',null),
+(399,15,12,null,'coast',null),
+(400,16,12,null,'coast',null),
+(401,17,12,null,'coast',null),
+(402,18,12,null,'coast',null),
+(403,19,12,null,'coast',null),
+(404,20,12,null,'coast',null),
+(405,21,12,'J','forest',null),
+(406,22,12,null,'coast',null),
+(407,23,12,null,'coast',null),
+(408,24,12,null,'coast',null),
+(409,25,12,'A','plains',null),
+(410,26,12,'A','plains',null),
+(411,27,12,'A','plains',null),
+(412,28,12,'A','plains',null),
+(413,29,12,'A','forest',null),
+(414,30,12,'A','plains',null),
+(415,31,12,'A','forest',null),
+(416,0,13,null,'ocean',null),
+(417,1,13,null,'coast',null),
+(418,2,13,null,'coast',null),
+(419,3,13,'C','desert',null),
+(420,4,13,'C','forest',null),
+(421,5,13,'C','plains',null),
+(422,6,13,'C','forest',null),
+(423,7,13,'C','desert',null),
+(424,8,13,'C','plains',null),
+(425,9,13,'C','mountain',null),
+(426,10,13,'C','plains',null),
+(427,11,13,'C','hills','aluminum'),
+(428,12,13,'C','plains',null),
+(429,13,13,null,'coast',null),
+(430,14,13,null,'ocean',null),
+(431,15,13,null,'ocean',null),
+(432,16,13,null,'ocean',null),
+(433,17,13,null,'coast',null),
+(434,18,13,'K','plains',null),
+(435,19,13,null,'coast',null),
+(436,20,13,null,'coast',null),
+(437,21,13,null,'coast',null),
+(438,22,13,null,'ocean',null),
+(439,23,13,null,'coast',null),
+(440,24,13,'J','forest',null),
+(441,25,13,'A','plains',null),
+(442,26,13,'A','hills','uranium'),
+(443,27,13,'A','plains',null),
+(444,28,13,'A','desert',null),
+(445,29,13,'A','forest',null),
+(446,30,13,'A','plains',null),
+(447,31,13,'A','forest',null),
+(448,0,14,null,'ocean',null),
+(449,1,14,null,'ocean',null),
+(450,2,14,null,'ocean',null),
+(451,3,14,null,'coast',null),
+(452,4,14,'C','plains',null),
+(453,5,14,'C','hills',null),
+(454,6,14,'C','hills',null),
+(455,7,14,'C','hills',null),
+(456,8,14,'C','plains',null),
+(457,9,14,'C','plains',null),
+(458,10,14,'C','plains',null),
+(459,11,14,'C','desert',null),
+(460,12,14,null,'coast',null),
+(461,13,14,null,'coast',null),
+(462,14,14,null,'ocean',null),
+(463,15,14,null,'ocean',null),
+(464,16,14,null,'ocean',null),
+(465,17,14,null,'ocean',null),
+(466,18,14,null,'coast',null),
+(467,19,14,null,'coast',null),
+(468,20,14,null,'ocean',null),
+(469,21,14,null,'ocean',null),
+(470,22,14,null,'ocean',null),
+(471,23,14,null,'ocean',null),
+(472,24,14,null,'coast',null),
+(473,25,14,null,'coast',null),
+(474,26,14,'A','hills',null),
+(475,27,14,'A','plains',null),
+(476,28,14,'A','plains',null),
+(477,29,14,'A','plains',null),
+(478,30,14,'A','hills','iron'),
+(479,31,14,null,'coast',null),
+(480,0,15,null,'ocean',null),
+(481,1,15,null,'ocean',null),
+(482,2,15,null,'ocean',null),
+(483,3,15,null,'coast',null),
+(484,4,15,null,'coast',null),
+(485,5,15,null,'coast',null),
+(486,6,15,null,'coast',null),
+(487,7,15,'C','forest',null),
+(488,8,15,'C','desert',null),
+(489,9,15,null,'coast',null),
+(490,10,15,'T','hills',null),
+(491,11,15,'T','plains',null),
+(492,12,15,'T','forest',null),
+(493,13,15,null,'coast',null),
+(494,14,15,null,'coast',null),
+(495,15,15,null,'coast',null),
+(496,16,15,null,'ocean',null),
+(497,17,15,null,'ocean',null),
+(498,18,15,null,'ocean',null),
+(499,19,15,null,'ocean',null),
+(500,20,15,null,'ocean',null),
+(501,21,15,null,'ocean',null),
+(502,22,15,null,'ocean',null),
+(503,23,15,null,'ocean',null),
+(504,24,15,null,'ocean',null),
+(505,25,15,null,'coast',null),
+(506,26,15,'A','plains','wine'),
+(507,27,15,'A','forest',null),
+(508,28,15,'A','forest',null),
+(509,29,15,'A','plains',null),
+(510,30,15,'A','plains',null),
+(511,31,15,null,'coast',null),
+(512,0,16,null,'ocean',null),
+(513,1,16,null,'ocean',null),
+(514,2,16,null,'ocean',null),
+(515,3,16,null,'ocean',null),
+(516,4,16,null,'ocean',null),
+(517,5,16,null,'ocean',null),
+(518,6,16,null,'coast',null),
+(519,7,16,'T','plains',null),
+(520,8,16,'T','forest','rubber'),
+(521,9,16,'T','jungle',null),
+(522,10,16,'T','jungle',null),
+(523,11,16,'T','plains',null),
+(524,12,16,'T','jungle',null),
+(525,13,16,'T','jungle',null),
+(526,14,16,'T','jungle',null),
+(527,15,16,'T','jungle',null),
+(528,16,16,null,'coast',null),
+(529,17,16,null,'coast',null),
+(530,18,16,null,'ocean',null),
+(531,19,16,null,'ocean',null),
+(532,20,16,null,'ocean',null),
+(533,21,16,null,'ocean',null),
+(534,22,16,null,'ocean',null),
+(535,23,16,null,'ocean',null),
+(536,24,16,null,'ocean',null),
+(537,25,16,null,'coast',null),
+(538,26,16,'A','mountain',null),
+(539,27,16,'A','plains',null),
+(540,28,16,'A','plains',null),
+(541,29,16,'A','forest',null),
+(542,30,16,'A','desert',null),
+(543,31,16,null,'coast',null),
+(544,0,17,null,'ocean',null),
+(545,1,17,null,'ocean',null),
+(546,2,17,null,'ocean',null),
+(547,3,17,null,'ocean',null),
+(548,4,17,null,'ocean',null),
+(549,5,17,null,'coast',null),
+(550,6,17,'T','jungle',null),
+(551,7,17,'T','plains',null),
+(552,8,17,'T','plains',null),
+(553,9,17,'T','jungle',null),
+(554,10,17,'T','plains',null),
+(555,11,17,'T','plains',null),
+(556,12,17,'T','jungle','spice'),
+(557,13,17,'T','jungle','rubber'),
+(558,14,17,'T','jungle',null),
+(559,15,17,'T','forest',null),
+(560,16,17,'T','plains','rubber'),
+(561,17,17,null,'coast',null),
+(562,18,17,null,'ocean',null),
+(563,19,17,null,'ocean',null),
+(564,20,17,null,'ocean',null),
+(565,21,17,null,'ocean',null),
+(566,22,17,null,'ocean',null),
+(567,23,17,null,'ocean',null),
+(568,24,17,null,'ocean',null),
+(569,25,17,null,'coast',null),
+(570,26,17,null,'coast',null),
+(571,27,17,'A','plains',null),
+(572,28,17,'A','plains',null),
+(573,29,17,'A','plains',null),
+(574,30,17,null,'coast',null),
+(575,31,17,null,'ocean',null),
+(576,0,18,null,'ocean',null),
+(577,1,18,null,'ocean',null),
+(578,2,18,null,'ocean',null),
+(579,3,18,null,'ocean',null),
+(580,4,18,null,'ocean',null),
+(581,5,18,null,'coast',null),
+(582,6,18,'T','hills',null),
+(583,7,18,'T','hills','spice'),
+(584,8,18,'T','jungle',null),
+(585,9,18,'T','jungle',null),
+(586,10,18,'T','jungle',null),
+(587,11,18,'T','forest',null),
+(588,12,18,'T','jungle',null),
+(589,13,18,'T','jungle',null),
+(590,14,18,'T','jungle',null),
+(591,15,18,'T','hills','copper'),
+(592,16,18,'T','plains',null),
+(593,17,18,null,'coast',null),
+(594,18,18,null,'ocean',null),
+(595,19,18,null,'ocean',null),
+(596,20,18,null,'ocean',null),
+(597,21,18,null,'ocean',null),
+(598,22,18,null,'ocean',null),
+(599,23,18,null,'ocean',null),
+(600,24,18,null,'ocean',null),
+(601,25,18,null,'ocean',null),
+(602,26,18,null,'ocean',null),
+(603,27,18,null,'coast',null),
+(604,28,18,null,'coast',null),
+(605,29,18,null,'coast',null),
+(606,30,18,null,'coast',null),
+(607,31,18,null,'ocean',null),
+(608,0,19,null,'ocean',null),
+(609,1,19,null,'ocean',null),
+(610,2,19,null,'ocean',null),
+(611,3,19,null,'ocean',null),
+(612,4,19,null,'ocean',null),
+(613,5,19,null,'coast',null),
+(614,6,19,null,'coast',null),
+(615,7,19,'T','plains',null),
+(616,8,19,'T','jungle',null),
+(617,9,19,'T','forest',null),
+(618,10,19,'T','jungle',null),
+(619,11,19,'T','jungle',null),
+(620,12,19,'T','jungle',null),
+(621,13,19,'T','jungle',null),
+(622,14,19,'T','hills',null),
+(623,15,19,'T','hills',null),
+(624,16,19,'T','jungle',null),
+(625,17,19,null,'coast',null),
+(626,18,19,null,'ocean',null),
+(627,19,19,null,'ocean',null),
+(628,20,19,null,'ocean',null),
+(629,21,19,null,'ocean',null),
+(630,22,19,null,'ocean',null),
+(631,23,19,null,'ocean',null),
+(632,24,19,null,'ocean',null),
+(633,25,19,null,'ocean',null),
+(634,26,19,null,'ocean',null),
+(635,27,19,null,'ocean',null),
+(636,28,19,null,'ocean',null),
+(637,29,19,null,'ocean',null),
+(638,30,19,null,'ocean',null),
+(639,31,19,null,'ocean',null),
+(640,0,20,null,'ocean',null),
+(641,1,20,null,'ocean',null),
+(642,2,20,null,'ocean',null),
+(643,3,20,null,'ocean',null),
+(644,4,20,null,'ocean',null),
+(645,5,20,null,'ocean',null),
+(646,6,20,null,'ocean',null),
+(647,7,20,null,'coast',null),
+(648,8,20,null,'coast',null),
+(649,9,20,'T','jungle',null),
+(650,10,20,'T','jungle',null),
+(651,11,20,'T','forest',null),
+(652,12,20,'T','hills',null),
+(653,13,20,'T','jungle',null),
+(654,14,20,null,'coast',null),
+(655,15,20,null,'coast',null),
+(656,16,20,null,'coast',null),
+(657,17,20,null,'coast',null),
+(658,18,20,null,'ocean',null),
+(659,19,20,null,'ocean',null),
+(660,20,20,null,'ocean',null),
+(661,21,20,null,'ocean',null),
+(662,22,20,null,'ocean',null),
+(663,23,20,null,'ocean',null),
+(664,24,20,null,'ocean',null),
+(665,25,20,null,'ocean',null),
+(666,26,20,null,'ocean',null),
+(667,27,20,null,'ocean',null),
+(668,28,20,null,'ocean',null),
+(669,29,20,null,'ocean',null),
+(670,30,20,null,'ocean',null),
+(671,31,20,null,'ocean',null),
+(672,0,21,null,'ocean',null),
+(673,1,21,null,'ocean',null),
+(674,2,21,null,'ocean',null),
+(675,3,21,null,'ocean',null),
+(676,4,21,null,'ocean',null),
+(677,5,21,null,'ocean',null),
+(678,6,21,null,'ocean',null),
+(679,7,21,null,'ocean',null),
+(680,8,21,null,'coast',null),
+(681,9,21,null,'coast',null),
+(682,10,21,null,'coast',null),
+(683,11,21,null,'coast',null),
+(684,12,21,null,'coast',null),
+(685,13,21,null,'coast',null),
+(686,14,21,null,'ocean',null),
+(687,15,21,null,'ocean',null),
+(688,16,21,null,'ocean',null),
+(689,17,21,null,'ocean',null),
+(690,18,21,null,'ocean',null),
+(691,19,21,null,'ocean',null),
+(692,20,21,null,'ocean',null),
+(693,21,21,null,'ocean',null),
+(694,22,21,null,'ocean',null),
+(695,23,21,null,'ocean',null),
+(696,24,21,null,'ocean',null),
+(697,25,21,null,'ocean',null),
+(698,26,21,null,'ocean',null),
+(699,27,21,null,'ocean',null),
+(700,28,21,null,'ocean',null),
+(701,29,21,null,'ocean',null),
+(702,30,21,null,'ocean',null),
+(703,31,21,null,'ocean',null)
+  on conflict (id) do update set c = excluded.c, r = excluded.r, zone = excluded.zone, terrain = excluded.terrain, res = excluded.res;
+
+insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech) values
+('K',304,'capital','K','수도',0,false,null),
+('J',309,'capital','J','수도',0,false,null),
+('C',328,'capital','C','수도',0,false,null),
+('A',348,'capital','A','수도',0,false,null),
+('N',77,'capital','N','수도',0,false,null),
+('T',555,'capital','T','수도',0,false,null),
+('K1',240,'cs','K','소나무골',5,false,null),
+('K2',368,'cs','K','푸른나루',10,false,null),
+('K3',434,'cs','K','물새섬',15,true,null),
+('J1',245,'cs','J','안개곶',5,false,null),
+('J2',373,'cs','J','붉은항',10,false,null),
+('J3',440,'cs','J','등대섬',15,true,null),
+('C1',262,'cs','C','황토성',5,false,null),
+('C2',266,'cs','C','붉은강',9,false,null),
+('C3',357,'cs','C','비단마을',13,false,'chipmaking'),
+('C4',395,'cs','C','철산성',17,false,'rubberwork'),
+('C5',424,'cs','C','모래성',21,false,'refining'),
+('C6',291,'cs','C','서쪽관문',24,false,null),
+('A1',252,'cs','A','들판마을',5,false,null),
+('A2',411,'cs','A','큰강나루',9,false,null),
+('A3',189,'cs','A','검은샘',13,false,null),
+('A4',474,'cs','A','포도골',17,false,null),
+('A5',509,'cs','A','바위성',21,false,null),
+('A6',218,'cs','A','은빛고원',24,false,null),
+('N1',74,'cs','N','눈꽃마을',5,false,null),
+('N2',80,'cs','N','얼음항',9,false,null),
+('N3',39,'cs','N','금빛골',13,false,'metalcraft'),
+('N4',51,'cs','N','북극성',17,false,null),
+('N5',100,'cs','N','서리성',21,false,null),
+('N6',118,'cs','N','오로라성',24,false,null),
+('T1',521,'cs','T','야자마을',5,false,'jungle'),
+('T2',525,'cs','T','고무나무골',9,false,'rubberwork'),
+('T3',584,'cs','T','향기섬',13,false,null),
+('T4',622,'cs','T','구리곶',17,false,null),
+('T5',592,'cs','T','산호섬',21,false,null)
+  on conflict (id) do update set tile_id = excluded.tile_id, kind = excluded.kind, type = excluded.type, name = excluded.name, def = excluded.def, sea = excluded.sea, tech = excluded.tech;
+
+-- ---------------------------------------------------------------------
+-- 내부 도우미 (priv: 화면에서 직접 호출 불가)
+-- ---------------------------------------------------------------------
+create or replace function priv.cfg() returns jsonb
+language sql stable as $$ select data from priv.config where id = 1 $$;
+
+create or replace function priv.err(code text, msg text) returns void
+language plpgsql as $$ begin raise exception '%: %', code, msg; end $$;
+
+create or replace function priv.turn() returns int
+language sql stable as $$ select turn from public.game where id = 1 $$;
+
+create or replace function priv.phase() returns int
+language sql stable as $$ select phase from public.game where id = 1 $$;
+
+create or replace function priv.me() returns priv.students
+language plpgsql stable as $$
+declare r priv.students;
+begin
+  if auth.uid() is null then perform priv.err('NO_AUTH', '접속 정보가 없어요. 새로고침해 주세요.'); end if;
+  select * into r from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NOT_JOINED', '아직 나라에 입장하지 않았어요.'); end if;
+  return r;
+end $$;
+
+create or replace function priv.is_admin() returns boolean
+language sql stable as $$ select exists(select 1 from priv.admins where uid = auth.uid()) $$;
+
+create or replace function priv.need_admin() returns void
+language plpgsql stable as $$
+begin
+  if not priv.is_admin() then perform priv.err('NOT_ADMIN', '교사 로그인이 필요해요.'); end if;
+end $$;
+
+create or replace function priv.bump(c int) returns void
+language sql as $$ update public.country_ticks set ver = ver + 1 where country_id = c $$;
+
+create or replace function priv.bump_all() returns void
+language sql as $$ update public.country_ticks set ver = ver + 1 where true $$;
+
+create or replace function priv.bump_game() returns void
+language sql as $$ update public.game set ver = ver + 1, updated_at = now() where id = 1 $$;
+
+create or replace function priv.notice(msg text, k text default 'info', c int default null) returns void
+language sql as $$ insert into public.notices(country, kind, message) values (c, k, msg) $$;
+
+create or replace function priv.event(k text, msg text, d jsonb default null) returns void
+language sql as $$ insert into priv.events(turn, kind, message, data) values (priv.turn(), k, msg, d) $$;
+
+create or replace function priv.ctype(c int) returns text
+language sql stable as $$ select type from priv.countries where id = c $$;
+
+create or replace function priv.cname(c int) returns text
+language sql stable as $$
+  select coalesce(nullif(trim(name), ''), priv.cfg()->'TYPES'->type->>'name') from priv.countries where id = c
+$$;
+
+create or replace function priv.iname(item text) returns text
+language sql stable as $$ select case when item = 'coin' then '코인' else coalesce(priv.cfg()->'ITEMS'->item->>'name', item) end $$;
+
+-- 육각 거리 (odd-r 오프셋 → 큐브)
+create or replace function priv.hdist(c1 int, r1 int, c2 int, r2 int) returns int
+language sql immutable as $$
+  select greatest(abs(q1 - q2), abs(r1 - r2), abs((-q1 - r1) - (-q2 - r2)))
+  from (select c1 - (r1 - (r1 & 1)) / 2 as q1, c2 - (r2 - (r2 & 1)) / 2 as q2) x
+$$;
+
+create or replace function priv.within(center int, rad int) returns int[]
+language sql stable as $$
+  select coalesce(array_agg(t.id), '{}') from priv.tiles t, priv.tiles o
+  where o.id = center and t.r between o.r - rad and o.r + rad and priv.hdist(t.c, t.r, o.c, o.r) <= rad
+$$;
+
+create or replace function priv.tdist(a int, b int) returns int
+language sql stable as $$ select priv.hdist(x.c, x.r, y.c, y.r) from priv.tiles x, priv.tiles y where x.id = a and y.id = b $$;
+
+create or replace function priv.inv(c int, it text) returns int
+language sql stable as $$ select coalesce((select qty from priv.inventory where country = c and item = it), 0) $$;
+
+create or replace function priv.add(c int, it text, n int) returns void
+language plpgsql as $$
+begin
+  if it = 'coin' then update priv.countries set coin = coin + n where id = c; return; end if;
+  insert into priv.inventory(country, item, qty) values (c, it, n)
+    on conflict (country, item) do update set qty = priv.inventory.qty + excluded.qty;
+end $$;
+
+-- 비용이 모자라면 무엇이 모자란지 문장으로 (충분하면 null)
+create or replace function priv.cost_short(c int, cost jsonb, mult numeric default 1) returns text
+language plpgsql stable as $$
+declare k text; v numeric; have int; msg text := '';
+begin
+  for k, v in select key, value::numeric from jsonb_each_text(coalesce(cost, '{}'::jsonb)) loop
+    v := ceil(v * mult);
+    if k = 'coin' then select coin into have from priv.countries where id = c; else have := priv.inv(c, k); end if;
+    if have < v then msg := msg || case when msg = '' then '' else ', ' end || priv.iname(k) || ' ' || (v - have)::int; end if;
+  end loop;
+  return case when msg = '' then null else msg || '이(가) 모자라요.' end;
+end $$;
+
+create or replace function priv.pay(c int, cost jsonb, mult numeric default 1) returns void
+language plpgsql as $$
+declare k text; v numeric; s text;
+begin
+  s := priv.cost_short(c, cost, mult);
+  if s is not null then perform priv.err('NO_MONEY', s); end if;
+  for k, v in select key, value::numeric from jsonb_each_text(coalesce(cost, '{}'::jsonb)) loop
+    perform priv.add(c, k, -ceil(v * mult)::int);
+  end loop;
+end $$;
+
+create or replace function priv.has_tech(c int, t text) returns boolean
+language sql stable as $$ select t = any(techs) from priv.countries where id = c $$;
+
+create or replace function priv.military(c int) returns int
+language sql stable as $$ select count(*)::int from priv.units where country = c and kind in ('spear', 'catapult', 'ballista', 'cannon') $$;
+
+create or replace function priv.strength(c int, t int) returns int
+language sql stable as $$
+  select coalesce(sum((priv.cfg()->'UNITS'->kind->>'str')::int), 0)::int
+  from priv.units where country = c and kind in ('spear', 'catapult', 'ballista', 'cannon') and acted_turn < t
+$$;
+
+-- 시야 넓히기 + 발견 확인
+create or replace function priv.reveal(c int, ids int[]) returns void
+language sql as $$
+  update priv.countries set explored = (select array_agg(distinct x) from unnest(explored || ids) x) where id = c
+$$;
+
+create or replace function priv.check_discovery() returns void
+language plpgsql as $$
+declare me record; x record; g public.game; cnt int;
+begin
+  for me in select * from priv.countries order by id loop
+    for x in select * from priv.countries where id <> me.id and not (id = any(me.discovered)) loop
+      if exists(select 1 from priv.tiles t where t.owner = x.id and t.id = any(me.explored)) then
+        update priv.countries set discovered = discovered || x.id where id = me.id;
+        perform priv.notice(priv.cname(x.id) || '을(를) 발견했어요! 국경 너머에 다른 나라가 있어요.', 'discover', me.id);
+        perform priv.bump(me.id);
+      end if;
+    end loop;
+  end loop;
+  select * into g from public.game where id = 1;
+  if g.world_first is null then
+    for me in select * from priv.countries where coalesce(array_length(discovered, 1), 0) >= 5 order by id limit 1 loop
+      update public.game set world_first = me.id, diplomacy_open = true where id = 1;
+      update priv.countries set title = '세계 탐험가', coin = coin + 30 where id = me.id;
+      perform priv.notice(priv.cname(me.id) || '의 정찰대가 세계의 모든 나라를 발견했습니다! 세계 외교의 시대가 열립니다.', 'world');
+      perform priv.event('world_first', priv.cname(me.id) || ' 세계 발견', jsonb_build_object('country', me.id));
+      perform priv.bump_game(); perform priv.bump_all();
+    end loop;
+  end if;
+end $$;
+
+-- 영토 넓히기 (같은 유형 땅, 주인 없는 육지)
+create or replace function priv.claim(p_country int, p_center int, p_rad int) returns void
+language plpgsql as $$
+declare tp text := priv.ctype(p_country); sight int := (priv.cfg()->>'CITY_SIGHT')::int;
+begin
+  update priv.tiles set owner = p_country
+   where id = any(priv.within(p_center, p_rad)) and zone = tp and owner is null and terrain not in ('ocean', 'coast');
+  perform priv.reveal(p_country, priv.within(p_center, greatest(p_rad, sight)));
+end $$;
+
+-- 게임판 처음 상태로 (명단·기기 연결·나라 이름과 국기는 그대로)
+create or replace function priv.init_world() returns void
+language plpgsql as $$
+declare cfg jsonb := priv.cfg(); co record; cap priv.cities; k text; v text;
+begin
+  update priv.tiles set owner = null, imp = null where true;
+  update priv.cities set country = null, buildings = '{}', built_turn = -1, trained_turn = -1, unrest = false, taken_turn = null, def_help = 0 where true;
+  delete from priv.units where true;
+  delete from priv.inventory where true;
+  delete from priv.factories where true;
+  delete from priv.advanced where true;
+  delete from priv.offers where true;
+  delete from priv.trades where true;
+  delete from priv.events where true;
+  delete from priv.treaties where true;
+  delete from priv.reflections where true;
+  delete from priv.snapshots where true;
+  delete from public.notices where true;
+  update public.game set phase = 0, turn = 0, turn_end = null, market_open = false, diplomacy_open = false, crisis = false,
+    fair_cap = true, tariff = 0, banned = '{}'::jsonb, cold_snap = null, world_first = null, locked = false, timer_end = null where id = 1;
+  for co in select * from priv.countries order by id loop
+    update priv.countries set coin = (cfg->'START'->>'coin')::int, happy = (cfg->'HAPPY'->>'base')::int, glory = '{}',
+      techs = array(select jsonb_array_elements_text(cfg->'TYPES'->co.type->'techs')),
+      discovered = '{}', explored = '{}', title = null, lux_types = 0, income = 0, short = '{}', tariff_turn = 0, attacked_turn = -1
+     where id = co.id;
+    for k, v in select key, value from jsonb_each_text(cfg->'START') loop
+      if k <> 'coin' then perform priv.add(co.id, k, v::int); end if;
+    end loop;
+    select * into cap from priv.cities where kind = 'capital' and type = co.type;
+    update priv.cities set country = co.id, taken_turn = 0 where id = cap.id;
+    perform priv.claim(co.id, cap.tile_id, 2);
+    insert into priv.units(country, kind, tile_id) values (co.id, 'worker', cap.tile_id), (co.id, 'scout', cap.tile_id), (co.id, 'spear', cap.tile_id);
+  end loop;
+  perform priv.check_discovery();
+  perform priv.bump_game(); perform priv.bump_all();
+end $$;
+
+-- 행복도 계산에 쓰는 이번 턴 사치품 종류 (소비 전)
+create or replace function priv.lux_types_now(c int) returns int
+language sql stable as $$
+  select count(*)::int from priv.inventory i
+  where i.country = c and i.qty >= 1 and i.item in (select jsonb_array_elements_text(priv.cfg()->'LUX'))
+$$;
+
+-- 지구 서버 안정도: 0.4 평균 행복도 + 0.2 경제력 + 0.2 문화력 + 0.2 거래량
+create or replace function priv.world_power() returns jsonb
+language sql stable as $$
+  with cfg as (select priv.cfg() d),
+  e as (select coalesce(sum(c.income), 0) + coalesce((select sum((cfg.d->'ADVANCED'->a.kind->>'econ')::int) from priv.advanced a, cfg), 0) econ,
+               coalesce(sum(c.lux_types * 5), 0) + coalesce((select sum(coalesce((cfg.d->'ADVANCED'->a.kind->>'culture')::int, 0)) from priv.advanced a, cfg), 0) culture,
+               coalesce(avg(c.happy), 0) happy
+        from priv.countries c)
+  select jsonb_build_object('econ', econ, 'culture', culture, 'happy', round(happy)) from e
+$$;
+
+create or replace function priv.trade_volume(t int) returns int
+language sql stable as $$ select coalesce(sum(qty), 0)::int from priv.trades where turn = t and not broker $$;
+
+create or replace function priv.gauge() returns int
+language sql stable as $$
+  with w as (select priv.world_power() p), g as (select turn, base_vol from public.game where id = 1)
+  select round(0.4 * (w.p->>'happy')::numeric
+             + 0.2 * least(100, (w.p->>'econ')::numeric / 4.2)
+             + 0.2 * least(100, (w.p->>'culture')::numeric / 1.5)
+             + 0.2 * least(100, priv.trade_volume(g.turn - 1) * 100.0 / greatest(1, g.base_vol)))::int
+  from w, g
+$$;
+
+-- ---------------------------------------------------------------------
+-- 턴 끝 처리: 생산 → 공장 → 사치품 → 행복도 → 불안 → 기록
+-- ---------------------------------------------------------------------
+create or replace function priv.end_turn() returns void
+language plpgsql as $$
+declare
+  cfg jsonb := priv.cfg(); g public.game; co record; ci record; t record; f record;
+  inc jsonb; gross int; upkeep int; ncity int; food int; v int; types int; h jsonb; cr jsonb;
+  n int; cost int; it text; y int; shortl text[]; recent record; mil int;
+begin
+  select * into g from public.game where id = 1;
+  h := cfg->'HAPPY'; cr := h->'crisis';
+  for co in select * from priv.countries order by id loop
+    inc := (cfg->'INCOME') || coalesce(cfg->'PRODUCTIVITY'->co.type, '{}'::jsonb);
+    select count(*) into ncity from priv.cities where country = co.id;
+    -- 코인
+    gross := (inc->>'capital')::int + (ncity - 1) * (inc->>'city')::int;
+    for ci in select * from priv.cities where country = co.id loop
+      if ci.unrest then
+        if ci.kind <> 'capital' then gross := gross - (inc->>'city')::int; end if;
+        continue;
+      end if;
+      if 'market' = any(ci.buildings) then gross := gross + (inc->>'market')::int; end if;
+      if 'harbor' = any(ci.buildings) then gross := gross + (inc->>'harbor')::int; end if;
+    end loop;
+    gross := gross + coalesce((select sum(coalesce((cfg->'ADVANCED'->kind->>'coinPerTurn')::int, 0)) from priv.advanced where country = co.id), 0);
+    if co.happy >= (h->>'golden')::int then gross := round(gross * 1.25);
+    elsif co.happy < (h->>'unhappy')::int then gross := round(gross * 0.8); end if;
+    mil := priv.military(co.id);
+    upkeep := mil * (cfg->>'UNIT_UPKEEP')::int;
+    update priv.countries set coin = coin + gross - upkeep, income = gross - upkeep where id = co.id;
+    -- 식량
+    food := (inc->>'capitalFood')::int - ncity * (inc->>'cityFood')::int
+          - (select count(*) from priv.units where country = co.id and kind = 'worker')::int * (inc->>'workerFood')::int
+          + (select count(*) from priv.cities where country = co.id and 'granary' = any(buildings) and not unrest)::int * 2;
+    -- 개발한 칸 생산 (불안한 도시 옆 칸은 멈춤)
+    for t in select tl.* from priv.tiles tl where tl.owner = co.id and tl.imp is not null
+             and not exists(select 1 from priv.cities c2, priv.tiles ct where c2.country = co.id and c2.unrest and ct.id = c2.tile_id
+                            and priv.hdist(ct.c, ct.r, tl.c, tl.r) <= 1) loop
+      if t.imp = 'farm' then food := food + case when t.terrain = 'tundra' then (cfg->>'TUNDRA_FOOD')::int else 2 end;
+      elsif t.imp = 'lumber' then perform priv.add(co.id, 'wood', 2);
+      elsif t.res is not null then
+        y := (cfg->'IMPROVE'->t.imp->>'yield')::int;
+        if t.res = 'oil' and g.cold_snap = co.id then y := y / 2; end if;
+        perform priv.add(co.id, t.res, y);
+      end if;
+    end loop;
+    perform priv.add(co.id, 'food', food);
+    shortl := '{}';
+    if priv.inv(co.id, 'food') < 0 then
+      update priv.inventory set qty = 0 where country = co.id and item = 'food';
+      shortl := shortl || '식량'::text;
+    end if;
+    -- 가공 공장 (원료 1 → 제품 1, 가공비)
+    if g.phase >= 2 then
+      for f in select * from priv.factories where country = co.id loop
+        it := cfg->'FACTORIES'->f.kind->>'input';
+        cost := (cfg->'PROC_COST'->co.type->>(cfg->'FACTORIES'->f.kind->>'output'))::int;
+        select coin into v from priv.countries where id = co.id;
+        n := least((cfg->'FACTORIES'->f.kind->>'perTurn')::int, priv.inv(co.id, it), case when cost > 0 then v / cost else 99 end);
+        if n > 0 then
+          perform priv.add(co.id, it, -n);
+          perform priv.add(co.id, 'coin', -n * cost);
+          perform priv.add(co.id, cfg->'FACTORIES'->f.kind->>'output', n);
+        end if;
+      end loop;
+    end if;
+    -- 사치품: 종류마다 1개 소비
+    types := 0;
+    for it in select jsonb_array_elements_text(cfg->'LUX') loop
+      if priv.inv(co.id, it) >= 1 then perform priv.add(co.id, it, -1); types := types + 1; end if;
+    end loop;
+    -- 행복도
+    v := (h->>'base')::int + types * (h->>'perLuxType')::int
+       + (select count(*) from priv.cities where country = co.id and 'plaza' = any(buildings))::int * (h->>'perPlaza')::int
+       + case when exists(select 1 from priv.advanced where country = co.id and kind = 'theater') then (cfg->'ADVANCED'->'theater'->>'happy')::int else 0 end
+       + (ncity - 1) * (h->>'perCity')::int
+       + coalesce((select sum(x) from unnest(co.glory) x), 0)::int
+       - ceil(co.tariff_turn::numeric / (h->>'tariffPer')::int)::int;
+    if '식량' = any(shortl) then v := v + (h->>'hunger')::int; end if;
+    if g.crisis then
+      v := v + (ncity - 1) * (cr->>'perCity')::int;
+      if types < (cr->>'fewLuxUnder')::int then v := v + (cr->>'fewLux')::int; shortl := shortl || '사치품'::text; end if;
+      if mil >= (cr->>'armyNeedsSteel')::int then
+        if priv.inv(co.id, 'steel') >= 1 then perform priv.add(co.id, 'steel', -1);
+        else v := v + (cr->>'noSteel')::int; shortl := shortl || '강철'::text; end if;
+      end if;
+      if ncity >= (cr->>'fuelCities')::int then
+        if priv.inv(co.id, 'fuel') >= 1 then perform priv.add(co.id, 'fuel', -1);
+        else v := v + (cr->>'noFuel')::int; shortl := shortl || '연료'::text; end if;
+      end if;
+    end if;
+    v := greatest(0, least(100, v));
+    update priv.countries set happy = v, lux_types = types, short = shortl, tariff_turn = 0,
+      glory = array(select x - (h->>'gloryDecay')::int from unnest(glory) x where x - (h->>'gloryDecay')::int > 0)
+     where id = co.id;
+    -- 불안: 25 미만이면 가장 최근에 얻은 도시 하나가 불안 (영구 손실 없음)
+    update priv.cities set unrest = false where country = co.id;
+    if v < (h->>'unrest')::int then
+      select * into recent from priv.cities where country = co.id and kind = 'cs' order by taken_turn desc, id desc limit 1;
+      if found then
+        update priv.cities set unrest = true where id = recent.id;
+        perform priv.notice(recent.name || '에서 시민들이 불안해하고 있어요. 이 도시의 생산이 멈췄어요.', 'unrest', co.id);
+      end if;
+    end if;
+    if v < (h->>'revolt')::int then
+      perform priv.notice('수도에 반란군이 나타났어요! 병사들이 진압했지만 시민들의 요구를 들어줘야 해요.', 'revolt', co.id);
+      perform priv.event('revolt', priv.cname(co.id) || ' 수도 반란군', jsonb_build_object('country', co.id));
+    end if;
+    if array_length(shortl, 1) > 0 then
+      perform priv.notice('부족해요: ' || array_to_string(shortl, ', ') || ' → 행복도가 떨어졌어요.', 'short', co.id);
+    end if;
+    insert into priv.snapshots(turn, country, data)
+      select g.turn, co.id, jsonb_build_object('coin', c.coin, 'happy', c.happy, 'income', c.income, 'lux', c.lux_types,
+        'cities', ncity, 'short', c.short,
+        'inv', (select coalesce(jsonb_object_agg(item, qty), '{}') from priv.inventory where country = co.id))
+      from priv.countries c where c.id = co.id
+      on conflict (turn, country) do update set data = excluded.data;
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 학생: 입장
+-- ---------------------------------------------------------------------
+create or replace function public.get_public() returns jsonb
+language sql stable security definer set search_path = public, priv as $$
+  select jsonb_build_object(
+    'phase', g.phase, 'turn', g.turn, 'require_approval', g.require_approval,
+    'countries', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'name', priv.cname(c.id),
+        'flag_url', c.flag_url) order by c.id), '[]') from priv.countries c))
+  from public.game g where g.id = 1
+$$;
+
+create or replace function public.get_roster(p_country int) returns jsonb
+language sql stable security definer set search_path = public, priv as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'no', s.no, 'name', s.name, 'taken', s.uid is not null) order by s.no, s.id), '[]')
+  from priv.students s where s.country_id = p_country
+$$;
+
+create or replace function public.join_student(p_student int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare s priv.students; mine priv.students; appr boolean;
+begin
+  if auth.uid() is null then perform priv.err('NO_AUTH', '접속 정보가 없어요. 새로고침해 주세요.'); end if;
+  select * into mine from priv.students where uid = auth.uid();
+  if found then
+    if mine.id = p_student then return jsonb_build_object('status', 'joined'); end if;
+    perform priv.err('DEVICE_TAKEN', '이 기기는 이미 ' || mine.name || ' 학생으로 연결되어 있어요. 선생님께 말해 주세요.');
+  end if;
+  select * into s from priv.students where id = p_student for update;
+  if not found then perform priv.err('NO_STUDENT', '학생을 찾을 수 없어요.'); end if;
+  select require_approval into appr from public.game where id = 1;
+  if s.uid is null and not appr then
+    update priv.students set uid = auth.uid(), bound_at = now(), last_seen = now() where id = s.id;
+    perform priv.bump(s.country_id);
+    return jsonb_build_object('status', 'joined');
+  end if;
+  if s.uid is not null and not appr then
+    perform priv.err('NAME_TAKEN', s.name || ' 학생은 이미 다른 기기로 들어와 있어요. 선생님께 말해 주세요.');
+  end if;
+  delete from priv.pairing_requests where uid = auth.uid() and status = 'pending';
+  insert into priv.pairing_requests(student_id, uid) values (s.id, auth.uid());
+  perform priv.bump_game();
+  return jsonb_build_object('status', 'pending');
+end $$;
+
+create or replace function public.leave_student() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare s priv.students;
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', true); end if;
+  select * into s from priv.students where uid = auth.uid();
+  if found then update priv.students set uid = null where id = s.id; perform priv.bump(s.country_id); end if;
+  delete from priv.pairing_requests where uid = auth.uid() and status = 'pending';
+  perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.get_me() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare s priv.students; pend boolean;
+begin
+  if auth.uid() is null then return jsonb_build_object('status', 'none'); end if;
+  select * into s from priv.students where uid = auth.uid();
+  if found then
+    update priv.students set last_seen = now() where id = s.id;
+    return jsonb_build_object('status', 'joined', 'student_id', s.id, 'country_id', s.country_id, 'name', s.name,
+      'role', s.role, 'is_leader', s.is_leader);
+  end if;
+  select exists(select 1 from priv.pairing_requests where uid = auth.uid() and status = 'pending') into pend;
+  return jsonb_build_object('status', case when pend then 'pending' else 'none' end);
+end $$;
+
+create or replace function public.set_role(p_role text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.me();
+begin
+  if not (p_role = any(array(select jsonb_array_elements_text(priv.cfg()->'ROLES')))) then perform priv.err('BAD_ROLE', '없는 역할이에요.'); end if;
+  update priv.students set role = p_role where id = me.id;
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- 나라 이름·국기·문장 (국가 대표만)
+create or replace function public.country_update(p jsonb) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.me();
+begin
+  if not me.is_leader then perform priv.err('LEADER_ONLY', '나라 이름과 국기는 국가 대표만 바꿀 수 있어요.'); end if;
+  update priv.countries set
+    name = case when p ? 'name' then left(nullif(trim(p->>'name'), ''), 16) else name end,
+    flag_url = case when p ? 'flag_url' then p->>'flag_url' else flag_url end,
+    emblem_url = case when p ? 'emblem_url' then p->>'emblem_url' else emblem_url end,
+    updated_at = now()
+   where id = me.country_id;
+  perform priv.bump_all(); perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 학생: 화면 데이터
+-- ---------------------------------------------------------------------
+create or replace function public.my_state() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.me(); co priv.countries; g public.game; known int[];
+begin
+  update priv.students set last_seen = now() where id = me.id;
+  select * into co from priv.countries where id = me.country_id;
+  select * into g from public.game where id = 1;
+  known := case when g.diplomacy_open then array(select id from priv.countries) else co.discovered || co.id end;
+  return jsonb_build_object(
+    'now', now(),
+    'game', jsonb_build_object('phase', g.phase, 'turn', g.turn, 'turn_end', g.turn_end, 'market_open', g.market_open,
+      'diplomacy_open', g.diplomacy_open, 'crisis', g.crisis, 'fair_cap', g.fair_cap, 'tariff', g.tariff, 'banned', g.banned,
+      'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label),
+    'me', jsonb_build_object('id', me.id, 'name', me.name, 'role', me.role, 'is_leader', me.is_leader),
+    'members', (select coalesce(jsonb_agg(jsonb_build_object('name', s.name, 'role', s.role, 'is_leader', s.is_leader,
+        'online', s.last_seen > now() - interval '60 seconds') order by s.no, s.id), '[]') from priv.students s where s.country_id = co.id),
+    'country', jsonb_build_object('id', co.id, 'type', co.type, 'name', priv.cname(co.id), 'flag_url', co.flag_url, 'emblem_url', co.emblem_url,
+      'coin', co.coin, 'happy', co.happy, 'income', co.income, 'lux_types', co.lux_types, 'short', co.short, 'techs', co.techs,
+      'title', co.title, 'glory', coalesce((select sum(x) from unnest(co.glory) x), 0), 'attacked', co.attacked_turn >= g.turn,
+      'discovered', co.discovered, 'explored_count', coalesce(array_length(co.explored, 1), 0)),
+    'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}') from priv.inventory where country = co.id and qty <> 0),
+    'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name,
+        'buildings', c.buildings, 'built', c.built_turn >= g.turn, 'trained', c.trained_turn >= g.turn, 'unrest', c.unrest,
+        'coastal', exists(select 1 from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.terrain in ('ocean', 'coast') and priv.hdist(t.c, t.r, ct.c, ct.r) = 1))
+        order by c.kind, c.taken_turn), '[]') from priv.cities c where c.country = co.id),
+    'targets', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'name', c.name, 'def', greatest(1, c.def - c.def_help),
+        'sea', c.sea, 'tech', c.tech, 'taken', c.country is not null,
+        'res', (select coalesce(jsonb_agg(t.res), '[]') from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.res is not null and t.zone = c.type and priv.hdist(t.c, t.r, ct.c, ct.r) <= 1))
+        order by c.def), '[]') from priv.cities c where c.kind = 'cs' and c.type = co.type),
+    'units', (select coalesce(jsonb_agg(jsonb_build_object('id', u.id, 'kind', u.kind, 'tile', u.tile_id, 'acted', u.acted_turn >= g.turn,
+        'moves', case when u.moves_turn >= g.turn then u.moves_left else (priv.cfg()->>'SCOUT_MOVE')::int end) order by u.id), '[]')
+        from priv.units u where u.country = co.id),
+    'strength', priv.strength(co.id, g.turn),
+    'factories', (select coalesce(jsonb_agg(kind), '[]') from priv.factories where country = co.id),
+    'advanced', (select coalesce(jsonb_agg(kind), '[]') from priv.advanced where country = co.id),
+    'countries', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'type_name', priv.cfg()->'TYPES'->c.type->>'name',
+        'name', priv.cname(c.id), 'flag_url', c.flag_url, 'emblem_url', c.emblem_url, 'title', c.title,
+        'known', c.id = any(known), 'happy', case when c.id = any(known) then c.happy end) order by c.id), '[]') from priv.countries c),
+    'offers', (select coalesce(jsonb_agg(to_jsonb(o) order by o.id desc), '[]') from priv.offers o
+        where (o.from_c = co.id or o.to_c = co.id) and (o.status = 'pending' or o.turn >= g.turn - 1)),
+    'trades', (select coalesce(jsonb_agg(to_jsonb(t) order by t.id desc), '[]') from (select * from priv.trades
+        where from_c = co.id or to_c = co.id order by id desc limit 60) t),
+    'notices', (select coalesce(jsonb_agg(to_jsonb(n) order by n.id desc), '[]') from (select * from public.notices
+        where country is null or country = co.id order by id desc limit 30) n),
+    'treaty', (select to_jsonb(t) from priv.treaties t where t.country = co.id),
+    'gauge', priv.gauge()
+  );
+end $$;
+
+-- 지도: 우리 나라가 본 칸만. 다른 나라 땅은 국경(주인)만 보임
+create or replace function public.map_view() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.me(); co priv.countries;
+begin
+  select * into co from priv.countries where id = me.country_id;
+  return jsonb_build_object(
+    'tiles', (select coalesce(jsonb_agg(jsonb_build_array(t.id, t.terrain,
+        case when t.owner is null or t.owner = co.id then t.res end, t.owner,
+        case when t.owner = co.id then t.imp end) order by t.id), '[]')
+      from priv.tiles t where t.id = any(co.explored)),
+    'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name,
+        'country', c.country, 'mine', c.type = co.type, 'buildings', case when c.country = co.id then c.buildings end,
+        'unrest', case when c.country = co.id then c.unrest end,
+        'def', case when c.kind = 'cs' and c.country is null then greatest(1, c.def - c.def_help) end)), '[]')
+      from priv.cities c where c.tile_id = any(co.explored) and (c.country is null or c.country = co.id or c.kind = 'capital'))
+  );
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 학생: 행동 (모두 나라 단위로 잠그고 검사)
+-- ---------------------------------------------------------------------
+create or replace function priv.act_start(need_phase int default 1) returns priv.students
+language plpgsql as $$
+declare me priv.students := priv.me(); g public.game;
+begin
+  select * into g from public.game where id = 1;
+  if g.phase < need_phase or g.turn < 1 then perform priv.err('PHASE', '아직 시작 전이에요. 선생님 신호를 기다려 주세요.'); end if;
+  if g.locked then perform priv.err('LOCKED', '지금은 회의 시간이라 게임 조작이 멈춰 있어요.'); end if;
+  perform 1 from priv.countries where id = me.country_id for update;
+  return me;
+end $$;
+
+create or replace function public.worker_build(p_tile int, p_kind text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
+begin
+  select * into t from priv.tiles where id = p_tile;
+  if not found or t.owner is distinct from me.country_id then perform priv.err('NOT_MINE', '우리 나라 땅에만 개발할 수 있어요.'); end if;
+  if t.imp is not null then perform priv.err('DONE', '이미 개발한 칸이에요.'); end if;
+  if exists(select 1 from priv.cities where tile_id = p_tile) then perform priv.err('CITY', '도시가 있는 칸이에요. 도시를 눌러 건물을 지어 보세요.'); end if;
+  imp := cfg->'IMPROVE'->p_kind;
+  if imp is null then perform priv.err('BAD_KIND', '없는 시설이에요.'); end if;
+  if imp ? 'res' then
+    if t.res is null or not (imp->'res' ? t.res) then perform priv.err('NO_RES', imp->>'name' || '은(는) 알맞은 자원이 있는 칸에만 지을 수 있어요.'); end if;
+  elsif not (imp->'on' ? t.terrain) then perform priv.err('BAD_TERRAIN', imp->>'name' || '은(는) 이 지형에 지을 수 없어요.'); end if;
+  if imp ? 'tech' and not priv.has_tech(me.country_id, imp->>'tech') then
+    perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(imp->>'tech')) || '」 기술이 있어야 해요.'); end if;
+  select * into u from priv.units where country = me.country_id and kind = 'worker' and acted_turn < tn order by priv.tdist(tile_id, p_tile), id limit 1;
+  if not found then perform priv.err('NO_WORKER', '이번 턴에 일할 수 있는 노동자가 없어요. 노동자를 더 고용하거나 다음 턴을 기다려요.'); end if;
+  if t.terrain = 'jungle' and not priv.has_tech(me.country_id, 'jungle') then mult := (cfg->>'JUNGLE_MULT')::numeric; end if;
+  perform priv.pay(me.country_id, imp->'cost', mult);
+  update priv.tiles set imp = p_kind where id = p_tile;
+  update priv.units set acted_turn = tn, tile_id = p_tile where id = u.id;
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true, 'unit', u.id, 'from', u.tile_id, 'to', p_tile);
+end $$;
+
+create or replace function public.hire_worker(p_city text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(); c priv.cities;
+begin
+  select * into c from priv.cities where id = p_city and country = me.country_id;
+  if not found then perform priv.err('NOT_MINE', '우리 도시에서만 고용할 수 있어요.'); end if;
+  perform priv.pay(me.country_id, priv.cfg()->'HIRE_WORKER');
+  insert into priv.units(country, kind, tile_id) values (me.country_id, 'worker', c.tile_id);
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.city_build(p_city text, p_building text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
+begin
+  select * into c from priv.cities where id = p_city and country = me.country_id;
+  if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
+  b := cfg->'BUILDINGS'->p_building;
+  if b is null then perform priv.err('BAD_KIND', '없는 건물이에요.'); end if;
+  if p_building = any(c.buildings) then perform priv.err('DONE', '이미 지은 건물이에요.'); end if;
+  if c.built_turn >= tn then perform priv.err('BUSY', '이 도시는 이번 턴에 이미 건물을 지었어요. 다음 턴에 지어요.'); end if;
+  if b ? 'tech' and not priv.has_tech(me.country_id, b->>'tech') then
+    perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(b->>'tech')) || '」 기술이 있어야 해요.'); end if;
+  if (b->>'coastal')::boolean and not exists(select 1 from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.terrain in ('ocean', 'coast') and priv.hdist(t.c, t.r, ct.c, ct.r) = 1) then
+    perform priv.err('NOT_COAST', '바닷가 도시에만 지을 수 있어요.'); end if;
+  perform priv.pay(me.country_id, b->'cost');
+  update priv.cities set buildings = buildings || p_building, built_turn = tn where id = c.id;
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.train_unit(p_city text, p_kind text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
+begin
+  select * into c from priv.cities where id = p_city and country = me.country_id;
+  if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
+  if not ('barracks' = any(c.buildings)) then perform priv.err('NO_BARRACKS', '병영이 있는 도시에서만 훈련할 수 있어요.'); end if;
+  if c.trained_turn >= tn then perform priv.err('BUSY', '이 도시는 이번 턴에 이미 훈련했어요.'); end if;
+  u := cfg->'UNITS'->p_kind;
+  if u is null then perform priv.err('BAD_KIND', '없는 병력이에요.'); end if;
+  if u ? 'needs' and not exists(select 1 from priv.advanced where country = me.country_id and kind = u->>'needs') then
+    perform priv.err('LOCKED', '「' || (cfg->'ADVANCED'->(u->>'needs')->>'name') || '」을(를) 먼저 지어야 해요.'); end if;
+  perform priv.pay(me.country_id, u->'cost');
+  insert into priv.units(country, kind, tile_id) values (me.country_id, p_kind, c.tile_id);
+  update priv.cities set trained_turn = tn where id = c.id;
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.attack_city(p_city text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; co priv.countries; tn int := priv.turn();
+  str int; need int; techmsg text := null; res jsonb; units jsonb;
+begin
+  select * into co from priv.countries where id = me.country_id;
+  select * into c from priv.cities where id = p_city for update;
+  if not found or c.kind <> 'cs' then perform priv.err('BAD_CITY', '공격할 수 있는 도시국가가 아니에요.'); end if;
+  if c.type <> co.type then perform priv.err('NOT_TARGET', '이 도시국가는 다른 나라 쪽에 있어요. 우리 나라 주변 도시국가만 차지할 수 있어요.'); end if;
+  if c.country is not null then perform priv.err('TAKEN', '이미 우리 나라 도시예요.'); end if;
+  if co.attacked_turn >= tn then perform priv.err('BUSY', '이번 턴에는 이미 공격했어요. 다음 턴에 다시 공격해요.'); end if;
+  if c.sea and not exists(select 1 from priv.cities where country = co.id and 'harbor' = any(buildings)) then
+    perform priv.err('NEED_HARBOR', '바다 건너 도시국가예요. 항구를 먼저 지어야 해요.'); end if;
+  str := priv.strength(co.id, tn);
+  need := greatest(1, c.def - c.def_help);
+  if str < need then perform priv.err('WEAK', '힘이 모자라요. (지금 ' || str || ' / 필요 ' || need || ')'); end if;
+  select coalesce(jsonb_agg(kind), '[]') into units from priv.units where country = co.id and kind in ('spear', 'catapult', 'ballista', 'cannon') and acted_turn < tn;
+  update priv.units set acted_turn = tn where country = co.id and kind in ('spear', 'catapult', 'ballista', 'cannon') and acted_turn < tn;
+  update priv.cities set country = co.id, taken_turn = tn where id = c.id;
+  update priv.countries set attacked_turn = tn, glory = glory || ((cfg->'HAPPY'->>'glory')::int) where id = co.id;
+  perform priv.claim(co.id, c.tile_id, 1);
+  if c.tech is not null and not priv.has_tech(co.id, c.tech) then
+    update priv.countries set techs = techs || c.tech where id = co.id;
+    techmsg := cfg->'TECHS'->>c.tech;
+  end if;
+  select coalesce(jsonb_agg(t.res), '[]') into res from priv.tiles t, priv.tiles ct
+    where ct.id = c.tile_id and t.owner = co.id and t.res is not null and priv.hdist(t.c, t.r, ct.c, ct.r) <= 1;
+  perform priv.check_discovery();
+  perform priv.notice(c.name || '을(를) 차지했어요! 주변을 굴복시키고 부국강병을 이룬 지도자에게 시민들이 환호합니다.', 'capture', co.id);
+  if techmsg is not null then
+    perform priv.notice(c.name || '의 기술자들이 우리 나라에 합류해 「' || techmsg || '」 기술을 쓸 수 있게 되었어요.', 'tech', co.id);
+  end if;
+  perform priv.event('capture', priv.cname(co.id) || ' → ' || c.name, jsonb_build_object('country', co.id, 'city', c.id));
+  perform priv.bump(co.id); perform priv.bump_game();
+  return jsonb_build_object('ok', true, 'city', c.id, 'name', c.name, 'tile', c.tile_id, 'strength', str, 'def', need,
+    'units', units, 'res', res, 'tech', techmsg);
+end $$;
+
+-- 정찰: 화면에서 계산한 길(칸 번호 목록)을 받아 한 칸씩 검사
+create or replace function public.scout_move(p_unit int, p_path int[]) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); u priv.units; tn int := priv.turn();
+  left_ int; prev int; step int; t priv.tiles; before int; seen int[] := '{}'; disc_before int[]; disc_after int[];
+begin
+  select * into u from priv.units where id = p_unit and country = me.country_id and kind = 'scout' for update;
+  if not found then perform priv.err('NO_UNIT', '우리 정찰병이 아니에요.'); end if;
+  left_ := case when u.moves_turn >= tn then u.moves_left else (cfg->>'SCOUT_MOVE')::int end;
+  if coalesce(array_length(p_path, 1), 0) = 0 then perform priv.err('NO_PATH', '갈 곳을 골라 주세요.'); end if;
+  if array_length(p_path, 1) > left_ then perform priv.err('TOO_FAR', '이번 턴에는 ' || left_ || '칸까지만 갈 수 있어요.'); end if;
+  prev := u.tile_id;
+  foreach step in array p_path loop
+    select * into t from priv.tiles where id = step;
+    if not found or priv.tdist(prev, step) <> 1 then perform priv.err('BAD_PATH', '이어지지 않는 길이에요.'); end if;
+    if not (t.terrain in ('ocean', 'coast') or t.owner is null or t.owner = me.country_id) then
+      perform priv.err('BORDER', '다른 나라 국경 안으로는 들어갈 수 없어요.'); end if;
+    seen := seen || priv.within(step, (cfg->>'SCOUT_SIGHT')::int);
+    prev := step;
+  end loop;
+  select coalesce(array_length(explored, 1), 0), discovered into before, disc_before from priv.countries where id = me.country_id;
+  perform priv.reveal(me.country_id, seen);
+  update priv.units set tile_id = prev, moves_turn = tn, moves_left = left_ - array_length(p_path, 1) where id = u.id;
+  perform priv.check_discovery();
+  select discovered into disc_after from priv.countries where id = me.country_id;
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true, 'to', prev,
+    'new_tiles', (select coalesce(array_length(explored, 1), 0) from priv.countries where id = me.country_id) - before,
+    'discovered', (select coalesce(jsonb_agg(x), '[]') from unnest(disc_after) x where not (x = any(disc_before))));
+end $$;
+
+create or replace function public.factory_build(p_kind text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(2); cfg jsonb := priv.cfg(); f jsonb; tp text;
+begin
+  tp := priv.ctype(me.country_id);
+  f := cfg->'FACTORIES'->p_kind;
+  if f is null then perform priv.err('BAD_KIND', '없는 공장이에요.'); end if;
+  if exists(select 1 from priv.factories where country = me.country_id and kind = p_kind) then perform priv.err('DONE', '이미 지은 공장이에요.'); end if;
+  if not priv.has_tech(me.country_id, f->>'tech') or (cfg->'PROC_COST'->tp->(f->>'output')) is null then
+    perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(f->>'tech')) || '」 기술이 있어야 지을 수 있어요.'); end if;
+  perform priv.pay(me.country_id, f->'build');
+  insert into priv.factories(country, kind) values (me.country_id, p_kind);
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.advanced_build(p_kind text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(2); cfg jsonb := priv.cfg(); a jsonb;
+begin
+  a := cfg->'ADVANCED'->p_kind;
+  if a is null then perform priv.err('BAD_KIND', '없는 건물이에요.'); end if;
+  if exists(select 1 from priv.advanced where country = me.country_id and kind = p_kind) then perform priv.err('DONE', '이미 지은 건물이에요.'); end if;
+  if a ? 'tech' and not priv.has_tech(me.country_id, a->>'tech') then
+    perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(a->>'tech')) || '」 기술이 있어야 해요.'); end if;
+  perform priv.pay(me.country_id, a->'cost');
+  insert into priv.advanced(country, kind) values (me.country_id, p_kind);
+  perform priv.notice((a->>'name') || '을(를) 지었어요!', 'build', me.country_id);
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 무역: 제안 → 수락 (세계 시장 개방 후)
+-- 한쪽은 물건, 다른 쪽은 물건 또는 코인
+-- ---------------------------------------------------------------------
+create or replace function priv.trade_check(seller int, item text, qty int, coin int) returns void
+language plpgsql as $$
+declare g public.game; cfg jsonb := priv.cfg(); cap int;
+begin
+  select * into g from public.game where id = 1;
+  if item = 'coin' then return; end if;
+  if g.banned ? seller::text and (g.banned->seller::text) ? item then
+    perform priv.err('BANNED', priv.cname(seller) || '은(는) 지금 ' || priv.iname(item) || ' 수출을 멈췄어요.'); end if;
+  if coin is not null and g.fair_cap then
+    cap := (cfg->'ITEMS'->item->>'ref')::int * (cfg->>'FAIR_CAP')::int * qty;
+    if coin > cap then perform priv.err('FAIR', '지구 서버 공정 거래 규칙: ' || priv.iname(item) || ' ' || qty || '개는 ' || cap || '코인까지만 받을 수 있어요.'); end if;
+  end if;
+end $$;
+
+create or replace function public.offer_create(p_to int, p_give_item text, p_give_qty int, p_get_item text, p_get_qty int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(3); g public.game; cfg jsonb := priv.cfg(); co priv.countries; id_ int;
+begin
+  select * into g from public.game where id = 1;
+  select * into co from priv.countries where id = me.country_id;
+  if not g.market_open then perform priv.err('CLOSED', '세계 시장이 아직 열리지 않았어요.'); end if;
+  if p_to = me.country_id or not exists(select 1 from priv.countries where id = p_to) then perform priv.err('BAD_TO', '거래할 나라를 골라 주세요.'); end if;
+  if not g.diplomacy_open and not (p_to = any(co.discovered)) then perform priv.err('UNKNOWN', '아직 발견하지 못한 나라예요.'); end if;
+  if coalesce(p_give_qty, 0) <= 0 or coalesce(p_get_qty, 0) <= 0 then perform priv.err('BAD_QTY', '개수를 1 이상으로 정해 주세요.'); end if;
+  if p_give_item = p_get_item then perform priv.err('SAME', '같은 물건끼리는 바꿀 수 없어요.'); end if;
+  if p_give_item <> 'coin' and cfg->'ITEMS'->p_give_item is null or p_get_item <> 'coin' and cfg->'ITEMS'->p_get_item is null then
+    perform priv.err('BAD_ITEM', '없는 물건이에요.'); end if;
+  if p_give_item = 'coin' and p_get_item = 'coin' then perform priv.err('BAD_ITEM', '코인끼리는 바꿀 수 없어요.'); end if;
+  if priv.cost_short(me.country_id, jsonb_build_object(p_give_item, p_give_qty)) is not null then
+    perform priv.err('NO_MONEY', '줄 물건이 모자라요: ' || priv.cost_short(me.country_id, jsonb_build_object(p_give_item, p_give_qty))); end if;
+  perform priv.trade_check(me.country_id, p_give_item, p_give_qty, case when p_get_item = 'coin' then p_get_qty end);
+  perform priv.trade_check(p_to, p_get_item, p_get_qty, case when p_give_item = 'coin' then p_give_qty end);
+  insert into priv.offers(turn, from_c, to_c, give_item, give_qty, get_item, get_qty, by_student)
+    values (g.turn, me.country_id, p_to, p_give_item, p_give_qty, p_get_item, p_get_qty, me.id) returning id into id_;
+  perform priv.notice(priv.cname(me.country_id) || '이(가) 거래를 제안했어요: ' || priv.iname(p_give_item) || ' ' || p_give_qty
+    || ' ↔ ' || priv.iname(p_get_item) || ' ' || p_get_qty, 'offer', p_to);
+  perform priv.bump(me.country_id); perform priv.bump(p_to);
+  return jsonb_build_object('ok', true, 'id', id_);
+end $$;
+
+create or replace function public.offer_cancel(p_offer int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.me(); o priv.offers;
+begin
+  update priv.offers set status = 'cancelled', decided_at = now() where id = p_offer and from_c = me.country_id and status = 'pending' returning * into o;
+  if found then perform priv.bump(o.from_c); perform priv.bump(o.to_c); end if;
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- 한 방향 기록 (판 나라 → 산 나라)
+create or replace function priv.record_trade(seller int, buyer int, item text, qty int, coin int, broker boolean default false) returns int
+language plpgsql as $$
+declare g public.game; cfg jsonb := priv.cfg(); val int; tar int := 0;
+begin
+  select * into g from public.game where id = 1;
+  val := coalesce(coin, (cfg->'ITEMS'->item->>'ref')::int * qty);
+  if g.tariff > 0 and buyer is not null and seller is not null then
+    tar := round(val * g.tariff);
+    update priv.countries set tariff_turn = tariff_turn + tar where id = buyer;
+  end if;
+  insert into priv.trades(turn, phase, from_c, to_c, item, qty, price, value, tariff, broker)
+    values (g.turn, g.phase, seller, buyer, item, qty, case when coin is not null then round(coin::numeric / qty) end, val, tar, broker);
+  return tar;
+end $$;
+
+create or replace function public.offer_respond(p_offer int, p_accept boolean) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(3); o priv.offers; g public.game; s text; tar int := 0;
+begin
+  select * into g from public.game where id = 1;
+  select * into o from priv.offers where id = p_offer and to_c = me.country_id for update;
+  if not found then perform priv.err('NO_OFFER', '제안을 찾을 수 없어요.'); end if;
+  if o.status <> 'pending' then perform priv.err('DONE', '이미 끝난 제안이에요.'); end if;
+  if not p_accept then
+    update priv.offers set status = 'declined', decided_at = now() where id = o.id;
+    perform priv.notice(priv.cname(me.country_id) || '이(가) 거래 제안을 거절했어요.', 'offer', o.from_c);
+    perform priv.bump(o.from_c); perform priv.bump(o.to_c);
+    return jsonb_build_object('ok', true, 'accepted', false);
+  end if;
+  if not g.market_open then perform priv.err('CLOSED', '세계 시장이 닫혀 있어요.'); end if;
+  -- 두 나라를 번호 순서로 잠금 (교착 방지)
+  perform 1 from priv.countries where id in (o.from_c, o.to_c) order by id for update;
+  s := priv.cost_short(o.from_c, jsonb_build_object(o.give_item, o.give_qty));
+  if s is not null then perform priv.err('NO_MONEY', priv.cname(o.from_c) || '의 물건이 모자라 거래할 수 없어요: ' || s); end if;
+  s := priv.cost_short(o.to_c, jsonb_build_object(o.get_item, o.get_qty));
+  if s is not null then perform priv.err('NO_MONEY', '우리 나라가 줄 것이 모자라요: ' || s); end if;
+  perform priv.trade_check(o.from_c, o.give_item, o.give_qty, case when o.get_item = 'coin' then o.get_qty end);
+  perform priv.trade_check(o.to_c, o.get_item, o.get_qty, case when o.give_item = 'coin' then o.give_qty end);
+  perform priv.add(o.from_c, o.give_item, -o.give_qty); perform priv.add(o.to_c, o.give_item, o.give_qty);
+  perform priv.add(o.to_c, o.get_item, -o.get_qty);     perform priv.add(o.from_c, o.get_item, o.get_qty);
+  if o.give_item <> 'coin' then tar := tar + priv.record_trade(o.from_c, o.to_c, o.give_item, o.give_qty, case when o.get_item = 'coin' then o.get_qty end); end if;
+  if o.get_item <> 'coin' then tar := tar + priv.record_trade(o.to_c, o.from_c, o.get_item, o.get_qty, case when o.give_item = 'coin' then o.give_qty end); end if;
+  update priv.offers set status = 'accepted', decided_at = now() where id = o.id;
+  perform priv.notice('거래 성사! ' || priv.cname(o.from_c) || ' ↔ ' || priv.cname(o.to_c) || ': '
+    || priv.iname(o.give_item) || ' ' || o.give_qty || ' ↔ ' || priv.iname(o.get_item) || ' ' || o.get_qty, 'trade', o.from_c);
+  perform priv.notice('거래 성사! ' || priv.cname(o.from_c) || ' ↔ ' || priv.cname(o.to_c) || ': '
+    || priv.iname(o.give_item) || ' ' || o.give_qty || ' ↔ ' || priv.iname(o.get_item) || ' ' || o.get_qty, 'trade', o.to_c);
+  perform priv.bump(o.from_c); perform priv.bump(o.to_c); perform priv.bump_game();
+  return jsonb_build_object('ok', true, 'accepted', true, 'tariff', tar);
+end $$;
+
+-- 조약 (17차시) · 개인 한 문장
+create or replace function public.treaty_submit(p_focus text, p_problem text, p_promise text, p_reason text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.me();
+begin
+  if not me.is_leader then perform priv.err('LEADER_ONLY', '조약 등록은 국가 대표가 해요.'); end if;
+  if priv.phase() < 10 then perform priv.err('PHASE', '조약 회의 시간에 등록할 수 있어요.'); end if;
+  insert into priv.treaties(country, focus, problem, promise, reason, agreed, updated_at)
+    values (me.country_id, p_focus, left(trim(p_problem), 120), left(trim(p_promise), 120), left(trim(p_reason), 120), '{}', now())
+    on conflict (country) do update set focus = excluded.focus, problem = excluded.problem, promise = excluded.promise,
+      reason = excluded.reason, agreed = '{}', updated_at = now();
+  perform priv.bump_all(); perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.treaty_agree() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.me();
+begin
+  if not me.is_leader then perform priv.err('LEADER_ONLY', '공동 약속 동의는 국가 대표가 해요.'); end if;
+  if priv.phase() < 10 then perform priv.err('PHASE', '조약 회의 시간에 동의할 수 있어요.'); end if;
+  update priv.treaties set agreed = array(select distinct x from unnest(agreed || me.country_id) x) where true;
+  perform priv.bump_all(); perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.reflection_submit(p_body text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.me();
+begin
+  if coalesce(trim(p_body), '') = '' then perform priv.err('EMPTY', '문장을 써 주세요.'); end if;
+  insert into priv.reflections(student_id, body) values (me.id, left(trim(p_body), 200))
+    on conflict (student_id) do update set body = excluded.body, updated_at = now();
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 전자칠판 (전체 지도, 읽기 전용)
+-- ---------------------------------------------------------------------
+create or replace function public.get_board() returns jsonb
+language sql stable security definer set search_path = public, priv as $$
+  select jsonb_build_object(
+    'now', now(),
+    'game', (select jsonb_build_object('phase', phase, 'turn', turn, 'turn_end', turn_end, 'market_open', market_open,
+      'diplomacy_open', diplomacy_open, 'world_first', world_first, 'timer_end', timer_end, 'timer_label', timer_label) from public.game where id = 1),
+    'countries', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'type_name', priv.cfg()->'TYPES'->c.type->>'name',
+        'name', priv.cname(c.id), 'flag_url', c.flag_url, 'emblem_url', c.emblem_url, 'happy', c.happy, 'title', c.title,
+        'cities', (select count(*) from priv.cities where country = c.id), 'discovered', coalesce(array_length(c.discovered, 1), 0),
+        'exports', (select coalesce(sum(qty), 0) from priv.trades where from_c = c.id and not broker),
+        'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker)) order by c.id), '[]') from priv.countries c),
+    'tiles', (select jsonb_agg(jsonb_build_array(t.id, t.terrain, t.res, t.owner, t.imp) order by t.id) from priv.tiles t),
+    'cities', (select jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'country', c.country,
+        'buildings', c.buildings, 'unrest', c.unrest)) from priv.cities c),
+    'volume', (select coalesce(jsonb_agg(jsonb_build_object('turn', t, 'qty', priv.trade_volume(t)) order by t), '[]')
+        from generate_series(greatest(1, (select turn from public.game where id = 1) - 12), (select turn from public.game where id = 1)) t),
+    'events', (select coalesce(jsonb_agg(to_jsonb(e) order by e.id desc), '[]') from (select * from priv.events order by id desc limit 10) e),
+    'treaties', (select coalesce(jsonb_agg(to_jsonb(t) order by t.country), '[]') from priv.treaties t),
+    'gauge', priv.gauge()
+  )
+$$;
+
+-- ---------------------------------------------------------------------
+-- 교사
+-- ---------------------------------------------------------------------
+create or replace function priv.set_admin_password(pw text) returns void
+language plpgsql as $$
+declare sa text := md5(random()::text || clock_timestamp()::text);
+begin
+  insert into priv.admin_secret(id, salt, hash) values (1, sa, encode(sha256(convert_to(sa || pw, 'UTF8')), 'hex'))
+  on conflict (id) do update set salt = excluded.salt, hash = excluded.hash;
+  delete from priv.admins where true;
+end $$;
+
+create or replace function public.admin_login(p_pw text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare sec priv.admin_secret; fails int;
+begin
+  if auth.uid() is null then perform priv.err('NO_AUTH', '접속 정보가 없어요. 새로고침해 주세요.'); end if;
+  select count(*) into fails from priv.admin_attempts where not ok and at > now() - interval '10 minutes';
+  if fails >= 20 then perform priv.err('TOO_MANY', '비밀번호를 너무 많이 틀렸어요. 10분 뒤에 다시 해 주세요.'); end if;
+  select * into sec from priv.admin_secret where id = 1;
+  if not found then perform priv.err('NO_PASSWORD', '교사 비밀번호가 아직 설정되지 않았어요.'); end if;
+  if encode(sha256(convert_to(sec.salt || coalesce(p_pw, ''), 'UTF8')), 'hex') <> sec.hash then
+    insert into priv.admin_attempts(uid, ok) values (auth.uid(), false);
+    perform priv.err('WRONG', '비밀번호가 틀렸어요.');
+  end if;
+  insert into priv.admin_attempts(uid, ok) values (auth.uid(), true);
+  insert into priv.admins(uid) values (auth.uid()) on conflict do nothing;
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_check() returns jsonb
+language sql stable security definer set search_path = public, priv as $$ select jsonb_build_object('admin', priv.is_admin()) $$;
+
+create or replace function public.admin_logout() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin delete from priv.admins where uid = auth.uid(); return jsonb_build_object('ok', true); end $$;
+
+create or replace function public.admin_state() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare g public.game;
+begin
+  perform priv.need_admin();
+  select * into g from public.game where id = 1;
+  return jsonb_build_object(
+    'now', now(),
+    'game', to_jsonb(g),
+    'gauge', priv.gauge(),
+    'countries', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'type_name', priv.cfg()->'TYPES'->c.type->>'name',
+        'name', priv.cname(c.id), 'flag_url', c.flag_url, 'coin', c.coin, 'happy', c.happy, 'income', c.income, 'lux', c.lux_types,
+        'short', c.short, 'title', c.title, 'techs', c.techs, 'discovered', coalesce(array_length(c.discovered, 1), 0),
+        'cities', (select count(*) from priv.cities where country = c.id),
+        'targets', (select count(*) from priv.cities where kind = 'cs' and type = c.type),
+        'unrest', (select count(*) from priv.cities where country = c.id and unrest),
+        'units', (select coalesce(jsonb_object_agg(kind, n), '{}') from (select kind, count(*) n from priv.units where country = c.id group by kind) u),
+        'improved', (select count(*) from priv.tiles where owner = c.id and imp is not null),
+        'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}') from priv.inventory where country = c.id and qty <> 0),
+        'factories', (select coalesce(jsonb_agg(kind), '[]') from priv.factories where country = c.id),
+        'advanced', (select coalesce(jsonb_agg(kind), '[]') from priv.advanced where country = c.id),
+        'exports', (select coalesce(sum(qty), 0) from priv.trades where from_c = c.id and not broker),
+        'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker),
+        'online', (select count(*) from priv.students where country_id = c.id and last_seen > now() - interval '60 seconds')
+      ) order by c.id), '[]') from priv.countries c),
+    'students', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'country_id', s.country_id, 'no', s.no, 'name', s.name,
+        'role', s.role, 'is_leader', s.is_leader, 'bound', s.uid is not null, 'online', s.last_seen > now() - interval '60 seconds',
+        'reflection', (select body from priv.reflections where student_id = s.id)) order by s.country_id, s.no, s.id), '[]') from priv.students s),
+    'pairings', (select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'student_id', r.student_id, 'name', s.name, 'country_id', s.country_id,
+        'created_at', r.created_at) order by r.id), '[]') from priv.pairing_requests r join priv.students s on s.id = r.student_id where r.status = 'pending'),
+    'trades', (select coalesce(jsonb_agg(to_jsonb(t) order by t.id desc), '[]') from (select * from priv.trades order by id desc limit 80) t),
+    'offers_pending', (select count(*) from priv.offers where status = 'pending'),
+    'events', (select coalesce(jsonb_agg(to_jsonb(e) order by e.id desc), '[]') from (select * from priv.events order by id desc limit 30) e),
+    'treaties', (select coalesce(jsonb_agg(to_jsonb(t) order by t.country), '[]') from priv.treaties t),
+    'volume', (select coalesce(jsonb_agg(jsonb_build_object('turn', t, 'qty', priv.trade_volume(t)) order by t), '[]')
+        from generate_series(greatest(1, g.turn - 12), g.turn) t)
+  );
+end $$;
+
+-- 단계 넘기기 (앞으로만)
+create or replace function public.admin_set_phase(p_target int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare g public.game; nxt int;
+begin
+  perform priv.need_admin();
+  select * into g from public.game where id = 1 for update;
+  if p_target <= g.phase then perform priv.err('BACKWARD', '뒤로 가기는 「단계 강제 이동」으로만 할 수 있어요.'); end if;
+  if p_target > 11 then perform priv.err('BAD_PHASE', '없는 단계예요.'); end if;
+  nxt := g.phase;
+  while nxt < p_target loop
+    nxt := nxt + 1;
+    if nxt = 1 then
+      update public.game set turn = 1, turn_end = case when auto_turn > 0 then now() + make_interval(secs => auto_turn) end where id = 1;
+      perform priv.notice('나라 키우기가 시작됐어요! 노동자로 땅을 개발하고, 도시에 건물을 지어 보세요.', 'phase');
+    elsif nxt = 2 then
+      update public.game set crisis = true where id = 1;
+      perform priv.notice('성장의 한계! 나라가 커지자 시민들이 더 다양한 물건을 원합니다. 사치품, 강철, 연료가 필요해요.', 'crisis');
+      perform priv.event('crisis', '성장의 한계');
+    elsif nxt = 3 then
+      update public.game set market_open = true, diplomacy_open = true where id = 1;
+      perform priv.notice('세계 시장이 열렸어요! 무역 탭에서 다른 나라에 거래를 제안해 보세요.', 'market');
+      perform priv.event('market', '세계 시장 개방');
+    elsif nxt = 8 then
+      update public.game set fair_cap = false where id = 1;
+      perform priv.notice('긴급: 세계 무역 협정 기간이 끝났습니다. 이제 공정 거래 규칙이 없어요.', 'alert');
+      perform priv.event('expire', '세계 무역 협정 만료');
+    elsif nxt = 10 then
+      update public.game set locked = true where id = 1;
+      perform priv.notice('조약 회의 시간이에요. 게임 조작은 멈추고, 피해를 살펴보며 약속을 만들어요.', 'phase');
+    end if;
+  end loop;
+  update public.game set phase = p_target where id = 1;
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true, 'phase', p_target);
+end $$;
+
+create or replace function public.admin_force_phase(p_target int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  if p_target < 0 or p_target > 11 then perform priv.err('BAD_PHASE', '없는 단계예요.'); end if;
+  update public.game set phase = p_target, locked = (p_target = 10) where id = 1;
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- 다음 턴: 이번 턴 정산 후 턴 번호 +1
+create or replace function public.admin_next_turn() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare g public.game;
+begin
+  perform priv.need_admin();
+  select * into g from public.game where id = 1 for update;
+  if g.phase < 1 or g.turn < 1 then perform priv.err('PHASE', '먼저 1단계 「나라 키우기」를 시작해 주세요.'); end if;
+  perform priv.end_turn();
+  update priv.offers set status = 'expired', decided_at = now() where status = 'pending';
+  update public.game set turn = turn + 1, turn_end = case when auto_turn > 0 then now() + make_interval(secs => auto_turn) end,
+    cold_snap = null where id = 1;
+  perform priv.notice('턴 ' || (g.turn + 1) || ' 시작! 생산한 자원이 창고에 들어왔어요.', 'turn');
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true, 'turn', g.turn + 1);
+end $$;
+
+create or replace function public.admin_auto_turn(p_seconds int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  update public.game set auto_turn = greatest(0, coalesce(p_seconds, 0)),
+    turn_end = case when coalesce(p_seconds, 0) > 0 and turn >= 1 then now() + make_interval(secs => p_seconds) end where id = 1;
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_timer(p_seconds int, p_label text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  update public.game set timer_end = case when coalesce(p_seconds, 0) > 0 then now() + make_interval(secs => p_seconds) end,
+    timer_label = case when coalesce(p_seconds, 0) > 0 then nullif(trim(coalesce(p_label, '')), '') end where id = 1;
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_flags(p jsonb) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  update public.game set require_approval = coalesce((p->>'require_approval')::boolean, require_approval) where id = 1;
+  perform priv.bump_game();
+  return (select to_jsonb(g) from public.game g where id = 1);
+end $$;
+
+-- 모둠 번호 ↔ 나라 유형 (건국 단계에서만)
+create or replace function public.admin_set_type(p_country int, p_type text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare other int; old text;
+begin
+  perform priv.need_admin();
+  if priv.phase() > 0 then perform priv.err('PHASE', '나라 유형은 건국 단계에서만 바꿀 수 있어요.'); end if;
+  if priv.cfg()->'TYPES'->p_type is null then perform priv.err('BAD_TYPE', '없는 유형이에요.'); end if;
+  select type into old from priv.countries where id = p_country;
+  select id into other from priv.countries where type = p_type;
+  update priv.countries set type = '_' where id = p_country;
+  if other is not null then update priv.countries set type = old where id = other; end if;
+  update priv.countries set type = p_type where id = p_country;
+  perform priv.init_world();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_roster_import(p_rows jsonb) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare n int;
+begin
+  perform priv.need_admin();
+  delete from priv.pairing_requests where true;
+  delete from priv.reflections where true;
+  delete from priv.students where true;
+  insert into priv.students(country_id, no, name)
+    select (r->>'group')::int, nullif(r->>'no', '')::int, trim(r->>'name')
+    from jsonb_array_elements(p_rows) r
+    where coalesce(trim(r->>'name'), '') <> '' and (r->>'group')::int between 1 and 6;
+  get diagnostics n = row_count;
+  perform priv.bump_game();
+  return jsonb_build_object('ok', true, 'count', n);
+end $$;
+
+create or replace function public.admin_set_leader(p_student int, p_on boolean) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare c int;
+begin
+  perform priv.need_admin();
+  update priv.students set is_leader = p_on where id = p_student returning country_id into c;
+  perform priv.bump(c);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_reset_binding(p_student int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare c int;
+begin
+  perform priv.need_admin();
+  update priv.students set uid = null, bound_at = null where id = p_student returning country_id into c;
+  perform priv.bump(c); perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_approve(p_request int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare r priv.pairing_requests; c int;
+begin
+  perform priv.need_admin();
+  select * into r from priv.pairing_requests where id = p_request and status = 'pending' for update;
+  if not found then perform priv.err('NO_REQUEST', '요청을 찾을 수 없어요.'); end if;
+  update priv.students set uid = null where uid = r.uid and id <> r.student_id;
+  update priv.students set uid = r.uid, bound_at = now() where id = r.student_id returning country_id into c;
+  update priv.pairing_requests set status = case when id = p_request then 'approved' else 'replaced' end
+    where status = 'pending' and (id = p_request or student_id = r.student_id or uid = r.uid);
+  perform priv.bump(c); perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_approve_group(p_country int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare r record; n int := 0; skipped int := 0;
+begin
+  perform priv.need_admin();
+  for r in
+    select max(q.id) as id, q.student_id, count(*) as cnt
+    from priv.pairing_requests q join priv.students s on s.id = q.student_id
+    where q.status = 'pending' and (p_country is null or s.country_id = p_country)
+    group by q.student_id
+  loop
+    if r.cnt > 1 then skipped := skipped + 1; else perform public.admin_approve(r.id); n := n + 1; end if;
+  end loop;
+  return jsonb_build_object('ok', true, 'approved', n, 'skipped', skipped);
+end $$;
+
+create or replace function public.admin_reject(p_request int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  update priv.pairing_requests set status = 'rejected' where id = p_request and status = 'pending';
+  perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- 지원: 코인·물건 (p_country null이면 모든 나라)
+create or replace function public.admin_grant(p_country int, p_items jsonb, p_reason text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare c record; k text; v text;
+begin
+  perform priv.need_admin();
+  for c in select id from priv.countries where p_country is null or id = p_country loop
+    for k, v in select key, value from jsonb_each_text(coalesce(p_items, '{}'::jsonb)) loop
+      perform priv.add(c.id, k, v::int);
+    end loop;
+    perform priv.notice('우주 운영진 지원: ' || coalesce(nullif(trim(p_reason), ''), '나라 발전 지원'), 'grant', c.id);
+    perform priv.bump(c.id);
+  end loop;
+  perform priv.event('grant', coalesce(p_reason, ''), jsonb_build_object('country', p_country, 'items', p_items));
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- 불안 진정: 행복도 +15 (점령 환호처럼 3턴에 걸쳐 줄어듦), 불안 도시 회복
+create or replace function public.admin_relief(p_country int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  update priv.countries set glory = glory || 15, happy = least(100, happy + 15) where id = p_country;
+  update priv.cities set unrest = false where country = p_country;
+  perform priv.notice('우주 운영진이 축제를 열어 시민들의 마음을 달랬어요. (행복도 +15)', 'grant', p_country);
+  perform priv.event('relief', priv.cname(p_country), jsonb_build_object('country', p_country));
+  perform priv.bump(p_country);
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- 턴 지원: 다음 도시국가 방어력 -5, 코인 +40
+create or replace function public.admin_turn_help(p_country int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare tp text := priv.ctype(p_country); nxt text;
+begin
+  perform priv.need_admin();
+  select id into nxt from priv.cities where kind = 'cs' and type = tp and country is null order by def limit 1;
+  if nxt is not null then update priv.cities set def_help = def_help + 5 where id = nxt; end if;
+  update priv.countries set coin = coin + 40 where id = p_country;
+  perform priv.notice('우주 운영진 지원: 코인 40과 함께, 다음 도시국가의 성벽이 약해졌다는 소식이 들어왔어요.', 'grant', p_country);
+  perform priv.event('turn_help', priv.cname(p_country), jsonb_build_object('country', p_country, 'city', nxt));
+  perform priv.bump(p_country);
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- 탐험 지원: 바다(해안·바다) 칸 지도 공유. 발견은 정찰병이 직접 해야 함
+create or replace function public.admin_explore_help(p_country int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare c record;
+begin
+  perform priv.need_admin();
+  for c in select id from priv.countries where p_country is null or id = p_country loop
+    perform priv.reveal(c.id, array(select id from priv.tiles where terrain in ('ocean', 'coast')));
+    perform priv.notice('탐험대에 새 지도 정보가 전해졌어요. 바닷길이 모두 보여요!', 'grant', c.id);
+    perform priv.bump(c.id);
+  end loop;
+  perform priv.check_discovery();
+  perform priv.event('explore_help', '탐험 지원', jsonb_build_object('country', p_country));
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_open_diplomacy() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  update public.game set diplomacy_open = true where id = 1;
+  perform priv.notice('우주 운영진이 세계 지도를 전했어요. 외교 창에서 여섯 나라를 볼 수 있어요.', 'world');
+  perform priv.event('diplomacy', '교사가 외교 열기');
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- 중립 상인 보조 거래: p_qty > 0 이면 나라에 팔기(나라가 받음), < 0 이면 나라에서 사기
+create or replace function public.admin_broker_trade(p_country int, p_item text, p_qty int, p_coin int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare s text;
+begin
+  perform priv.need_admin();
+  if p_qty > 0 then
+    s := priv.cost_short(p_country, jsonb_build_object('coin', p_coin));
+    if s is not null then perform priv.err('NO_MONEY', s); end if;
+    perform priv.add(p_country, 'coin', -p_coin); perform priv.add(p_country, p_item, p_qty);
+    perform priv.record_trade(null, p_country, p_item, p_qty, p_coin, true);
+  else
+    s := priv.cost_short(p_country, jsonb_build_object(p_item, -p_qty));
+    if s is not null then perform priv.err('NO_MONEY', s); end if;
+    perform priv.add(p_country, p_item, p_qty); perform priv.add(p_country, 'coin', p_coin);
+    perform priv.record_trade(p_country, null, p_item, -p_qty, p_coin, true);
+  end if;
+  perform priv.notice('중립 상인과 거래했어요: ' || priv.iname(p_item) || ' ' || abs(p_qty) || '개', 'trade', p_country);
+  perform priv.bump(p_country);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_notice(p_message text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  perform priv.notice(p_message, 'teacher');
+  perform priv.bump_all();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_reset_game(p_confirm text) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  if p_confirm <> '초기화' then perform priv.err('CONFIRM', '「초기화」라고 입력해야 해요.'); end if;
+  perform priv.init_world();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.admin_export() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  return jsonb_build_object(
+    'exported_at', now(),
+    'game', (select to_jsonb(g) from public.game g),
+    'countries', (select jsonb_agg(to_jsonb(x)) from priv.countries x),
+    'students', (select jsonb_agg(to_jsonb(x) - 'uid') from priv.students x),
+    'cities', (select jsonb_agg(to_jsonb(x)) from priv.cities x),
+    'tiles', (select jsonb_agg(jsonb_build_array(id, owner, imp)) from priv.tiles where owner is not null),
+    'units', (select jsonb_agg(to_jsonb(x)) from priv.units x),
+    'inventory', (select jsonb_agg(to_jsonb(x)) from priv.inventory x),
+    'factories', (select jsonb_agg(to_jsonb(x)) from priv.factories x),
+    'advanced', (select jsonb_agg(to_jsonb(x)) from priv.advanced x),
+    'offers', (select jsonb_agg(to_jsonb(x)) from priv.offers x),
+    'trades', (select jsonb_agg(to_jsonb(x)) from priv.trades x),
+    'events', (select jsonb_agg(to_jsonb(x)) from priv.events x),
+    'treaties', (select jsonb_agg(to_jsonb(x)) from priv.treaties x),
+    'reflections', (select jsonb_agg(to_jsonb(x)) from priv.reflections x),
+    'snapshots', (select jsonb_agg(to_jsonb(x)) from priv.snapshots x));
+end $$;
+
+-- 처음 설치할 때 게임판 준비 (이미 시작한 게임은 건드리지 않음)
+do $$ begin
+  if not exists(select 1 from priv.units) and (select turn from public.game where id = 1) = 0 then
+    perform priv.init_world();
+  end if;
+end $$;
+
+-- =====================================================================
+-- 권한: 화면에서는 public 함수만 호출 가능
+-- =====================================================================
+do $$
+declare f record;
+begin
+  for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'priv' loop
+    execute 'revoke all on function ' || f.sig || ' from public';
+  end loop;
+  begin execute 'revoke all on all tables in schema priv from anon, authenticated'; exception when others then null; end;
+  begin execute 'grant select on public.game, public.notices, public.country_ticks to anon, authenticated'; exception when others then null; end;
+  for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.prosecdef loop
+    begin execute 'grant execute on function ' || f.sig || ' to anon, authenticated'; exception when others then null; end;
+  end loop;
+end $$;
+
+-- 이미지 저장소 (국기·문장)
+do $$ begin
+  insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)
+  values ('images', 'images', true, 3145728, array['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+  on conflict (id) do nothing;
+  execute 'drop policy if exists es_images_insert on storage.objects';
+  execute $p$create policy es_images_insert on storage.objects for insert to authenticated with check (bucket_id = 'images')$p$;
+  execute 'drop policy if exists es_images_read on storage.objects';
+  execute $p$create policy es_images_read on storage.objects for select using (bucket_id = 'images')$p$;
+exception when others then
+  raise notice 'storage 설정 건너뜀: %', sqlerrm;
+end $$;
+
+notify pgrst, 'reload schema';
