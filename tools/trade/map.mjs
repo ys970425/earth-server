@@ -42,13 +42,13 @@ const ZONES = {
   J: { n: 5, tiers: [0, 1, 2, 3, 4], names: ['안개곶', '붉은항', '벚꽃마을', '등대섬', '파도곶', '달빛섬', '소금포구'],
        res: [[], ['copper'], [], [], ['gold']], tech: [null, null, 'navigation', 'economics', null] },
   C: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 3, 4], names: ['황토성', '붉은강', '비단마을', '철산성', '모래성', '옥수마을', '대나무성', '황하나루', '서쪽관문', '만리관'],
-       res: [['iron'], ['copper'], ['cotton'], ['aluminum'], ['iron'], ['copper'], ['cotton'], ['aluminum', 'copper']], tech: [null, 'engineering', null, 'gunpowder', null, 'economics', null, 'electricity'] },
+       res: [['iron'], ['copper'], ['cotton'], ['aluminum'], ['iron'], ['copper'], ['cotton'], ['aluminum', 'copper']], tech: [null, 'engineering', null, 'gunpowder', null, 'economics', null, 'chipmaking'] },
   A: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 4, 4], names: ['들판마을', '큰강나루', '검은샘', '포도골', '바위성', '은빛고원', '독수리봉', '황금평원', '협곡성'],
-       res: [['wine'], ['oil'], ['aluminum'], ['wine', 'uranium'], ['iron'], ['aluminum', 'copper'], ['oil'], ['uranium']], tech: [null, 'engineering', null, 'electricity', null, 'combustion', null, null] },
+       res: [['wine'], ['oil'], ['aluminum'], ['wine', 'uranium'], ['iron'], ['aluminum', 'copper'], ['oil'], ['uranium']], tech: [null, 'engineering', null, 'chipmaking', null, 'combustion', null, null] },
   N: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 4, 4], names: ['눈꽃마을', '얼음항', '금빛골', '자작나무골', '서리성', '북극성', '오로라성', '늑대고개', '백야마을'],
-       res: [['oil'], ['gold'], ['aluminum'], ['oil'], ['uranium'], ['gold', 'aluminum'], ['oil'], ['uranium']], tech: [null, 'chivalry', null, 'munitions', null, 'electricity', null, null] },
+       res: [['oil'], ['gold'], ['aluminum'], ['oil'], ['uranium'], ['gold', 'aluminum'], ['oil'], ['uranium']], tech: [null, 'chivalry', null, 'steelmaking', null, 'chipmaking', null, null] },
   T: { n: 7, tiers: [0, 1, 1, 2, 2, 3, 4], names: ['야자마을', '고무나무골', '향기섬', '구리곶', '산호섬', '망고나루', '코코넛만', '맹그로브숲'],
-       res: [['rubber'], ['spice'], ['copper'], ['rubber'], ['cotton'], ['copper', 'spice'], ['gold']], tech: [null, 'navigation', null, 'woodwork', null, 'economics', null] }
+       res: [['rubber'], ['spice'], ['copper'], ['rubber'], ['cotton'], ['copper', 'spice'], ['gold']], tech: [null, 'navigation', null, 'economics', null, 'economics', null] }
 };
 // 주인 없는 땅의 도시국가 (누구나 차지할 수 있고, 최종 보스는 여러 나라가 힘을 합쳐야 해요)
 const NEUTRAL = [

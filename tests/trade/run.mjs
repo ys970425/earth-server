@@ -21,6 +21,7 @@ async function newPage(name, w = 1366, hgt = 768) {
   p.on('pageerror', e => errors.push(name + ' PAGEERROR ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/WebSocket|realtime|ERR_FAILED|404/.test(m.text())) errors.push(name + ' CONSOLE ' + m.text()); });
   p.on('dialog', d => d.accept());
+  await p.addInitScript(() => { const g = Storage.prototype.getItem; Storage.prototype.getItem = function (k) { return String(k).startsWith('council-') ? '1' : g.call(this, k); }; });
   return p;
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -48,7 +49,12 @@ async function joinUI(name, cid, sname) {
   await p.goto(BASE + '/'); await p.waitForSelector('.npick'); await wait(600);
   if (name === 'A') await shot(p, '02-entry');
   await p.click(`.npick:nth-child(${cid})`);
-  await p.click(`.roster button >> text=${sname}`);
+  await p.waitForSelector('.nick-slot');
+  if (name === 'A') await shot(p, '02b-nickname-slots');
+  await p.click('.nick-slot');
+  await p.fill('.nick-in', name === 'A' ? '용감한별' : '푸른바다');
+  if (name === 'A') await shot(p, '02c-nickname-input');
+  await p.click('.modal button.primary');
   await p.waitForSelector('.topbar'); await wait(800);
   return p;
 }
@@ -56,7 +62,7 @@ const A = await joinUI('A', 1, '학생1');   // 반도의 나라
 const B = await joinUI('B', 3, '학생10');  // 대륙의 공장
 const st = await call(ADMIN, 'admin_state', {});
 const bots = {};
-for (const s of st.students) if (!s.bound) { const uid = randomUUID(); await call(uid, 'join_student', { p_student: s.id }); bots[s.id] = { ...s, uid }; }
+for (const s of st.students) if (!s.bound) { const uid = randomUUID(); await call(uid, 'join_student', { p_student: s.id, p_nick: '봇' + s.id }); bots[s.id] = { ...s, uid }; }
 for (const s of st.students) if (['학생1', '학생10'].includes(s.name) || (s.country_id !== 1 && s.country_id !== 3 && s.no === Math.min(...st.students.filter(x => x.country_id === s.country_id).map(x => x.no)))) await call(ADMIN, 'admin_set_leader', { p_student: s.id, p_on: true });
 const lead = c => { const s = st.students.filter(x => x.country_id === c)[0]; return bots[s.id] && bots[s.id].uid; };
 await A.reload(); await A.waitForSelector('.hexmap'); await wait(1500);
@@ -65,13 +71,13 @@ await shot(A, '03-map-before');
 // 나라 이름
 await A.click('.nav >> text=우리 나라'); await wait(500);
 await A.fill('#cname', '푸른반도'); await A.click('text=이름 저장'); await wait(800);
-await A.click('.role-card:has-text("대지 개척자")'); await wait(700);
+await A.click('.role-card:has-text("국토부 장관")'); await wait(700);
 await shot(A, '04b-role-intro');
 await A.click('.modal-x'); await wait(300);
-await A.click('.role-card:has-text("수석 건축가")'); await wait(700);
+await A.click('.role-card:has-text("기획부 장관")'); await wait(700);
 await A.click('.modal-x'); await wait(300);
 ok((await one(`select roles from priv.students where name = '학생1'`)).roles.length === 3, 'UI: 역할 고르기 (대표+개척자+건축가)');
-ok(await A.$eval('.role-card:has-text("총사령관")', b => b.disabled), 'UI: 3개 넘으면 더 못 고름');
+ok(await A.$eval('.role-card:has-text("국방부 장관")', b => b.disabled), 'UI: 3개 넘으면 더 못 고름');
 await shot(A, '04-nation');
 await A.click('.nav >> text=지도'); await wait(800);
 
@@ -111,7 +117,9 @@ await shot(A, '09b-unit-window');
 await A.click('.bcard.atk button:has-text("공격")'); await wait(2600);
 await shot(A, '10-siege');
 ok((await one(`select hp from priv.cities where id = '${k1.id}'`)).hp < 60, 'UI: 투석기 공격으로 성벽 깎임');
-await A.click('button:has-text("다음 병력")'); await wait(500);
+await wait(600);
+ok(await A.$eval('#side .side-title', e => e.textContent.includes('창병')), 'UI: 공격 끝난 투석기 다음 병력(창병) 자동 선택');
+await shot(A, '10a-army-list');
 const near = await A.evaluate(ct => [...window.__map.st.hint].find(id => HexMap.hexDist(id, ct) === 1), k1.tile_id);
 await clickTile(A, near); await wait(1500);
 await shot(A, '10b-spear-moved');
@@ -149,6 +157,10 @@ await call(ADMIN, 'admin_next_turn', {});
 await A.reload(); await A.waitForSelector('.hexmap'); await wait(1000);
 await A.click('.nav >> text=우리 나라'); await wait(500);
 await shot(A, '15-nation-crisis');
+await A.click('.nav >> text=지도'); await wait(600);
+await A.evaluate(() => window.__council()); await wait(400);
+await shot(A, '15a-council');
+await A.click('.council button.primary'); await wait(300);
 await A.click('.nav >> text=기술'); await wait(800);
 await shot(A, '15b-tech');
 await A.click('.tcard.open button:has-text("연구")'); await wait(900);

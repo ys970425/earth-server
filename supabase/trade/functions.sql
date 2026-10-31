@@ -188,7 +188,7 @@ language plpgsql as $$
 declare cfg jsonb := priv.cfg(); co record; cap priv.cities; k text; v text;
 begin
   update priv.tiles set owner = null, imp = null where true;
-  update priv.cities set country = null, buildings = '{}', built_turn = -1, trained_turn = -1, unrest = false, taken_turn = null, def_help = 0, hp = max_hp where true;
+  update priv.cities set country = null, buildings = '{}', built_turn = -1, trained_turn = -1, trained_count = 0, unrest = false, taken_turn = null, def_help = 0, hp = max_hp where true;
   delete from priv.units where true;
   delete from priv.inventory where true;
   delete from priv.factories where true;
@@ -206,7 +206,7 @@ begin
     update priv.countries set coin = (cfg->'START'->>'coin')::int, happy = (cfg->'HAPPY'->>'base')::int, glory = '{}',
       techs = '{}',
       discovered = '{}', explored = '{}', title = null, lux_types = 0, income = 0, short = '{}', tariff_turn = 0, attacked_turn = -1,
-      ready_turn = 0, research_turn = -1
+      ready_turn = 0, research_turn = -1, crisis = false
      where id = co.id;
     for k, v in select key, value from jsonb_each_text(cfg->'START') loop
       if k <> 'coin' then perform priv.add(co.id, k, v::int); end if;
@@ -300,6 +300,7 @@ begin
                             and priv.hdist(ct.c, ct.r, tl.c, tl.r) <= 1) loop
       if t.imp = 'farm' then food := food + case when t.terrain = 'tundra' then (cfg->>'TUNDRA_FOOD')::int else 2 end;
       elsif t.imp = 'lumber' then perform priv.add(co.id, 'wood', 2);
+      elsif t.imp = 'quarry' then gross := gross + (cfg->>'QUARRY_COIN')::int; update priv.countries set coin = coin + (cfg->>'QUARRY_COIN')::int, income = income + (cfg->>'QUARRY_COIN')::int where id = co.id;
       elsif t.res is not null then
         y := (cfg->'IMPROVE'->t.imp->>'yield')::int;
         if t.res = 'oil' and g.cold_snap = co.id then y := y / 2; end if;
@@ -339,7 +340,7 @@ begin
        + coalesce((select sum(x) from unnest(co.glory) x), 0)::int
        - ceil(co.tariff_turn::numeric / (h->>'tariffPer')::int)::int;
     if '식량' = any(shortl) then v := v + (h->>'hunger')::int; end if;
-    if g.crisis then
+    if g.crisis or co.crisis then
       v := v + (ncity - 1) * (cr->>'perCity')::int;
       if types < (cr->>'fewLuxUnder')::int then v := v + (cr->>'fewLux')::int; shortl := shortl || '사치품'::text; end if;
       if mil >= (cr->>'armyNeedsSteel')::int then
@@ -398,22 +399,42 @@ $$;
 
 create or replace function public.get_roster(p_country int) returns jsonb
 language sql stable security definer set search_path = public, priv as $$
-  select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'no', s.no, 'name', s.name, 'taken', s.uid is not null) order by s.no, s.id), '[]')
+  select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'nick', s.nickname, 'taken', s.uid is not null) order by s.no, s.id), '[]')
   from priv.students s where s.country_id = p_country
 $$;
 
-create or replace function public.join_student(p_student int) returns jsonb
+-- 닉네임 검사: 2~8글자, 비속어 거르기 (실명 대신 닉네임으로 게임에 보여요)
+create or replace function priv.check_nick(p text) returns text
+language plpgsql as $$
+declare n text := btrim(regexp_replace(coalesce(p, ''), '\s+', ' ', 'g')); bad text; flat text;
+begin
+  if char_length(n) < 2 or char_length(n) > 8 then perform priv.err('NICK_LEN', '닉네임은 2~8글자로 지어요.'); end if;
+  flat := lower(regexp_replace(n, '[^가-힣a-zA-Z0-9ㄱ-ㅎ]', '', 'g'));
+  foreach bad in array array['시발','씨발','ㅅㅂ','ㅆㅂ','병신','ㅂㅅ','개새','새끼','ㅅㄲ','미친','ㅁㅊ','존나','ㅈㄴ','좆','썅','니미','느금','엠창','애미','애비','꺼져','닥쳐','지랄','ㅈㄹ','등신','멍청','바보','찐따','fuck','shit','bitch','sex','섹스','자살','죽어'] loop
+    if position(bad in flat) > 0 then perform priv.err('NICK_BAD', '그 닉네임은 쓸 수 없어요. 친구가 기분 좋을 이름으로 지어요.'); end if;
+  end loop;
+  return n;
+end $$;
+
+drop function if exists public.join_student(int);
+create or replace function public.join_student(p_student int, p_nick text default null) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare s priv.students; mine priv.students; appr boolean;
+declare s priv.students; mine priv.students; appr boolean; nick text;
 begin
   if auth.uid() is null then perform priv.err('NO_AUTH', '접속 정보가 없어요. 새로고침해 주세요.'); end if;
   select * into mine from priv.students where uid = auth.uid();
   if found then
     if mine.id = p_student then return jsonb_build_object('status', 'joined'); end if;
-    perform priv.err('DEVICE_TAKEN', '이 기기는 이미 ' || mine.name || ' 학생으로 연결되어 있어요. 선생님께 말해 주세요.');
+    perform priv.err('DEVICE_TAKEN', '이 기기는 이미 「' || coalesce(mine.nickname, '다른 자리') || '」(으)로 연결되어 있어요. 선생님께 말해 주세요.');
   end if;
   select * into s from priv.students where id = p_student for update;
-  if not found then perform priv.err('NO_STUDENT', '학생을 찾을 수 없어요.'); end if;
+  if not found then perform priv.err('NO_STUDENT', '자리를 찾을 수 없어요.'); end if;
+  if s.uid is null then
+    nick := priv.check_nick(p_nick);
+    if exists(select 1 from priv.students where country_id = s.country_id and nickname = nick and id <> s.id) then
+      perform priv.err('NICK_DUP', '우리 나라에 같은 닉네임이 있어요. 다른 닉네임으로 지어요.'); end if;
+    update priv.students set nickname = nick where id = s.id;
+  end if;
   select require_approval into appr from public.game where id = 1;
   if s.uid is null and not appr then
     update priv.students set uid = auth.uid(), bound_at = now(), last_seen = now() where id = s.id;
@@ -421,7 +442,7 @@ begin
     return jsonb_build_object('status', 'joined');
   end if;
   if s.uid is not null and not appr then
-    perform priv.err('NAME_TAKEN', s.name || ' 학생은 이미 다른 기기로 들어와 있어요. 선생님께 말해 주세요.');
+    perform priv.err('NAME_TAKEN', '이 자리는 이미 다른 기기로 들어와 있어요. 선생님께 말해 주세요.');
   end if;
   delete from priv.pairing_requests where uid = auth.uid() and status = 'pending';
   insert into priv.pairing_requests(student_id, uid) values (s.id, auth.uid());
@@ -449,7 +470,7 @@ begin
   select * into s from priv.students where uid = auth.uid();
   if found then
     update priv.students set last_seen = now() where id = s.id;
-    return jsonb_build_object('status', 'joined', 'student_id', s.id, 'country_id', s.country_id, 'name', s.name,
+    return jsonb_build_object('status', 'joined', 'student_id', s.id, 'country_id', s.country_id, 'name', coalesce(s.nickname, '이름 없음'),
       'role', s.role, 'is_leader', s.is_leader);
   end if;
   select exists(select 1 from priv.pairing_requests where uid = auth.uid() and status = 'pending') into pend;
@@ -466,7 +487,7 @@ begin
   else
     if cardinality(me.roles) >= 3 then perform priv.err('ROLE_MAX', '역할은 3개까지 맡을 수 있어요.'); end if;
     if p_role = lead then
-      select name into who from priv.students where country_id = me.country_id and id <> me.id and (is_leader or lead = any(roles)) limit 1;
+      select coalesce(nickname, '다른') into who from priv.students where country_id = me.country_id and id <> me.id and (is_leader or lead = any(roles)) limit 1;
       if who is not null then perform priv.err('LEADER_TAKEN', who || ' 친구가 이미 국가 대표예요.'); end if;
     end if;
     update priv.students set roles = roles || p_role, is_leader = case when p_role = lead then true else is_leader end where id = me.id;
@@ -507,17 +528,18 @@ begin
     'game', jsonb_build_object('phase', g.phase, 'turn', g.turn, 'turn_end', g.turn_end, 'market_open', g.market_open,
       'diplomacy_open', g.diplomacy_open, 'crisis', g.crisis, 'fair_cap', g.fair_cap, 'tariff', g.tariff, 'banned', g.banned,
       'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label),
-    'me', jsonb_build_object('id', me.id, 'name', me.name, 'roles', me.roles, 'is_leader', me.is_leader),
-    'members', (select coalesce(jsonb_agg(jsonb_build_object('name', s.name, 'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null,
+    'me', jsonb_build_object('id', me.id, 'name', coalesce(me.nickname, me.name), 'roles', me.roles, 'is_leader', me.is_leader),
+    'members', (select coalesce(jsonb_agg(jsonb_build_object('name', coalesce(s.nickname, '(아직 안 들어옴)'), 'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null,
         'online', s.last_seen > now() - interval '60 seconds') order by s.no, s.id), '[]') from priv.students s where s.country_id = co.id),
     'country', jsonb_build_object('id', co.id, 'type', co.type, 'name', priv.cname(co.id), 'flag_url', co.flag_url, 'emblem_url', co.emblem_url,
       'coin', co.coin, 'happy', co.happy, 'income', co.income, 'lux_types', co.lux_types, 'short', co.short, 'techs', co.techs,
       'title', co.title, 'glory', coalesce((select sum(x) from unnest(co.glory) x), 0), 'attacked', co.attacked_turn >= g.turn,
-      'ready', co.ready_turn = g.turn, 'researched', co.research_turn >= g.turn,
+      'ready', co.ready_turn = g.turn, 'researched', co.research_turn >= g.turn, 'crisis', co.crisis,
       'discovered', co.discovered, 'explored_count', coalesce(array_length(co.explored, 1), 0)),
     'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}') from priv.inventory where country = co.id and qty <> 0),
     'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
-        'buildings', c.buildings, 'built', c.built_turn >= g.turn, 'trained', c.trained_turn >= g.turn, 'unrest', c.unrest,
+        'buildings', c.buildings, 'built', c.built_turn >= g.turn, 'trained', c.trained_turn >= g.turn and c.trained_count >= (priv.cfg()->>'TRAIN_PER_TURN')::int,
+        'trained_n', case when c.trained_turn >= g.turn then c.trained_count else 0 end, 'unrest', c.unrest,
         'coastal', exists(select 1 from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.terrain in ('ocean', 'coast') and priv.hdist(t.c, t.r, ct.c, ct.r) = 1))
         order by c.kind, c.taken_turn), '[]') from priv.cities c where c.country = co.id),
     'targets', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'name', c.name, 'art', priv.city_art(c.id), 'def', greatest(1, c.def - c.def_help),
@@ -572,10 +594,8 @@ end $$;
 create or replace function priv.need_role(me priv.students, p_role text) returns void
 language plpgsql stable as $$
 begin
-  if p_role is null or p_role = any(me.roles) then return; end if;
-  if exists(select 1 from priv.students s where s.country_id = me.country_id and s.uid is not null and p_role = any(s.roles)) then
-    perform priv.err('ROLE_ONLY', '「' || p_role || '」 역할을 맡은 친구가 할 수 있어요.');
-  end if;
+  if p_role is null or p_role = any(me.roles) or me.is_leader then return; end if;
+  perform priv.err('ROLE_ONLY', '「' || p_role || '」이(가) 하는 일이에요. 우리 나라 사람들 탭에서 역할을 확인해요.');
 end $$;
 
 drop function if exists priv.act_start(int);
@@ -593,7 +613,7 @@ end $$;
 
 create or replace function public.worker_build(p_tile int, p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '대지 개척자'); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '국토부 장관'); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
 begin
   select * into t from priv.tiles where id = p_tile;
   if not found or t.owner is distinct from me.country_id then perform priv.err('NOT_MINE', '우리 나라 땅에만 개발할 수 있어요.'); end if;
@@ -603,12 +623,13 @@ begin
   if imp is null then perform priv.err('BAD_KIND', '없는 시설이에요.'); end if;
   if imp ? 'res' then
     if t.res is null or not (imp->'res' ? t.res) then perform priv.err('NO_RES', imp->>'name' || '은(는) 알맞은 자원이 있는 칸에만 지을 수 있어요.'); end if;
-  elsif not (imp->'on' ? t.terrain) then perform priv.err('BAD_TERRAIN', imp->>'name' || '은(는) 이 지형에 지을 수 없어요.'); end if;
+  elsif not (imp->'on' ? t.terrain) then perform priv.err('BAD_TERRAIN', imp->>'name' || '은(는) 이 지형에 지을 수 없어요.');
+  elsif (imp->>'noRes')::boolean is true and t.res is not null then perform priv.err('HAS_RES', '자원이 있는 칸이에요. 광산이나 농원을 지어요.'); end if;
   if imp ? 'tech' and not priv.has_tech(me.country_id, imp->>'tech') then
     perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(imp->>'tech')) || '」 기술이 있어야 해요.'); end if;
   select * into u from priv.units where country = me.country_id and kind = 'worker' and acted_turn < tn order by priv.tdist(tile_id, p_tile), id limit 1;
   if not found then perform priv.err('NO_WORKER', '이번 턴에 일할 수 있는 노동자가 없어요. 노동자를 더 고용하거나 다음 턴을 기다려요.'); end if;
-  if t.terrain = 'jungle' and not priv.has_tech(me.country_id, 'jungle') then mult := (cfg->>'JUNGLE_MULT')::numeric; end if;
+  if t.terrain = 'jungle' and not priv.has_tech(me.country_id, 'economics') then mult := (cfg->>'JUNGLE_MULT')::numeric; end if;
   perform priv.pay(me.country_id, imp->'cost', mult);
   update priv.tiles set imp = p_kind where id = p_tile;
   update priv.units set acted_turn = tn, tile_id = p_tile where id = u.id;
@@ -618,7 +639,7 @@ end $$;
 
 create or replace function public.hire_worker(p_city text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '대지 개척자'); c priv.cities;
+declare me priv.students := priv.act_start(1, '국토부 장관'); c priv.cities;
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시에서만 고용할 수 있어요.'); end if;
@@ -630,7 +651,7 @@ end $$;
 
 create or replace function public.city_build(p_city text, p_building text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '수석 건축가'); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '기획부 장관'); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
@@ -650,11 +671,12 @@ end $$;
 
 create or replace function public.train_unit(p_city text, p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '총사령관'); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '국방부 장관'); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
-  if c.trained_turn >= tn then perform priv.err('BUSY', '이 도시는 이번 턴에 이미 훈련했어요.'); end if;
+  if c.trained_turn >= tn and c.trained_count >= (cfg->>'TRAIN_PER_TURN')::int then
+    perform priv.err('BUSY', '이 도시는 이번 턴에 ' || (cfg->>'TRAIN_PER_TURN') || '부대를 다 훈련했어요.'); end if;
   u := cfg->'UNITS'->p_kind;
   if u is null then perform priv.err('BAD_KIND', '없는 병력이에요.'); end if;
   if (u->>'sea')::boolean is true then
@@ -668,7 +690,7 @@ begin
   insert into priv.units(country, kind, tile_id) values (me.country_id, p_kind,
     case when (u->>'sea')::boolean is true then coalesce((select t.id from priv.tiles t where t.id = any(priv.within(c.tile_id, 1)) and t.terrain in ('coast', 'ocean') order by t.id limit 1), c.tile_id)
          else c.tile_id end);
-  update priv.cities set trained_turn = tn where id = c.id;
+  update priv.cities set trained_count = case when trained_turn >= tn then trained_count + 1 else 1 end, trained_turn = tn where id = c.id;
   perform priv.bump(me.country_id);
   return jsonb_build_object('ok', true);
 end $$;
@@ -736,7 +758,7 @@ begin
   a := p_str * (0.5 + 0.5 * p_hp / 100.0);
   ratio := a / greatest(1, p_def);
   dc := greatest((cb->>'min')::int, least((cb->>'max')::int, round((cb->>'base')::int * ratio)::int));
-  du := greatest(1, least(150, round((cb->>'base')::int / ratio)::int));
+  du := greatest(1, least(150, round((cb->>'base')::int * coalesce((cb->>'counter')::numeric, 1) / ratio)::int));
   if p_ranged then du := round(du * (cb->>'rangedCounter')::numeric)::int; end if;
   return array[dc, du];
 end $$;
@@ -744,7 +766,7 @@ end $$;
 -- 공격: 도시국가 바로 옆(원거리 병력은 사거리 안)에서. 도시가 반격해서 우리 병력도 다쳐요
 create or replace function public.unit_attack(p_unit int, p_city text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '총사령관'); cfg jsonb := priv.cfg(); u priv.units; c priv.cities; co priv.countries;
+declare me priv.students := priv.act_start(1, '국방부 장관'); cfg jsonb := priv.cfg(); u priv.units; c priv.cities; co priv.countries;
   tn int := priv.turn(); ud jsonb; d int; rng int; ranged boolean; dmg int[]; def int; chp int; uhp int;
   captured boolean := false; died boolean := false; got text[] := '{}'; tk text; res jsonb := '[]'; bonus int := 0;
 begin
@@ -768,13 +790,23 @@ begin
   update priv.cities set hp = chp where id = c.id;
   if uhp <= 0 then
     died := true; delete from priv.units where id = u.id;
-    perform priv.notice((ud->>'name') || '이(가) ' || c.name || '의 반격에 쓰러졌어요.', 'alert', co.id);
+    -- 쓰러진 병력이 쓰던 물자(코인 빼고)는 창고로 돌아와요
+    for tk in select key from jsonb_each(ud->'cost') where key <> 'coin' loop
+      perform priv.add(co.id, tk, (ud->'cost'->>tk)::int);
+    end loop;
+    perform priv.notice((ud->>'name') || '이(가) ' || c.name || '의 반격에 쓰러졌어요. 쓰던 물자는 창고로 돌아왔어요.', 'alert', co.id);
   else
     update priv.units set hp = uhp, attacked_turn = tn, moves_turn = tn, moves_left = 0 where id = u.id;
   end if;
   if chp = 0 then
     captured := true;
     update priv.cities set country = co.id, taken_turn = tn, hp = max_hp where id = c.id;
+    -- 성장의 한계: 도시국가를 일정 수 이상 차지하면 그 나라 시민들이 더 많은 것을 원해요
+    if not co.crisis and (select count(*) from priv.cities where country = co.id and kind = 'cs') >= coalesce((cfg->'GROWTH_LIMIT'->>co.type)::int, 5) then
+      update priv.countries set crisis = true where id = co.id;
+      perform priv.notice('성장의 한계! 나라가 커지자 시민들이 더 다양한 물건(사치품 2종류·강철·연료)을 원해요. 다른 나라와 무역이 필요해요.', 'crisis', co.id);
+      perform priv.event('growth_limit', priv.cname(co.id) || ' 성장의 한계', jsonb_build_object('country', co.id));
+    end if;
     -- 주변 땅 (주인 없는 땅이면 어느 지역이든)
     update priv.tiles set owner = co.id where id = any(priv.within(c.tile_id, 1)) and owner is null and terrain not in ('ocean', 'coast');
     perform priv.reveal(co.id, priv.within(c.tile_id, (cfg->>'CITY_SIGHT')::int));
@@ -803,7 +835,7 @@ end $$;
 -- 기술 연구 (별빛 탐험가): 먼저 배울 기술을 다 알아야 하고, 한 턴에 하나
 create or replace function public.research_tech(p_tech text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(1, '별빛 탐험가'); cfg jsonb := priv.cfg(); t jsonb; co priv.countries; q text; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '과학기술부 장관'); cfg jsonb := priv.cfg(); t jsonb; co priv.countries; q text; tn int := priv.turn();
 begin
   select * into co from priv.countries where id = me.country_id;
   t := cfg->'TECH_TREE'->p_tech;
@@ -822,7 +854,7 @@ end $$;
 
 create or replace function public.factory_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2, '수석 건축가'); cfg jsonb := priv.cfg(); f jsonb; tp text;
+declare me priv.students := priv.act_start(2, '기획부 장관'); cfg jsonb := priv.cfg(); f jsonb; tp text;
 begin
   tp := priv.ctype(me.country_id);
   f := cfg->'FACTORIES'->p_kind;
@@ -838,7 +870,7 @@ end $$;
 
 create or replace function public.advanced_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2, '수석 건축가'); cfg jsonb := priv.cfg(); a jsonb;
+declare me priv.students := priv.act_start(2, '기획부 장관'); cfg jsonb := priv.cfg(); a jsonb;
 begin
   a := cfg->'ADVANCED'->p_kind;
   if a is null then perform priv.err('BAD_KIND', '없는 건물이에요.'); end if;
@@ -1113,10 +1145,10 @@ begin
         'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker),
         'online', (select count(*) from priv.students where country_id = c.id and last_seen > now() - interval '60 seconds')
       ) order by c.id), '[]') from priv.countries c),
-    'students', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'country_id', s.country_id, 'no', s.no, 'name', s.name,
+    'students', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'country_id', s.country_id, 'no', s.no, 'name', s.name, 'nick', s.nickname,
         'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null, 'online', s.last_seen > now() - interval '60 seconds',
         'reflection', (select body from priv.reflections where student_id = s.id)) order by s.country_id, s.no, s.id), '[]') from priv.students s),
-    'pairings', (select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'student_id', r.student_id, 'name', s.name, 'country_id', s.country_id,
+    'pairings', (select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'student_id', r.student_id, 'name', s.name || coalesce(' (' || s.nickname || ')', ''), 'country_id', s.country_id,
         'created_at', r.created_at) order by r.id), '[]') from priv.pairing_requests r join priv.students s on s.id = r.student_id where r.status = 'pending'),
     'trades', (select coalesce(jsonb_agg(to_jsonb(t) order by t.id desc), '[]') from (select * from priv.trades order by id desc limit 80) t),
     'offers_pending', (select count(*) from priv.offers where status = 'pending'),

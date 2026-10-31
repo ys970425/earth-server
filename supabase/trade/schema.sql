@@ -219,6 +219,9 @@ alter table priv.units add column if not exists hp int not null default 100;
 alter table priv.units add column if not exists attacked_turn int not null default -1;
 alter table priv.countries add column if not exists ready_turn int not null default 0;
 alter table priv.countries add column if not exists research_turn int not null default -1;
+alter table priv.countries add column if not exists crisis boolean not null default false;
+alter table priv.cities add column if not exists trained_count int not null default 0;
+alter table priv.students add column if not exists nickname text;
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 

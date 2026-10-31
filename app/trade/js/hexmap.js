@@ -234,12 +234,14 @@
           if (city.unrest) { ctx.fillStyle = '#FF5D73'; ctx.font = '700 18px Galmuri11, Jua, sans-serif'; ctx.fillText('불안!', x, y - 128); }
         } else {
           if (t.imp) {
-            const k = { farm: 'b:farm', lumber: 'b:lumber', mine: 'b:mine' }[t.imp];
-            if (k) drawImgBottom(IMG[k], x, y + HALF_H * 0.7, 104);
+            const k = { farm: 'b:farm', lumber: 'b:lumber', mine: 'b:mine', quarry: 'b:mine' }[t.imp];
+            ctx.globalAlpha = 0.62;
+            if (k) drawImgBottom(IMG[k], x, y + HALF_H * 0.7, 96);
             else { // 농원·유정: 자원 그림을 크게 + 울타리
               ctx.fillStyle = 'rgba(90,58,26,.85)'; roundRect(ctx, x - 34, y + 10, 68, 10, 4); ctx.fill();
               drawImgBottom(IMG['r:' + t.res], x, y + 16, 70);
             }
+            ctx.globalAlpha = 1;
           }
           if (t.res && !t.imp && !far) drawImgBottom(IMG['r:' + t.res], x + 20, y + 30, 44);
         }
@@ -272,13 +274,21 @@
         const tp = u.country ? (st.countries[u.country] || {}).type : st.myType;
         if (tp && IMG[key + '_' + tp]) key = key + '_' + tp;
         const px = x + sx + i * 30, py = y + (onCity ? 22 : 34);
-        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(px, py, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
+        const tc = u.country ? colorOf(u.country) : (st.myType && R.TYPES[st.myType] ? R.TYPES[st.myType].color : '#E2B85C');
+        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.ellipse(px, py, 24, 9, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = tc; ctx.lineWidth = 3; ctx.stroke();
         if (tint) { ctx.globalAlpha = .9; ctx.strokeStyle = tint; ctx.lineWidth = 4; ctx.stroke(); }
         ctx.restore();
-        if (u.sel) { ctx.save(); ctx.strokeStyle = '#FFE07A'; ctx.lineWidth = 4; ctx.shadowColor = '#FFE07A'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.ellipse(px, py, 26, 10, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
-        if (u.done) ctx.globalAlpha = 0.6;
-        drawImgBottom(IMG[key], px, py, ['catapult', 'cannon', 'artillery', 'tank', 'trireme', 'frigate', 'battleship', 'cruiser'].includes(u.kind) ? 66 : 54);
-        ctx.globalAlpha = 1;
+        const big = ['catapult', 'cannon', 'artillery', 'tank', 'trireme', 'frigate', 'battleship', 'cruiser'].includes(u.kind) ? 72 : 60;
+        if (u.sel) {   // 고른 병력: 금색으로 환하게 빛남
+          const pl = 0.6 + 0.4 * Math.sin(performance.now() / 250);
+          ctx.save(); ctx.strokeStyle = '#FFE07A'; ctx.lineWidth = 5; ctx.shadowColor = '#FFE07A'; ctx.shadowBlur = 18 * pl; ctx.beginPath(); ctx.ellipse(px, py, 30, 12, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+          ctx.save(); ctx.shadowColor = '#FFF0B8'; ctx.shadowBlur = 22 * pl; drawImgBottom(IMG[key], px, py, big + 6); ctx.restore();
+        } else {
+          if (u.done) ctx.globalAlpha = 0.55;
+          drawImgBottom(IMG[key], px, py, big);
+          ctx.globalAlpha = 1;
+        }
         if (u.hp != null && u.hp < 100) hpBar(px - 18, py + 6, 36, 5, u.hp / 100);
         if (u.n > 1) {
           ctx.fillStyle = '#FFC83D'; ctx.beginPath(); ctx.arc(px + 18, py - 46, 12, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#3A2600'; ctx.lineWidth = 2; ctx.stroke();
@@ -327,6 +337,11 @@
         c.restore(); } });
       mark(); setTimeout(() => done && done(), 700);
     }
+    // 고른 병력·공격 대상 깜빡임: 1초에 5번만 다시 그림 (가볍게)
+    let pulseT = 0;
+    function pulseLoop() {
+      if ((st.atk.size || st.selUnit) && !pulseT) pulseT = setInterval(() => { if (!st.atk.size && !st.selUnit) { clearInterval(pulseT); pulseT = 0; return; } mark(); }, 200);
+    }
     function moveUnit(unitId, pathIds, done) {
       const u = st.units.find(x => x.id === unitId); if (!u || !pathIds.length) { done && done(); return; }
       let i = 0;
@@ -374,8 +389,8 @@
       setData(d) { Object.assign(st, d); mark(); },
       select(id) { st.sel = id; mark(); },
       setHint(ids) { st.hint = new Set(ids || []); mark(); },
-      setAtk(ids) { st.atk = new Set(ids || []); if (st.atk.size) { const loop = () => { if (!st.atk.size) return; mark(); requestAnimationFrame(loop); }; loop(); } else mark(); },
-      selectUnit(id) { st.selUnit = id; mark(); },
+      setAtk(ids) { st.atk = new Set(ids || []); pulseLoop(); mark(); },
+      selectUnit(id) { st.selUnit = id; pulseLoop(); mark(); },
       setPath(p) { st.pathPrev = p || []; mark(); }
     };
   }

@@ -830,3 +830,35 @@ button.q-open { --b-top: #2C3548; --b-bot: #161C28; --b-text: #FFE7A6; width: 10
 .tc-ic { width: 34px; height: 34px; margin-right: 6px; flex: none; }
 .tcard .tc-top { justify-content: flex-start; gap: 0; }
 .tcard .tc-top .tc-done { margin-left: auto; }
+
+/* ---------- v3: 역할 비활성·병력 목록·국무 회의·닉네임 ---------- */
+.role-off { filter: grayscale(1) brightness(.55) !important; opacity: .75; pointer-events: none; }
+button.role-off { pointer-events: none; }
+.role-note { background: #3A3A3A; color: #E8E8E8; border: 1px solid #000; border-radius: 3px; padding: 6px 10px; font-size: 13.5px; }
+.role-tag { white-space: nowrap; display: inline-block; }
+.army-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.al-head { font-family: var(--font-display); font-weight: 700; color: #3A2716; display: flex; justify-content: space-between; align-items: baseline; }
+.al-head small { font-family: var(--font-ui); font-weight: 400; color: var(--muted); font-size: 12px; }
+button.al-row { display: grid; grid-template-columns: 40px 1fr 60px; gap: 8px; align-items: center; text-align: left; padding: 3px 8px; font-weight: 400;
+  --b-top: #FFF8E2; --b-bot: #F0DFB0; --b-edge: #5A4228; }
+.al-row img { width: 38px; height: 38px; object-fit: contain; }
+.al-name { display: flex; flex-direction: column; font-family: var(--font-display); font-weight: 700; font-size: 14px; line-height: 1.2; }
+.al-name small { font-family: var(--font-ui); font-weight: 400; font-size: 11.5px; color: #5A4228; }
+.al-hp { display: block; height: 7px; background: #3A2A20; border: 1px solid #000; }
+.al-hp b { display: block; height: 100%; }
+button.al-row.cur { --b-top: #FBE09A; --b-bot: #D49B37; box-shadow: 0 0 0 2px #2A1C10, 0 0 0 4px #E2B85C, 0 0 14px rgba(226,184,92,.6); }
+button.al-row.done, button.al-row:disabled { --b-top: #5A5A5A; --b-bot: #3A3A3A; --b-text: #BBB; filter: none; opacity: .7; }
+button.al-row.done .al-name small { color: #CCC; }
+ol.how { margin: 0; padding: 6px 10px 6px 28px; background: #FFF1CC; border: 1px solid #C08A2A; border-radius: 3px; font-size: 13px; line-height: 1.5; }
+ol.how li.now { font-weight: 700; color: #7A1124; }
+ol.how li.done { color: #6A8A5A; text-decoration: line-through; }
+.council h2 { text-align: center; }
+.council p { text-align: center; }
+.cc-row { display: grid; grid-template-columns: 34px 120px 1fr; gap: 8px; align-items: center; padding: 5px 8px; border-bottom: 1px dashed rgba(90,60,25,.3); font-size: 14px; }
+.cc-row img { width: 32px; height: 32px; object-fit: contain; }
+.cc-row b { font-family: var(--font-display); }
+.cc-row.mine { background: #FFF1CC; box-shadow: inset 4px 0 0 #E2B85C; }
+.council > button { display: block; margin: 14px auto 0; }
+button.nick-slot { --b-top: #3A4A2A; --b-bot: #1E2A14; --b-text: #FFE7A6; border-style: dashed; }
+.nick-in { font-size: 24px; text-align: center; width: 260px; font-family: var(--font-display); }
+.snd { font-size: 12px !important; }

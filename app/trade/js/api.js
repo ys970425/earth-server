@@ -27,7 +27,7 @@
 
   // 서버 함수 인자 이름 (rpc('함수', 값1, 값2…) 형태로 부르기 위해)
   const PARAMS = {
-    get_roster: ['p_country'], join_student: ['p_student'], set_role: ['p_role'], country_update: ['p'],
+    get_roster: ['p_country'], join_student: ['p_student', 'p_nick'], set_role: ['p_role'], country_update: ['p'],
     worker_build: ['p_tile', 'p_kind'], hire_worker: ['p_city'], city_build: ['p_city', 'p_building'], train_unit: ['p_city', 'p_kind'],
     attack_city: ['p_city'], scout_move: ['p_unit', 'p_path'], factory_build: ['p_kind'], advanced_build: ['p_kind'],
     offer_create: ['p_to', 'p_give_item', 'p_give_qty', 'p_get_item', 'p_get_qty'], offer_cancel: ['p_offer'], offer_respond: ['p_offer', 'p_accept'],

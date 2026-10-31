@@ -30,7 +30,10 @@ for (let g = 1; g <= 6; g++) for (let i = 0; i < (g === 1 ? 5 : 4); i++) rows.pu
 ok((await rpc(ADMIN, 'admin_roster_import', rows)).count === 25, '명단 25명');
 const st = await rpc(ADMIN, 'admin_state');
 const S = {};
-for (const s of st.students) { const uid = randomUUID(); await rpc(uid, 'join_student', s.id); S[s.id] = { ...s, uid }; }
+ok(await fail(rpc(randomUUID(), 'join_student', st.students[0].id, 'ㅅㅂ왕'), 'NICK_BAD'), '닉네임 비속어 거름');
+ok(await fail(rpc(randomUUID(), 'join_student', st.students[0].id, '가'), 'NICK_LEN'), '닉네임 2~8글자');
+for (const s of st.students) { const uid = randomUUID(); await rpc(uid, 'join_student', s.id, '별' + s.id); S[s.id] = { ...s, uid }; }
+ok((await rpc(null, 'get_roster', 1)).every(r => r.nick && !('name' in r)), '학생 화면 명단엔 실명 없이 닉네임만');
 const of = c => Object.values(S).filter(s => s.country_id === c);
 for (let c = 1; c <= 6; c++) await rpc(ADMIN, 'admin_set_leader', of(c)[0].id, true);
 const L = c => of(c)[0].uid;
@@ -45,15 +48,15 @@ ok((await one(`select count(*)::int n from priv.cities where boss`)).n === 1 && 
 // 역할
 ok(m.me.roles.includes('국가 대표'), '선생님이 정한 대표는 국가 대표 역할');
 ok(await fail(rpc(of(1)[1].uid, 'set_role', '국가 대표'), 'LEADER_TAKEN'), '국가 대표는 한 명만');
-await rpc(of(1)[1].uid, 'set_role', '총사령관'); await rpc(of(1)[1].uid, 'set_role', '수석 건축가'); await rpc(of(1)[1].uid, 'set_role', '대지 개척자');
-ok(await fail(rpc(of(1)[1].uid, 'set_role', '별빛 탐험가'), 'ROLE_MAX'), '역할은 3개까지');
-await rpc(of(1)[2].uid, 'set_role', '총사령관');
-ok((await one(`select count(*)::int n from priv.students where '총사령관' = any(roles) and country_id = 1`)).n === 2, '같은 역할 여러 명 가능 (결석 대비)');
-await rpc(of(1)[1].uid, 'set_role', '대지 개척자');
-ok(!(await one(`select roles from priv.students where id = ${of(1)[1].id}`)).roles.includes('대지 개척자'), '다시 누르면 역할 내려놓기');
-ok(await fail(rpc(L(1), 'city_build', 'K', 'market'), 'ROLE_ONLY'), '수석 건축가가 있으면 다른 친구는 건설 불가');
-ok(!(await fail(rpc(L(1), 'worker_build', 0, 'farm'), 'ROLE_ONLY')), '아무도 안 맡은 역할(대지 개척자)은 누구나');
-await db.query(`update priv.students set roles = case when is_leader then array['국가 대표'] else '{}' end where true`);
+await rpc(of(1)[1].uid, 'set_role', '국방부 장관'); await rpc(of(1)[1].uid, 'set_role', '기획부 장관'); await rpc(of(1)[1].uid, 'set_role', '국토부 장관');
+ok(await fail(rpc(of(1)[1].uid, 'set_role', '과학기술부 장관'), 'ROLE_MAX'), '역할은 3개까지');
+await rpc(of(1)[2].uid, 'set_role', '국방부 장관');
+ok((await one(`select count(*)::int n from priv.students where '국방부 장관' = any(roles) and country_id = 1`)).n === 2, '같은 역할 여러 명 가능 (결석 대비)');
+await rpc(of(1)[1].uid, 'set_role', '국토부 장관');
+ok(!(await one(`select roles from priv.students where id = ${of(1)[1].id}`)).roles.includes('국토부 장관'), '다시 누르면 역할 내려놓기');
+ok(await fail(rpc(of(1)[2].uid, 'city_build', 'K', 'market'), 'ROLE_ONLY'), '역할이 없으면 그 일을 못 함 (건설은 기획부 장관)');
+ok(!(await fail(rpc(L(1), 'worker_build', 0, 'farm'), 'ROLE_ONLY')), '국가 대표는 모든 장관의 일을 할 수 있음');
+await db.query(`update priv.students set roles = case when is_leader then array['국가 대표'] else array['국방부 장관','기획부 장관','국토부 장관','과학기술부 장관'] end where true`);
 
 const mv = await rpc(L(1), 'map_view');
 ok(mv.tiles.length > 15 && mv.tiles.length < 60, '처음 보이는 칸 ' + mv.tiles.length);
@@ -154,7 +157,23 @@ await rpc(ADMIN, 'admin_grant', 1, { wood: 6 }, '테스트');
 await rpc(L(1), 'city_build', 'K', 'barracks');
 await rpc(L(1), 'train_unit', 'K', 'catapult');
 ok((await unitsOf(1, 'catapult')).length === 2, '공학 연구 후 투석기 훈련');
-ok(await fail(rpc(L(1), 'train_unit', 'K', 'tank'), 'BUSY') , '도시는 한 턴에 한 부대');
+await rpc(ADMIN, 'admin_grant', 1, { food: 5, coin: 100 }, '테스트');
+await rpc(L(1), 'train_unit', 'K', 'spear'); await rpc(L(1), 'train_unit', 'K', 'spear');
+ok(await fail(rpc(L(1), 'train_unit', 'K', 'spear'), 'BUSY'), '한 도시에서 한 턴 3부대까지');
+// 쓰러지면 물자 반환
+const woodBefore = (await rpc(L(1), 'my_state')).inventory.wood || 0;
+const cat2 = (await unitsOf(1, 'catapult')).slice(-1)[0];
+await db.query(`update priv.units set tile_id = ${await beside(strong, 1)}, hp = 5, attacked_turn = -1 where id = ${cat2.id}`);
+const dr = await rpc(L(1), 'unit_attack', cat2.id, strong);
+ok(dr.died && ((await rpc(L(1), 'my_state')).inventory.wood || 0) === woodBefore + 2, '쓰러진 투석기의 목재 2 반환');
+// 성장의 한계: 반도는 도시국가 4곳이면 자동
+const kfree = (await db.query(`select id from priv.cities where kind = 'cs' and type = 'K' and country is null order by sea, tier`)).rows;
+await db.query(`update priv.cities set country = 1 where id in ('${kfree[0].id}', '${kfree[1].id}')`);
+await db.query(`update priv.cities set hp = 1 where id = '${kfree[2].id}'`);
+const sp3 = (await unitsOf(1, 'spear')).slice(-1)[0];
+await db.query(`update priv.units set tile_id = ${await beside(kfree[2].id, 1)}, attacked_turn = -1 where id = ${sp3.id}`);
+const gl = await rpc(L(1), 'unit_attack', sp3.id, kfree[2].id);
+ok(gl.captured && (await rpc(L(1), 'my_state')).country.crisis === true, '도시국가 4곳 → 반도에 자동으로 성장의 한계');
 
 // 모든 나라 튜토리얼 점령 + 몇 턴 진행
 for (let c = 2; c <= 6; c++) {
@@ -166,7 +185,7 @@ for (let c = 2; c <= 6; c++) {
 for (let i = 0; i < 3; i++) await rpc(ADMIN, 'admin_next_turn');
 const a1 = await rpc(ADMIN, 'admin_state');
 ok(a1.countries.every(c => c.cities >= 2), '모든 나라 튜토리얼 도시국가 점령');
-ok(a1.countries.every(c => c.happy > 40), '13차시 행복도 ' + a1.countries.map(c => c.happy).join(','));
+ok(a1.countries.filter(c => c.id !== 1).every(c => c.happy > 40), '13차시 행복도 (반도는 성장의 한계) ' + a1.countries.map(c => c.happy).join(','));
 
 // 성장의 한계
 await rpc(ADMIN, 'admin_set_phase', 2);

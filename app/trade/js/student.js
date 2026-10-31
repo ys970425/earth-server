@@ -8,6 +8,39 @@
   const MIL = Object.keys(R.UNITS);
   let map = null;
 
+  // 효과음 (브라우저에서 바로 만든 짧은 소리). 위쪽 「소리」 버튼으로 끄고 켜요
+  const Sound = (() => {
+    let ac = null, on = true;
+    try { on = localStorage.getItem('trade-sound') !== 'off'; } catch (e) { }
+    const tone = (f, t0, dur, type, vol, f2) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || 'square'; o.frequency.setValueAtTime(f, ac.currentTime + t0);
+      if (f2) o.frequency.exponentialRampToValueAtTime(f2, ac.currentTime + t0 + dur);
+      g.gain.setValueAtTime(vol || 0.08, ac.currentTime + t0); g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + t0 + dur);
+      o.connect(g); g.connect(ac.destination); o.start(ac.currentTime + t0); o.stop(ac.currentTime + t0 + dur + 0.02);
+    };
+    const noise = (t0, dur, vol) => {
+      const b = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = ac.createBufferSource(), g = ac.createGain(); g.gain.value = vol || 0.15; src.buffer = b; src.connect(g); g.connect(ac.destination); src.start(ac.currentTime + t0);
+    };
+    return {
+      get on() { return on; },
+      toggle() { on = !on; try { localStorage.setItem('trade-sound', on ? 'on' : 'off'); } catch (e) { } return on; },
+      play(k) {
+        if (!on) return;
+        try {
+          ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+          if (k === 'move') { tone(520, 0, 0.06, 'square', 0.04); tone(660, 0.06, 0.06, 'square', 0.04); }
+          else if (k === 'hit') { noise(0, 0.25, 0.18); tone(160, 0, 0.25, 'sawtooth', 0.06, 60); }
+          else if (k === 'win') { [523, 659, 784, 1046].forEach((f, i) => tone(f, i * 0.11, 0.18, 'square', 0.06)); }
+          else if (k === 'turn') { tone(784, 0, 0.15, 'triangle', 0.08); tone(1046, 0.15, 0.25, 'triangle', 0.08); }
+          else if (k === 'click') tone(880, 0, 0.04, 'square', 0.03);
+        } catch (e) { }
+      }
+    };
+  })();
+
   // ================= 입장 =================
   async function start() {
     root.innerHTML = '<div class="entry"><p>지구 서버에 접속하는 중…</p></div>';
@@ -86,13 +119,22 @@
   }
   async function pickName(c) {
     const list = await rpc('get_roster', c.id);
-    entryShell(orn(c.name), h('p', { class: 'sub' }, '내 이름을 누르세요.'),
-      h('div', { class: 'roster' }, list.map(s => h('button', { disabled: s.taken, onclick: () => join(s) }, s.name, s.taken ? h('small', {}, '이미 들어옴') : null))),
+    entryShell(orn(c.name), h('p', { class: 'sub' }, '빈 자리를 눌러 내 닉네임을 정하고 들어가요. (실제 이름은 쓰지 않아요)'),
+      h('div', { class: 'roster' }, list.map(s => h('button', { class: s.taken ? '' : 'nick-slot', disabled: s.taken, onclick: () => nickModal(s) },
+        s.taken ? s.nick : s.nick ? s.nick : '닉네임을 설정해주세요', s.taken ? h('small', {}, '들어와 있어요') : s.nick ? h('small', {}, '다시 들어가기') : null))),
       h('button', { class: 'ghost', onclick: pickCountry }, '← 나라 다시 고르기'));
   }
-  async function join(s) {
+  function nickModal(s) {
+    const inp = h('input', { type: 'text', maxlength: 8, value: s.nick || '', placeholder: '2~8글자', class: 'nick-in' });
+    const m = modal(h('div', { class: 'center' }, h('h2', {}, '닉네임 정하기'), h('p', { class: 'muted' }, '게임에서 친구들에게 보일 이름이에요. 실제 이름 대신 멋진 닉네임으로!'),
+      inp, h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '14px' } },
+        h('button', { class: 'primary big', onclick: () => { if (inp.value.trim().length < 2) return toast('2글자 이상으로 지어요.', 'error'); m.close(); join(s, inp.value.trim()); } }, '확인'))));
+    setTimeout(() => inp.focus(), 50);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') m.box.querySelector('button.primary').click(); });
+  }
+  async function join(s, nick) {
     try {
-      const r = await rpc('join_student', s.id);
+      const r = await rpc('join_student', s.id, nick);
       if (r.status === 'pending') return waiting();
       S.me = await rpc('get_me'); main();
     } catch (e) { toast(e.message, 'error'); }
@@ -116,17 +158,36 @@
       let st, mv;
       if (S.obs && !S.ctl) { const r = await rpc('admin_observe', S.obs); st = r.state; mv = r.map; S.world = r.world; }
       else [st, mv] = await Promise.all([rpc('my_state'), rpc('map_view')]);
-      const prevPhase = S.st && S.st.game.phase;
+      const prevPhase = S.st && S.st.game.phase, prevTurn = S.st && S.st.game.turn;
       S.st = st; S.mv = mv;
+      if (prevTurn !== undefined && st.game.turn > prevTurn) Sound.play('turn');
       if (st.now) S.offset = new Date(st.now).getTime() - Date.now();
       if (first || !$('.topbar')) shell(); else { renderTop(); renderNav(); }
       updateMap();
       if (S.view !== 'map' || first || prevPhase !== st.game.phase) renderPage(); else renderSide();
+      councilOnce();
     } catch (e) {
       if (e.code === 'NOT_JOINED') { S.me = null; pickCountry(); return; }
       console.warn(e);
     }
   }
+  // 턴이 시작될 때마다: 대표와 장관들이 이번 턴 계획을 상의 (한 턴에 한 번)
+  function councilOnce(force) {
+    const st = S.st, g = st.game; if (g.phase < 1 || g.turn < 1 || (S.obs && !S.ctl)) return;
+    const k = 'council-' + (st.me.id || 't') + '-' + g.turn;
+    if (!force) try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch (e) { return; }
+    const row = (r, what) => h('div', { class: 'cc-row' + (myRoles().includes(r) || st.me.is_leader ? ' mine' : '') }, h('img', { src: roleImg(r), alt: '' }), h('b', {}, r), h('span', {}, what));
+    modal(h('div', { class: 'council' }, h('h2', {}, '턴 ' + g.turn + ' 시작! 국무 회의'),
+      h('p', {}, '국가 대표와 장관들은 이번 턴에 국고 ', h('b', {}, fmt(st.country.coin) + '코인'), '을 어디에 쓸지 먼저 상의해요.'),
+      row('과학기술부 장관', '어떤 기술을 연구할까? 정찰병은 어디로?'),
+      row('국방부 장관', '병력을 몇 부대 훈련할까? 어느 도시국가를 칠까?'),
+      row('국토부 장관', '어느 땅을 개발할까? 노동자를 더 고용할까?'),
+      row('기획부 장관', '어느 도시에 무엇을 지을까?'),
+      row('국가 대표', '정리해서 결정하고, 다 하면 「턴 끝내기」'),
+      st.country.short && st.country.short.length ? h('div', { class: 'warn-box' }, '지난 턴 부족: ' + st.country.short.join(', ')) : null,
+      h('button', { class: 'primary big', onclick: () => document.querySelector('.modal-back') && document.querySelector('.modal-back').remove() }, '회의 끝! 시작')));
+  }
+  window.__council = () => councilOnce(true);
   function noticeToast(n) {
     const kind = ['crisis', 'alert', 'unrest', 'revolt', 'short'].includes(n.kind) ? 'alert' : '';
     if (n.kind === 'turn') return;
@@ -155,6 +216,7 @@
       h('span', { class: 'stat happy ' + happyClass(co.happy) }, h('span', { class: 'ico face' }), '행복도', h('b', {}, co.happy), h('small', {}, happyWord(co.happy))),
       S.obs ? obsChip() : h('span', { class: 'me-chip' }, S.st.me.name, myRoles().length ? myRoles().map(r => h('span', { class: 'lead' + (r === R.ROLES[0] ? '' : ' role') }, r)) : h('span', { class: 'lead role nohold', onclick: () => go('nation') }, '역할 고르기 →')),
       readyBtn(),
+      h('button', { class: 'small ghost snd', title: '효과음 켜기/끄기', onclick: e => { const on = Sound.toggle(); e.target.textContent = on ? '소리 켬' : '소리 끔'; } }, Sound.on ? '소리 켬' : '소리 끔'),
       h('span', { class: 'phase-badge' }, h('span', { class: 'n' }, g.turn ? '턴 ' + g.turn : PHASES[g.phase].name), h('span', { id: 'clock' }, PHASES[g.phase].name))].filter(Boolean));
     tickClock();
   }
@@ -181,8 +243,9 @@
   function viewOnly() { if (!S.obs || S.ctl) return false; toast('관전 모드에서는 볼 수만 있어요. 「직접 조작」을 누르면 움직일 수 있어요.', 'error'); return true; }
   // 역할: 맡은 친구가 있으면 그 친구만, 아무도 안 맡았으면 누구나
   const myRoles = () => (S.st.me.roles || []);
-  const canRole = r => S.ctl || (!S.obs && (myRoles().includes(r) || !S.st.members.some(m => m.bound && (m.roles || []).includes(r))));
-  const roleWhy = r => canRole(r) ? '' : (S.obs ? '관전 중' : '「' + r + '」 담당 친구가 해요');
+  const canRole = r => S.ctl || (!S.obs && (S.st.me.is_leader || myRoles().includes(r)));
+  const roleWhy = r => canRole(r) ? '' : (S.obs ? '관전 중' : '「' + r + '」이(가) 하는 일');
+  const off = r => canRole(r) ? '' : ' role-off';   // 내 역할이 아닌 칸은 짙은 회색
   const ROLE_IMG = { leader: 'img/city/capital_peninsula.png', spear: 'img/unit/spear.png', market: 'img/bld/market.png', worker: 'img/unit/worker.png', scout: 'img/unit/scout.png' };
   const roleImg = r => { const k = (R.ROLE_INFO[r] || {}).icon; return k === 'leader' ? 'img/city/' + (R.CITY_ART[S.st ? S.st.country.type : 'K'] || 'capital_peninsula') + '.png' : ROLE_IMG[k]; };
   function stat(kind, label, val, item) {
@@ -236,7 +299,7 @@
       h('div', { id: 'mode-bar', class: 'mode-bar hidden' }), h('div', { id: 'quest', class: 'quest' }));
     page.append(h('div', { class: 'map-layout' }, wrap, h('div', { class: 'side panel', id: 'side' })));
     const keep = map && map.st.cam;
-    map = HexMap.create(canvas, { onTile }); window.__map = map;
+    map = HexMap.create(canvas, { onTile, onHover: hoverTile }); window.__map = map;
     updateMap(); renderQuest();
     if (keep) { Object.assign(map.st.cam, keep); map.mark(); } else setTimeout(() => capitalTile() >= 0 && map.centerOn(capitalTile(), 0.6), 30);
     renderSide();
@@ -264,10 +327,11 @@
 
   function onTile(id) {
     if (S.unit) return unitTap(id);
+    const again = S.sel === id;
     S.sel = id; map.select(id); map.setHint([]); map.setPath([]);
-    // 우리 병력이 있는 칸을 누르면 그 병력을 골라요
-    const us = myUnitsOn(id).filter(u => u.kind !== 'worker');
-    if (us.length && !myCity(id)) { pickUnit(us.find(u => u.moves > 0) || us[0]); return; }
+    // 우리 병력이 있는 칸: 처음 누르면 병력, 한 번 더 누르면 칸(타일). 병력을 움직일 역할이 아니면 바로 칸
+    const us = myUnitsOn(id).filter(u => u.kind !== 'worker' && canRole(unitRole(u)));
+    if (us.length && !again && !myCity(id)) { pickUnit(us.find(u => !unitDone(u)) || us[0]); return; }
     renderSide();
   }
   const myUnitsOn = id => S.st.units.filter(u => u.tile === id);
@@ -308,14 +372,16 @@
       todo('확장', `우리 쪽 도시국가 ${taken} / ${mine.length}곳 차지`, '다른 나라 쪽 도시국가와 바다 건너 요새도 차지할 수 있어요.'),
       scout ? todo('정찰', `이번 턴 이동 ${scout.moves}칸`, '정찰병으로 안개를 걷고 다른 나라를 찾아요. 바다에선 배로 바뀌어요.') : null));
     side.append(h('div', { class: 'row' },
-      scout ? h('button', { id: 'btn-scout', class: 'sky', disabled: !scout.moves || g.turn < 1 || !canRole('별빛 탐험가'), title: roleWhy('별빛 탐험가'), onclick: () => pickUnit(scout) }, '정찰병 움직이기') : null,
-      army.length ? h('button', { id: 'btn-army', class: 'danger', disabled: g.turn < 1, onclick: () => pickUnit(army.find(u => u.moves > 0) || army[0]) }, '병력 고르기') : null,
+      scout ? h('button', { id: 'btn-scout', class: 'sky' + off('과학기술부 장관'), disabled: !scout.moves || g.turn < 1 || !canRole('과학기술부 장관'), title: roleWhy('과학기술부 장관'), onclick: () => pickUnit(scout) }, '정찰병 움직이기') : null,
+      army.length ? h('button', { id: 'btn-army', class: 'danger' + off('국방부 장관'), disabled: g.turn < 1, onclick: () => pickUnit(army.find(u => !unitDone(u)) || army[0]) }, '병력 고르기') : null,
       h('button', { id: 'btn-capital', onclick: () => { const t = capitalTile(); S.sel = t; S.opened = true; map.select(t); map.centerOn(t); renderSide(); renderQuest(); } }, '수도 열기')));
     if (st.country.short && st.country.short.length) side.append(h('div', { class: 'warn-box' }, '부족해요: ' + st.country.short.join(', ')));
+    if (st.country.crisis) side.append(h('div', { class: 'warn-box' }, '성장의 한계: 시민들이 사치품 2종류·강철·연료를 원해요. 무역으로 구해요!'));
+    if (canRole('국방부 장관') && g.turn >= 1) side.append(armyList(null));
   }
-  const TODO_ROLE = { '노동자': '대지 개척자', '도시': '수석 건축가', '병력': '총사령관', '확장': '총사령관', '정찰': '별빛 탐험가' };
+  const TODO_ROLE = { '노동자': '국토부 장관', '도시': '기획부 장관', '병력': '국방부 장관', '확장': '국방부 장관', '정찰': '과학기술부 장관' };
   const todo = (k, a, b) => h('div', { class: 'todo-item' + (TODO_ROLE[k] && myRoles().includes(TODO_ROLE[k]) ? ' mine' : '') }, h('b', {}, k),
-    h('div', {}, h('div', {}, a, TODO_ROLE[k] ? h('span', { class: 'role-tag' }, TODO_ROLE[k]) : null), h('small', { class: 'muted' }, b)));
+    h('div', {}, h('div', {}, a, ' ', TODO_ROLE[k] ? h('span', { class: 'role-tag' }, TODO_ROLE[k]) : null), h('small', { class: 'muted' }, b)));
 
   function tileWindow(side, t, city) {
     const st = S.st, mine = t.owner === st.country.id;
@@ -325,24 +391,27 @@
     if (t.res) side.append(h('div', { class: 'res-line' }, h('img', { src: itemImg(t.res) }), itemName(t.res), mine ? '' : ' — 우리 땅이 되어야 개발할 수 있어요.'));
     if (!mine) return;
     if (t.imp) { side.append(h('div', { class: 'done-box' }, R.IMPROVE[t.imp].name + ' 완성! 매 턴 ' + yieldText(t))); return; }
-    const opts = Object.entries(R.IMPROVE).filter(([k, v]) => v.res ? (t.res && v.res.includes(t.res)) : v.on.includes(t.terrain));
+    const opts = Object.entries(R.IMPROVE).filter(([k, v]) => v.res ? (t.res && v.res.includes(t.res)) : v.on.includes(t.terrain) && !(v.noRes && t.res));
+    if (!canRole('국토부 장관')) side.append(h('div', { class: 'role-note' }, '땅 개발은 「국토부 장관」의 일이에요.'));
+    const here = myUnitsOn(t.id).filter(u => u.kind !== 'worker');
+    if (here.length) side.append(h('div', { class: 'row' }, h('small', { class: 'muted' }, '이 칸 병력:'), here.map(u => h('button', { class: 'small' + off(u.kind === 'scout' ? '과학기술부 장관' : '국방부 장관'), onclick: () => pickUnit(u) }, unitName(u.kind)))));
     if (!opts.length) { side.append(h('p', { class: 'muted' }, '이 칸에는 지을 수 있는 시설이 없어요.')); return; }
     const ready = st.units.some(u => u.kind === 'worker' && !u.acted);
     side.append(h('div', { class: 'card-list' }, opts.map(([k, v]) => {
       const mult = t.terrain === 'jungle' && !st.country.techs.includes('jungle') ? R.JUNGLE_MULT : 1;
       const cost = Object.fromEntries(Object.entries(v.cost).map(([a, b]) => [a, b * mult]));
-      const why = roleWhy('대지 개척자') || (!ready ? '일할 노동자가 없어요' : v.tech && !st.country.techs.includes(v.tech) ? '「' + R.TECHS[v.tech] + '」 기술 필요' : short(cost));
-      return h('div', { class: 'bcard' }, h('div', { class: 'bcard-img' }, impImg(k, t)),
+      const why = roleWhy('국토부 장관') || (!ready ? '일할 노동자가 없어요' : v.tech && !st.country.techs.includes(v.tech) ? '「' + R.TECHS[v.tech] + '」 기술 필요' : short(cost));
+      return h('div', { class: 'bcard' + off('국토부 장관') }, h('div', { class: 'bcard-img' }, impImg(k, t)),
         h('div', { class: 'bcard-body' }, h('b', {}, v.name), h('small', {}, '비용: ' + costText(cost) + (mult > 1 ? ' (정글이라 2배)' : '')),
-          h('small', {}, '매 턴 ' + (v.item ? itemName(v.item) + ' +' + (t.terrain === 'tundra' && k === 'farm' ? R.TUNDRA_FOOD : v.yield) : itemName(t.res) + ' +' + v.yield)),
+          h('small', {}, '매 턴 ' + (v.coin ? '코인 +' + v.coin : v.item ? itemName(v.item) + ' +' + (t.terrain === 'tundra' && k === 'farm' ? R.TUNDRA_FOOD : v.yield) : itemName(t.res) + ' +' + v.yield)),
           why ? h('small', { class: 'bad' }, why) : null),
         h('button', { class: 'primary small', disabled: !!why || S.busy, onclick: () => act('worker_build', [t.id, k], r => { map.moveUnit(r.unit, [r.to]); map.floatText(t.id, v.name + ' 완성!'); }) }, '짓기'));
     })));
     if (!ready) side.append(h('button', { class: 'small', onclick: () => { const c = S.st.cities.find(x => x.kind === 'capital'); S.sel = c.tile; renderSide(); } }, '수도에서 노동자 고용하기 →'));
   }
-  const yieldText = t => t.imp === 'farm' ? '식량 +' + (t.terrain === 'tundra' ? 1 : 2) : t.imp === 'lumber' ? '목재 +2' : itemName(t.res) + ' +' + (R.IMPROVE[t.imp] || {}).yield;
+  const yieldText = t => t.imp === 'farm' ? '식량 +' + (t.terrain === 'tundra' ? 1 : 2) : t.imp === 'lumber' ? '목재 +2' : t.imp === 'quarry' ? '코인 +' + R.QUARRY_COIN : itemName(t.res) + ' +' + (R.IMPROVE[t.imp] || {}).yield;
   function impImg(k, t) {
-    const src = { farm: 'img/bld/farm.png', lumber: 'img/bld/lumber.png', mine: 'img/bld/mine.png' }[k] || (t && t.res ? itemImg(t.res) : '');
+    const src = { farm: 'img/bld/farm.png', lumber: 'img/bld/lumber.png', mine: 'img/bld/mine.png', quarry: 'img/bld/mine.png' }[k] || (t && t.res ? itemImg(t.res) : '');
     return src ? h('img', { src, alt: '' }) : null;
   }
   function short(cost) {
@@ -367,26 +436,27 @@
       if (c.built) side.append(h('div', { class: 'hint' }, '이 도시는 이번 턴에 건물을 지었어요. 다음 턴에 또 지을 수 있어요.'));
       side.append(h('div', { class: 'card-list' }, Object.entries(R.BUILDINGS).map(([k, b]) => {
         const has = c.buildings.includes(k);
-        const why = has ? '' : roleWhy('수석 건축가') ? roleWhy('수석 건축가') : c.built ? '이번 턴 건설 끝' : b.tech && !st.country.techs.includes(b.tech) ? '「' + R.TECHS[b.tech] + '」 기술 필요'
+        const why = has ? '' : roleWhy('기획부 장관') ? roleWhy('기획부 장관') : c.built ? '이번 턴 건설 끝' : b.tech && !st.country.techs.includes(b.tech) ? '「' + R.TECHS[b.tech] + '」 기술 필요'
           : b.coastal && !c.coastal ? '바닷가 도시만' : short(b.cost);
         const eff = k === 'market' && R.PRODUCTIVITY[st.country.type] ? '매 턴 코인 +' + R.PRODUCTIVITY[st.country.type].market + ' (우리 도시 안의 시장)' : b.effect;
-        return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, bldImg(k)),
+        return h('div', { class: 'bcard' + (has ? ' have' : '') + (!has && b.coastal && !c.coastal ? ' locked' : '') + (has ? '' : off('기획부 장관')) }, h('div', { class: 'bcard-img' }, bldImg(k)),
           h('div', { class: 'bcard-body' }, h('b', {}, b.name), h('small', {}, eff), has ? h('small', { class: 'good' }, '지었어요') : h('small', {}, '비용: ' + costText(b.cost)),
             !has && why ? h('small', { class: 'bad' }, why) : null),
           has ? null : h('button', { class: 'primary small', disabled: !!why || S.busy, onclick: () => act('city_build', [c.id, k], () => map.floatText(c.tile, b.name + '!')) }, '짓기'));
       })));
-      side.append(h('div', { class: 'bcard' }, h('div', { class: 'bcard-img' }, h('img', { src: 'img/unit/worker.png' })),
+      side.append(h('div', { class: 'bcard' + off('국토부 장관') }, h('div', { class: 'bcard-img' }, h('img', { src: 'img/unit/worker.png' })),
         h('div', { class: 'bcard-body' }, h('b', {}, '노동자 고용'), h('small', {}, '비용: ' + costText(R.HIRE_WORKER)), h('small', {}, '땅을 개발할 일꾼이 늘어나요. 매 턴 식량 1을 먹어요.'),
-          (roleWhy('대지 개척자') || short(R.HIRE_WORKER)) ? h('small', { class: 'bad' }, roleWhy('대지 개척자') || short(R.HIRE_WORKER)) : null),
-        h('button', { class: 'primary small', disabled: !!(roleWhy('대지 개척자') || short(R.HIRE_WORKER)) || S.busy, onclick: () => act('hire_worker', [c.id], () => map.floatText(c.tile, '노동자 +1')) }, '고용')));
+          (roleWhy('국토부 장관') || short(R.HIRE_WORKER)) ? h('small', { class: 'bad' }, roleWhy('국토부 장관') || short(R.HIRE_WORKER)) : null),
+        h('button', { class: 'primary small', disabled: !!(roleWhy('국토부 장관') || short(R.HIRE_WORKER)) || S.busy, onclick: () => act('hire_worker', [c.id], () => map.floatText(c.tile, '노동자 +1')) }, '고용')));
     } else if (S.cityTab === 'train') {
       if (!c.buildings.includes('barracks') && !c.buildings.includes('harbor')) side.append(h('div', { class: 'hint' }, '병영(육군)이나 항구(배)가 있어야 훈련할 수 있어요. 「건설」에서 지어요.'));
-      else if (c.trained) side.append(h('div', { class: 'hint' }, '이 도시는 이번 턴에 이미 훈련했어요.'));
+      else if (c.trained) side.append(h('div', { class: 'hint' }, '이 도시는 이번 턴에 ' + R.TRAIN_PER_TURN + '부대를 다 훈련했어요.'));
+      else side.append(h('small', { class: 'muted' }, '한 도시에서 한 턴에 ' + R.TRAIN_PER_TURN + '부대까지 (이번 턴 ' + (c.trained_n || 0) + '부대)'));
       const techs = st.country.techs;
       side.append(h('div', { class: 'card-list' }, Object.entries(R.UNITS).filter(([, u]) => !u.tech || techs.includes(u.tech) || R.TECH_TREE[u.tech].era <= 2).map(([k, u]) => {
         const need = u.sea ? 'harbor' : 'barracks';
-        const why = roleWhy('총사령관') || (u.tech && !techs.includes(u.tech) ? '「' + R.TECHS[u.tech] + '」 기술 필요' : !c.buildings.includes(need) ? (u.sea ? '항구 필요' : '병영 필요') : c.trained ? '이번 턴 훈련 끝' : short(u.cost));
-        return h('div', { class: 'bcard' + (why && why.includes('기술') ? ' locked' : '') }, h('div', { class: 'bcard-img' }, h('img', { src: unitImg(k) })),
+        const why = roleWhy('국방부 장관') || (u.tech && !techs.includes(u.tech) ? '「' + R.TECHS[u.tech] + '」 기술 필요' : !c.buildings.includes(need) ? (u.sea ? '항구 필요' : '병영 필요') : c.trained ? '이번 턴 훈련 끝' : short(u.cost));
+        return h('div', { class: 'bcard' + (why && why.includes('기술') ? ' locked' : '') + off('국방부 장관') }, h('div', { class: 'bcard-img' }, h('img', { src: unitImg(k) })),
           h('div', { class: 'bcard-body' }, h('b', {}, u.name), h('small', {}, '힘 ' + u.str + ' · 이동 ' + u.move + '칸' + (u.range ? ' · 사거리 ' + u.range : '') + (u.sea ? ' · 배' : '')),
             h('small', {}, '비용: ' + costText(u.cost)), why ? h('small', { class: 'bad' }, why) : null),
           h('button', { class: 'primary small', disabled: !!why || S.busy, onclick: () => act('train_unit', [c.id, k], () => map.floatText(c.tile, u.name + ' 훈련!')) }, '훈련'));
@@ -414,7 +484,11 @@
   // ---------- 병력·정찰병: 고르기 → 노란 칸 이동 → 붉은 도시국가 공격 ----------
   const unitImg = k => 'img/unit/' + ((R.UNITS[k] || {}).img || k) + '.png';
   const unitName = k => k === 'scout' ? '정찰병' : k === 'worker' ? '노동자' : (R.UNITS[k] || { name: k }).name;
+  const unitRole = u => u.kind === 'scout' ? '과학기술부 장관' : '국방부 장관';
   const isSea = k => !!(R.UNITS[k] || {}).sea;
+  const armyOf = () => S.st.units.filter(u => u.kind !== 'worker' && u.kind !== 'scout');
+  // 이번 턴에 더 할 일이 없는 병력 (이동도 공격도 못 함)
+  const unitDone = u => u.moves === 0 && (u.kind === 'scout' || u.attacked || !attackable(u).length);
   function passFor(u) {
     const sea = isSea(u.kind), scout = u.kind === 'scout';
     const cityTiles = new Set(S.mv.cities.filter(c => c.country !== S.st.country.id).map(c => c.tile));
@@ -434,73 +508,106 @@
   }
   const mineCs = c => (S.st.targets.find(t => t.id === c.id) || {}).mine;
   function showUnitHints(u) {
-    const canAct = u.kind === 'scout' ? canRole('별빛 탐험가') : canRole('총사령관');
+    const canAct = canRole(unitRole(u));
     map.selectUnit(u.id); map.select(u.tile);
     map.setHint(canAct && u.moves > 0 ? [...HexMap.reachable(u.tile, passFor(u), u.moves).keys()] : []);
     map.setAtk(canAct ? attackable(u).map(c => c.tile) : []);
   }
+  // 노란 칸 위에 마우스를 올리면 가는 길을 점선으로 미리 보여 줘요
+  function hoverTile(id) {
+    if (!S.unit || S.busy || !map) return;
+    const u = S.st.units.find(x => x.id === S.unit);
+    if (!u || !map.st.hint.has(id)) { if (map.st.pathPrev.length) map.setPath([]); return; }
+    const p = HexMap.path(u.tile, id, passFor(u), u.moves);
+    map.setPath(p ? [u.tile, ...p] : []);
+  }
   function pickUnit(u) {
     if (!u) return;
-    S.unit = u.id; S.sel = null; S.picked = true;
+    S.unit = u.id; S.sel = u.tile; S.picked = true;
     map.centerOn(u.tile); showUnitHints(u); renderSide(); renderQuest();
   }
   function unpick() { S.unit = null; if (map) { map.selectUnit(null); map.setHint([]); map.setAtk([]); map.setPath([]); } }
+  // 다음으로 움직일 병력 (문명처럼 자동으로)
+  function pickNext(after) {
+    const role = after ? unitRole(after) : '국방부 장관';
+    const list = (role === '과학기술부 장관' ? S.st.units.filter(u => u.kind === 'scout') : armyOf()).filter(u => !unitDone(u));
+    if (list.length) { pickUnit(list.find(u => !after || u.id !== after.id) || list[0]); return true; }
+    unpick(); S.sel = null; renderSide();
+    if (after && role === '국방부 장관') toast('모든 병력이 이번 턴 행동을 마쳤어요.');
+    return false;
+  }
+  // 병력 목록: 할 수 있는 병력은 밝게, 끝난 병력은 어둡게
+  function armyList(cur) {
+    const army = armyOf(); if (!army.length) return null;
+    return h('div', { class: 'army-list' }, h('div', { class: 'al-head' }, '우리 병력 ', h('small', {}, army.filter(u => !unitDone(u)).length + ' / ' + army.length + '부대 움직일 수 있어요')),
+      army.map(u => {
+        const done = unitDone(u), info = R.UNITS[u.kind] || {};
+        return h('button', { class: 'al-row' + (done ? ' done' : '') + (cur && cur.id === u.id ? ' cur' : ''), disabled: done, onclick: () => pickUnit(u) },
+          h('img', { src: unitImg(u.kind), alt: '' }),
+          h('span', { class: 'al-name' }, info.name, h('small', {}, done ? '이번 턴 끝' : (u.moves ? '이동 ' + u.moves + '칸' : '') + (attackable(u).length ? ' · 공격 가능' : ''))),
+          h('i', { class: 'al-hp' }, h('b', { style: { width: u.hp + '%', background: u.hp > 60 ? '#4FD06A' : u.hp > 30 ? '#F2B530' : '#E8443C' } })));
+      }));
+  }
   function unitWindow(side, u) {
-    const st = S.st, info = R.UNITS[u.kind] || {}, role = u.kind === 'scout' ? '별빛 탐험가' : '총사령관';
-    side.append(sideHead(unitName(u.kind), u.kind === 'scout' ? '안개를 걷고 다른 나라를 찾아요 · 바다에선 배로 바뀌어요' : '노란 칸: 이동 · 붉은 칸: 공격', () => { unpick(); renderSide(); }));
-    side.append(h('div', { class: 'unit-card' }, h('img', { src: unitImg(u.kind) }),
+    const st = S.st, info = R.UNITS[u.kind] || {}, role = unitRole(u), can = canRole(role);
+    side.append(sideHead(unitName(u.kind), u.kind === 'scout' ? '안개를 걷고 다른 나라를 찾아요 · 바다에선 배로 바뀌어요' : '고른 병력이 금색으로 빛나요', () => { unpick(); S.sel = null; renderSide(); }));
+    side.append(h('div', { class: 'unit-card' + (can ? '' : ' role-off') }, h('img', { src: unitImg(u.kind) }),
       h('div', { class: 'col', style: { gap: '4px', flex: 1 } },
-        u.kind !== 'scout' ? h('div', {}, '힘 ', h('b', {}, info.str), info.range ? ' · 사거리 ' + info.range : '', info.sea ? ' · 배' : '') : null,
+        u.kind !== 'scout' ? h('div', {}, '힘 ', h('b', {}, info.str), info.range ? ' · 사거리 ' + info.range + '칸' : '', info.sea ? ' · 배' : '') : null,
         h('div', { class: 'meter' }, h('i', { style: { width: u.hp + '%', background: u.hp > 60 ? '#4FD06A' : u.hp > 30 ? '#F2B530' : '#E8443C' } })),
-        h('small', {}, '체력 ' + u.hp + ' / 100 · 남은 이동 ' + u.moves + ' / ' + u.max_moves + '칸' + (u.attacked ? ' · 이번 턴 공격 끝' : '')))));
-    if (roleWhy(role)) side.append(h('div', { class: 'warn-box' }, roleWhy(role)));
-    // 같은 칸의 다른 병력
-    const others = myUnitsOn(u.tile).filter(x => x.id !== u.id && x.kind !== 'worker');
-    if (others.length) side.append(h('div', { class: 'row' }, h('small', { class: 'muted' }, '같은 칸:'), others.map(x => h('button', { class: 'small', onclick: () => pickUnit(x) }, unitName(x.kind) + (x.moves ? '' : ' (끝)')))));
+        h('small', {}, '체력 ' + u.hp + ' / 100 · 남은 이동 ' + u.moves + ' / ' + u.max_moves + '칸' + (u.attacked ? ' · 공격 끝' : '')))));
+    if (!can) side.append(h('div', { class: 'role-note' }, '병력은 「' + role + '」이(가) 움직여요. 이 칸을 한 번 더 누르면 땅(타일) 창이 열려요.'));
+    else side.append(h('ol', { class: 'how' },
+      h('li', { class: u.moves ? 'now' : 'done' }, '노란 칸을 눌러 이동해요 (마우스를 올리면 길이 점선으로 보여요)'),
+      u.kind !== 'scout' ? h('li', { class: attackable(u).length && !u.attacked ? 'now' : '' }, '붉게 깜빡이는 도시국가를 눌러 공격! ' + (info.range ? '이 병력은 ' + info.range + '칸 밖에서도 쏴요' : '바로 옆 칸에서만 공격해요')) : null,
+      h('li', {}, '같은 칸을 한 번 더 누르면 땅(타일) 창이 열려요')));
     const targets = attackable(u);
     if (targets.length) side.append(h('div', { class: 'card-list' }, targets.map(c => {
       const pv = preview(u, c);
-      return h('div', { class: 'bcard atk' }, h('div', { class: 'bcard-img' }, h('img', { src: cityArt(c, 'capital') })),
+      return h('div', { class: 'bcard atk' + off(role) }, h('div', { class: 'bcard-img' }, h('img', { src: cityArt(c, 'capital') })),
         h('div', { class: 'bcard-body' }, h('b', {}, c.name + (c.boss ? ' (최종 보스)' : '')), h('small', {}, '방어 ' + c.def + ' · 체력 ' + c.hp + '/' + c.max_hp),
           h('small', { class: pv.dies ? 'bad' : '' }, '예상: 도시 -' + pv.dc + ' · 우리 -' + pv.du + (pv.dies ? ' (쓰러질 수 있어요!)' : pv.capture ? ' → 점령!' : ''))),
-        h('button', { class: 'danger small', disabled: !!roleWhy(role) || S.busy, onclick: () => attack(u, c) }, '공격'));
+        h('button', { class: 'danger small', disabled: !can || S.busy, onclick: () => attack(u, c) }, '공격'));
     })));
-    else if (u.kind !== 'scout') side.append(h('small', { class: 'muted' }, '도시국가 바로 옆 칸(원거리 병력은 사거리 안)까지 움직이면 공격할 수 있어요.'));
-    // 다음 병력
-    const next = st.units.filter(x => x.kind !== 'worker' && x.kind !== 'scout' && x.moves > 0 && x.id !== u.id);
-    if (next.length && u.kind !== 'scout') side.append(h('button', { class: 'small', onclick: () => pickUnit(next[0]) }, '다음 병력 →'));
+    if (u.kind !== 'scout') side.append(armyList(u));
   }
   // 전투 미리보기 (서버와 같은 식)
   function preview(u, c) {
     const C = R.COMBAT, str = (R.UNITS[u.kind] || {}).str || 1, ranged = !!(R.UNITS[u.kind] || {}).range && HexMap.hexDist(u.tile, c.tile) > 1;
     const ratio = str * (0.5 + 0.5 * u.hp / 100) / Math.max(1, c.def);
     const dc = Math.max(C.min, Math.min(C.max, Math.round(C.base * ratio)));
-    let du = Math.max(1, Math.min(150, Math.round(C.base / ratio))); if (ranged) du = Math.round(du * C.rangedCounter);
+    let du = Math.max(1, Math.min(150, Math.round(C.base * (C.counter || 1) / ratio))); if (ranged) du = Math.round(du * C.rangedCounter);
     return { dc, du, dies: du >= u.hp, capture: dc >= c.hp };
   }
   async function unitTap(id) {
     const u = S.st.units.find(x => x.id === S.unit); if (!u) { unpick(); return; }
+    // 고른 병력이 있는 칸을 한 번 더 누르면 땅(타일) 창
+    if (id === u.tile) { unpick(); S.sel = id; map.select(id); renderSide(); return; }
     const city = S.mv.cities.find(c => c.tile === id && c.kind === 'cs' && !c.country);
-    if (city && attackable(u).some(c => c.id === city.id)) return attack(u, city);
+    if (city && canRole(unitRole(u)) && attackable(u).some(c => c.id === city.id)) return attack(u, city);
     if (map.st.hint.has(id)) return moveTo(u, id);
     // 다른 우리 병력을 누르면 그 병력으로
-    const us = myUnitsOn(id).filter(x => x.kind !== 'worker');
-    if (us.length) return pickUnit(us.find(x => x.moves > 0) || us[0]);
+    const us = myUnitsOn(id).filter(x => x.kind !== 'worker' && canRole(unitRole(x)));
+    if (us.length) return pickUnit(us.find(x => !unitDone(x)) || us[0]);
     unpick(); S.sel = id; map.select(id); renderSide();
   }
   async function moveTo(u, id) {
     if (viewOnly() || S.busy) return;
     const p = HexMap.path(u.tile, id, passFor(u), u.moves);
     if (!p || !p.length) { toast('그곳은 이번 턴에 갈 수 없어요.', 'error'); return; }
-    S.busy = true; map.setHint([]); map.setAtk([]); map.setPath(p);
+    S.busy = true; map.setHint([]); map.setAtk([]); map.setPath([u.tile, ...p]);
     try {
       const r = await rpc('unit_move', u.id, p);
+      Sound.play('move');
       map.moveUnit(u.id, p, async () => {
         map.setPath([]); S.busy = false;
         await refresh(false);
         if (r.new_tiles) map.floatText(id, '새로 본 칸 ' + r.new_tiles);
+        const nu = S.st.units.find(x => x.id === u.id);
+        if (nu && unitDone(nu)) pickNext(nu);   // 더 할 일이 없으면 다음 병력
         if (r.discovered && r.discovered.length) {
           const names = r.discovered.map(c => (S.st.countries.find(x => x.id === c) || {}).name).join(', ');
+          Sound.play('win');
           modal(h('div', { class: 'center' }, h('h2', {}, '새로운 나라 발견!'), h('p', {}, names + '을(를) 발견했어요. 국경 너머에 다른 나라가 있어요.')));
         }
       });
@@ -515,10 +622,12 @@
     const after = async () => {
       await p; S.busy = false;
       if (err) { toast(err.message, 'error'); renderSide(); return; }
+      Sound.play('hit');
       map.floatText(city.tile, '-' + res.city_dmg, '#FFB13D');
       setTimeout(() => map.floatText(u.tile, res.died ? '쓰러짐' : '-' + res.unit_dmg, '#FF6A6A'), 250);
-      if (res.died) toast(unitName(u.kind) + '이(가) 반격에 쓰러졌어요. 더 강한 병력이 필요해요!', 'alert');
+      if (res.died) toast(unitName(u.kind) + '이(가) 반격에 쓰러졌어요. 쓰던 물자는 창고로 돌아왔어요.', 'alert');
       if (res.captured) {
+        Sound.play('win');
         unpick();
         const kids = [h('img', { src: cityArt(city, 'capital'), class: 'capture-pic' }), h('h2', {}, res.name + ' 점령!'), h('p', {}, '시민들이 환호합니다! (행복도 +' + R.HAPPY.glory + ')')];
         if (res.coin) kids.push(h('p', {}, '보물 창고에서 코인 +' + res.coin));
@@ -527,6 +636,7 @@
         setTimeout(() => modal(h('div', { class: 'center capture' }, ...kids)), 500);
       } else if (!res.died) map.floatText(city.tile, '성벽 ' + res.city_hp + '/' + res.max_hp, '#FFE9C2');
       await refresh(false);
+      if (!res.captured) { const nu = S.st.units.find(x => x.id === u.id); if (!nu || unitDone(nu)) pickNext(nu || u); }
     };
     map.centerOn(city.tile);
     if (ranged) map.siege(u.tile, city.tile, 1, after); else map.strike(u.tile, city.tile, after);
@@ -592,17 +702,17 @@
       h('div', { class: 'card-list wide' },
         facts.length ? facts.map(([k, f]) => {
           const has = st.factories.includes(k);
-          return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
+          return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
             h('div', { class: 'bcard-body' }, h('b', {}, f.name), h('small', {}, itemName(f.input) + ' → ' + itemName(f.output) + ' · 가공비 ' + R.PROC_COST[tp][f.output] + '코인/개'),
               has ? h('small', { class: 'good' }, '가동 중') : h('small', {}, '짓는 비용: ' + costText(f.build))),
-            has ? null : h('button', { class: 'primary small', disabled: !!short(f.build) || !canRole('수석 건축가') || S.busy, title: roleWhy('수석 건축가'), onclick: () => act('factory_build', [k]) }, '짓기'));
+            has ? null : h('button', { class: 'primary small', disabled: !!short(f.build) || !canRole('기획부 장관') || S.busy, title: roleWhy('기획부 장관'), onclick: () => act('factory_build', [k]) }, '짓기'));
         }) : h('p', { class: 'muted' }, '우리 나라 기술로 지을 수 있는 공장이 없어요. 제품은 다른 나라에서 사 와야 해요.'),
         Object.entries(R.ADVANCED).filter(([, a]) => !a.tech || st.country.techs.includes(a.tech)).map(([k, a]) => {
           const has = st.advanced.includes(k);
-          return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, a.name)),
+          return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) }, h('div', { class: 'bcard-img' }, bldImg(k, a.name)),
             h('div', { class: 'bcard-body' }, h('b', {}, a.name), h('small', {}, (a.econ ? '경제력 +' + a.econ : '') + (a.culture ? '문화력 +' + a.culture : '') + (a.coinPerTurn ? ', 매 턴 코인 +' + a.coinPerTurn : '') + (a.happy ? ', 행복도 +' + a.happy : '') + (a.unlock ? '대포 훈련 가능' : '')),
               has ? h('small', { class: 'good' }, '지었어요') : h('small', {}, '비용: ' + costText(a.cost)), !has && short(a.cost) ? h('small', { class: 'bad' }, short(a.cost)) : null),
-            has ? null : h('button', { class: 'primary small', disabled: !!short(a.cost) || !canRole('수석 건축가') || S.busy, title: roleWhy('수석 건축가'), onclick: () => act('advanced_build', [k]) }, '짓기'));
+            has ? null : h('button', { class: 'primary small', disabled: !!short(a.cost) || !canRole('기획부 장관') || S.busy, title: roleWhy('기획부 장관'), onclick: () => act('advanced_build', [k]) }, '짓기'));
         })));
   }
   function setupPanel() {
@@ -646,18 +756,18 @@
   function techView(page) {
     const st = S.st, have = st.country.techs, TT = R.TECH_TREE;
     const can = k => TT[k].req.every(q => have.includes(q));
-    const lead = roleWhy('별빛 탐험가');
+    const lead = roleWhy('과학기술부 장관');
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '기술 계통도', h('small', {}, '왼쪽 기술을 알아야 오른쪽 기술을 연구할 수 있어요 · 한 턴에 하나 · 도시국가를 차지하면 기술자가 합류하기도 해요')),
       st.country.researched ? h('div', { class: 'hint' }, '이번 턴에는 이미 연구했어요. 「턴 끝내기」 뒤에 또 연구할 수 있어요.') : lead ? h('div', { class: 'hint' }, lead) : null,
       h('div', { class: 'tree-wrap' },
         svgEl(),
         h('div', { class: 'tree' },
           R.ERAS.map((e, i) => h('div', { class: 'era-head', style: { gridColumn: i + 1 } }, e)),
-          h('div', { class: 'tcard done ancient', style: { gridColumn: 1, gridRow: '2 / span 8' } }, h('b', {}, '고대 기술'), h('small', {}, '모두 익혔어요'),
+          h('div', { class: 'tcard done ancient', style: { gridColumn: 1, gridRow: '2 / span 4' } }, h('b', {}, '고대 기술'), h('small', {}, '모두 익혔어요'),
             R.ANCIENT.map(a => h('span', { class: 'anc' }, a))),
           Object.entries(TT).map(([k, t]) => {
             const done = have.includes(k), ok_ = can(k), why = done ? '' : !ok_ ? '먼저: ' + t.req.filter(q => !have.includes(q)).map(q => TT[q].name).join(', ') : (lead || (st.country.researched ? '이번 턴 연구 끝' : short(t.cost)));
-            return h('div', { class: 'tcard ' + (done ? 'done' : ok_ ? 'open' : 'locked'), id: 'tc-' + k, style: { gridColumn: t.era + 1, gridRow: t.row + 2 } },
+            return h('div', { class: 'tcard ' + (done ? 'done' : ok_ ? 'open' + off('과학기술부 장관') : 'locked'), id: 'tc-' + k, style: { gridColumn: t.era + 1, gridRow: t.row + 2 } },
               h('div', { class: 'tc-top' }, R.TECH_ICON[k] ? h('img', { class: 'tc-ic', src: 'img/tech/' + R.TECH_ICON[k] + '.png', alt: '' }) : null, h('b', {}, t.name), done ? h('span', { class: 'tc-done' }, '완료') : null),
               h('small', { class: 'tc-un' }, t.unlock),
               done ? null : h('small', { class: 'tc-cost' }, '연구비: ' + costText(t.cost)),
@@ -697,19 +807,19 @@
         { t: '「우리 나라」 탭에서 나라 이름을 지어요', done: co.name !== R.TYPES[co.type].name, hl: '[data-v=nation]' },
         { t: '국기(가로 3 : 세로 2)를 그려서 올려요', done: !!co.flag_url, hl: '[data-v=nation]' },
         { t: '모둠원이 할 일을 마치면 위쪽 「턴 끝내기」를 눌러요', done: st.game.turn >= 2 || co.ready, hl: '#btn-ready' }],
-      '총사령관': [
+      '국방부 장관': [
         { t: '「병력 고르기」나 지도에서 우리 창병을 눌러 골라요', done: S.picked || tutTaken || st.game.turn >= 2, hl: '#btn-army' },
         { t: '「' + (tut.name || '첫 도시국가') + '」 바로 옆 노란 칸으로 움직여요 (투석기는 2칸 밖에서도 쏴요)', done: tutTaken || army.some(u => tut.tile != null && HexMap.hexDist(u.tile, tut.tile) <= ((R.UNITS[u.kind] || {}).range || 1)), hl: '#btn-army' },
         { t: '붉게 빛나는 도시국가를 눌러 공격! 여러 병력으로 한 턴에 몰아쳐요', done: tutTaken, hl: '#btn-army' }],
-      '수석 건축가': [
+      '기획부 장관': [
         { t: '「수도 열기」를 눌러 도시 창을 열어요', done: S.opened || cap.buildings.length > 0, hl: '#btn-capital' },
         { t: '「도시 시장」을 지어 코인 수입을 늘려요', done: st.cities.some(c => c.buildings.includes('market')), hl: '#btn-capital' },
         { t: '「병영」을 지어 병력을 훈련할 수 있게 해요', done: st.cities.some(c => c.buildings.includes('barracks')), hl: '#btn-capital' }],
-      '대지 개척자': [
+      '국토부 장관': [
         { t: '수도 옆 우리 땅(색칠된 칸) 중 평원을 눌러 「농장」을 지어요', done: imps.includes('farm'), hl: null },
         { t: '숲에 「벌목장」이나 자원 칸에 「광산·농원」을 지어요', done: imps.some(k => k !== 'farm'), hl: null },
         { t: '수도 창에서 노동자를 한 명 더 고용해요', done: st.units.filter(u => u.kind === 'worker').length >= 2, hl: '#btn-capital' }],
-      '별빛 탐험가': [
+      '과학기술부 장관': [
         { t: '「정찰병 움직이기」로 안개를 걷어요 (바다에선 배로 변신!)', done: !!scout && scout.tile !== capitalTile(), hl: '#btn-scout' },
         { t: '「기술」 탭에서 기술을 하나 연구해요', done: co.techs.some(t => !coreTechs.includes(t)), hl: '[data-v=tech]' },
         { t: '정찰병으로 다른 나라를 한 곳 찾아요', done: co.discovered.length > 0 || st.game.diplomacy_open, hl: '#btn-scout' }]
