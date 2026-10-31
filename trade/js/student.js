@@ -700,20 +700,25 @@
         h('small', { class: 'muted' }, '70 이상 황금기(수입 +25%) · 40 아래 불만 · 25 아래 도시 불안'))));
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '기술', h('small', {}, '도시국가를 차지하면 기술자가 합류하기도 해요')),
       h('div', { class: 'row' }, co.techs.map(t => h('span', { class: 'chip tech' }, R.TECHS[t])), h('button', { class: 'small gold', onclick: () => go('tech') }, '기술 계통도 보기 →'))));
-    if (g.phase >= 2) page.append(industryPanel());
+    if (g.turn >= 1) page.append(industryPanel());
     if (rolesFirst) page.append(setupPanel()); else page.append(membersPanel(), setupPanel());
   }
   function industryPanel() {
     const st = S.st, tp = st.country.type;
     const facts = Object.entries(R.FACTORIES).filter(([, f]) => st.country.techs.includes(f.tech) && R.PROC_COST[tp][f.output] !== undefined);
-    return h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '공장과 발전 건물', h('small', {}, '원료 1개 + 가공비 → 제품 1개 (매 턴 2개까지)')),
+    const bcost = k => ((R.FACTORY_BUILD[k] || {})[tp]) || R.FACTORIES[k].build;
+    const free = k => !!(R.FACTORY_FREE[tp] || {})[k];
+    return h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '공장과 발전 건물', h('small', {}, '원료 1개 + 가공비 → 제품 1개 (매 턴 2개까지) · 특산 공장은 원료 없이')),
       h('div', { class: 'card-list wide' },
         facts.length ? facts.map(([k, f]) => {
           const has = st.factories.includes(k);
-          return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
-            h('div', { class: 'bcard-body' }, h('b', {}, f.name), h('small', {}, itemName(f.input) + ' → ' + itemName(f.output) + ' · 가공비 ' + R.PROC_COST[tp][f.output] + '코인/개'),
-              has ? h('small', { class: 'good' }, '가동 중') : h('small', {}, '짓는 비용: ' + costText(f.build))),
-            has ? null : h('button', { class: 'primary small', disabled: !!short(f.build) || !canRole('기획부 장관') || S.busy, title: roleWhy('기획부 장관'), onclick: () => act('factory_build', [k]) }, '짓기'));
+          const noIn = has && !free(k) && !(st.inventory[f.input] > 0);
+          return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) + (free(k) ? ' special' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
+            h('div', { class: 'bcard-body' }, h('b', {}, f.name, free(k) ? h('span', { class: 'chip lead' }, '우리 특산') : null),
+              h('small', {}, (free(k) ? '원료 없이 매 턴 ' + itemName(f.output) + ' ' + f.perTurn + '개' : itemName(f.input) + ' → ' + itemName(f.output)) + ' · 가공비 ' + R.PROC_COST[tp][f.output] + '코인/개'),
+              has ? h('small', { class: noIn ? 'bad' : 'good' }, noIn ? '원료(' + itemName(f.input) + ')가 없어 쉬는 중 — 무역으로 구해요' : '가동 중') : h('small', {}, '짓는 비용: ' + costText(bcost(k))),
+              !has && short(bcost(k)) ? h('small', { class: 'bad' }, short(bcost(k))) : null),
+            has ? null : h('button', { class: 'primary small', disabled: !!short(bcost(k)) || !canRole('기획부 장관') || S.busy, title: roleWhy('기획부 장관'), onclick: () => act('factory_build', [k]) }, '짓기'));
         }) : h('p', { class: 'muted' }, '우리 나라 기술로 지을 수 있는 공장이 없어요. 제품은 다른 나라에서 사 와야 해요.'),
         Object.entries(R.ADVANCED).filter(([, a]) => !a.tech || st.country.techs.includes(a.tech)).map(([k, a]) => {
           const has = st.advanced.includes(k);
