@@ -45,9 +45,9 @@ await shot(adm, '01-admin-roster');
 
 async function joinUI(name, cid, sname) {
   const p = await newPage(name);
-  await p.goto(BASE + '/'); await p.waitForSelector('.group-btn');
+  await p.goto(BASE + '/'); await p.waitForSelector('.npick'); await wait(600);
   if (name === 'A') await shot(p, '02-entry');
-  await p.click(`.group-btn:nth-child(${cid})`);
+  await p.click(`.npick:nth-child(${cid})`);
   await p.click(`.roster button >> text=${sname}`);
   await p.waitForSelector('.topbar'); await wait(800);
   return p;

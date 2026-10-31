@@ -30,18 +30,62 @@
     root.innerHTML = '';
     root.appendChild(h('div', { class: 'entry-bg trade' }));
     root.appendChild(h('a', { href: 'admin.html', class: 'teacher-link' }, h('button', { class: 'small ghost' }, '교사')));
-    root.appendChild(h('div', { class: 'entry' }, h('div', { class: 'title' }, '지구 서버'), h('div', { class: 'title-sub' }, '문명의 시대'), ...kids));
+    root.appendChild(h('div', { class: 'entry wide' }, h('div', { class: 'title' }, '지구 서버'), h('div', { class: 'title-sub' }, h('span', {}, '문명의 시대')), ...kids));
   }
+  const orn = text => h('div', { class: 'orn-head' }, h('i'), h('span', {}, text), h('i'));
   async function pickCountry() {
     const pub = await rpc('get_public');
-    entryShell(h('h1', {}, '우리 나라를 골라요'), h('p', { class: 'sub' }, '모둠 번호의 나라를 누르세요.'),
-      h('div', { class: 'group-grid' }, pub.countries.map(c => h('button', { class: 'group-btn', style: { '--gc': typeColor(c.type) }, onclick: () => pickName(c) },
-        h('div', { class: 'roof' }, c.flag_url ? h('img', { src: c.flag_url, alt: '' }) : null),
-        h('div', { class: 'gname' }, c.id + '모둠'), h('div', { class: 'gco' }, c.name)))));
+    entryShell(orn('시작할 나라를 고르세요'), h('p', { class: 'sub' }, '우리 모둠 번호의 나라를 누르세요.'),
+      h('div', { class: 'np-grid' }, pub.countries.map(c => natCard(c, () => pickName(c)))));
+    HexMap.ready.then(() => document.querySelectorAll('canvas.np-scene').forEach(cv => drawScene(cv, cv.dataset.type)));
+  }
+  // 나라 고르기 카드: 육각 풍경 + 국기 자리 + 이름
+  function natCard(c, onclick) {
+    const T = R.TYPES[c.type] || {};
+    return h('button', { class: 'npick', style: { '--gc': typeColor(c.type) }, onclick },
+      h('div', { class: 'np-hex' }, h('canvas', { class: 'np-scene', width: 360, height: 400, 'data-type': c.type })),
+      h('div', { class: 'np-flag' }, c.flag_url ? h('img', { src: c.flag_url, alt: '국기' }) : h('span', {}, '국기 자리'),
+        c.emblem_url ? h('img', { class: 'np-emblem', src: c.emblem_url, alt: '문장' }) : null),
+      h('div', { class: 'np-group' }, c.id + '모둠'),
+      h('div', { class: 'np-name' }, c.name),
+      c.name !== T.name ? h('div', { class: 'np-type' }, T.name) : null,
+      h('div', { class: 'np-desc' }, T.desc || ''));
+  }
+  // 나라 유형별 작은 풍경 (반지름 2인 육각 섬 19칸). P평원 F숲 H언덕 M산 C해안 O바다 D사막 J정글 T툰드라 S눈 X수도
+  const SCENES = {
+    K: ['MFM', 'HFMC', 'CFXCO', 'OCPC', 'OCO'],
+    J: ['OCO', 'OCMC', 'OFXCO', 'OCFO', 'OOO'],
+    C: ['HPD', 'PHPD', 'FPXHD', 'PPHP', 'HPF'],
+    A: ['FPF', 'PFPC', 'HPXPC', 'FPPC', 'PFC'],
+    N: ['SST', 'TSTS', 'FTXTS', 'TFTT', 'FTF'],
+    T: ['OCO', 'CJJC', 'OJXJC', 'CJCO', 'OCO']
+  };
+  const TER = { P: 'plains', F: 'forest', H: 'hills', M: 'mountain', C: 'coast', O: 'ocean', D: 'desert', J: 'jungle', T: 'tundra', S: 'snow' };
+  function drawScene(cv, type) {
+    const g = cv.getContext('2d'), I = HexMap.IMG, rows = SCENES[type] || SCENES.K;
+    const w = 76, rowH = w / Math.sqrt(3) * 1.5, cx = cv.width / 2, cy = cv.height / 2 + 6;
+    const sea = g.createRadialGradient(cx, cy, 20, cx, cy, 260); sea.addColorStop(0, '#3E7FA6'); sea.addColorStop(1, '#14324A');
+    g.fillStyle = sea; g.fillRect(0, 0, cv.width, cv.height);
+    let capital = null;
+    rows.forEach((row, ri) => {
+      const r = ri - 2, n = row.length;
+      [...row].forEach((ch, i) => {
+        const x = cx + (i - (n - 1) / 2) * w, y = cy + r * rowH;
+        const key = ch === 'X' ? (type === 'N' ? 'tundra' : type === 'T' ? 'jungle' : 'plains') : TER[ch];
+        const im = I['t:' + key]; if (!im) return;
+        const hh = im.height * w / im.width;
+        g.drawImage(im, x - w / 2, y + w / Math.sqrt(3) + 3 - hh, w, hh);
+        if (ch === 'X') capital = [x, y];
+      });
+    });
+    const art = I['c:' + type];
+    if (art && capital) { const aw = 150, ah = art.height * aw / art.width; g.drawImage(art, capital[0] - aw / 2, capital[1] - ah * R.CITY_ANCHOR, aw, ah); }
+    const vg = g.createRadialGradient(cx, cy, 120, cx, cy, 250); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)');
+    g.fillStyle = vg; g.fillRect(0, 0, cv.width, cv.height);
   }
   async function pickName(c) {
     const list = await rpc('get_roster', c.id);
-    entryShell(h('h1', {}, c.name), h('p', { class: 'sub' }, '내 이름을 누르세요.'),
+    entryShell(orn(c.name), h('p', { class: 'sub' }, '내 이름을 누르세요.'),
       h('div', { class: 'roster' }, list.map(s => h('button', { disabled: s.taken, onclick: () => join(s) }, s.name, s.taken ? h('small', {}, '이미 들어옴') : null))),
       h('button', { class: 'ghost', onclick: pickCountry }, '← 나라 다시 고르기'));
   }

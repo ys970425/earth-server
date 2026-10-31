@@ -1358,7 +1358,7 @@ language sql stable security definer set search_path = public, priv as $$
   select jsonb_build_object(
     'phase', g.phase, 'turn', g.turn, 'require_approval', g.require_approval,
     'countries', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'name', priv.cname(c.id),
-        'flag_url', c.flag_url) order by c.id), '[]') from priv.countries c))
+        'flag_url', c.flag_url, 'emblem_url', c.emblem_url) order by c.id), '[]') from priv.countries c))
   from public.game g where g.id = 1
 $$;
 
