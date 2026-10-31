@@ -265,12 +265,12 @@
     const tabs = [['map', '지도'], ['nation', '우리 나라'], ['tech', '기술'], ['diplo', '외교'], ['trade', '무역'], ['news', '소식']];
     if (g.phase >= 10) tabs.splice(1, 0, ['treaty', '조약 회의']);
     const nav = $('#nav'); nav.innerHTML = '';
-    nav.append(...tabs.map(([k, label]) => h('button', { class: S.view === k ? 'on' : '', 'data-v': k, onclick: () => go(k) }, h('span', { class: 'dot' }), label,
+    nav.append(...[...tabs.map(([k, label]) => h('button', { class: S.view === k ? 'on' : '', 'data-v': k, onclick: () => go(k) }, h('span', { class: 'dot' }), label,
       k === 'trade' && pendingIn() ? h('span', { class: 'badge' }, pendingIn()) : null,
       k === 'diplo' && g.diplomacy_open ? null : null)),
       S.st.game.test_mode && (!S.obs || S.ctl) ? h('button', { class: 'small danger test-btn', title: '테스트용: 모든 나라가 연구·개발을 끝낸 상태로', onclick: testEndgame }, '최종 성장 모드 (테스트)') : null,
       h('span', { class: 'credit-nav' }, '제작 · 조영산'),
-      S.obs ? h('a', { href: 'admin.html', class: 'leave' }, h('button', { class: 'ghost small' }, '관제실로')) : h('button', { class: 'ghost small leave', onclick: leave }, '나가기'));
+      S.obs ? h('a', { href: 'admin.html', class: 'leave' }, h('button', { class: 'ghost small' }, '관제실로')) : h('button', { class: 'ghost small leave', onclick: leave }, '나가기')].filter(Boolean));
   }
   async function testEndgame() {
     if (!confirm('[테스트] 모든 나라가 기술을 다 연구하고, 가장 강한 도시국가 하나만 남기고 모두 차지하고, 땅·건물·공장을 모두 지은 상태가 돼요. 세계 시장도 열려요. 되돌릴 수 없어요(관제실 초기화로만). 할까요?')) return;
@@ -483,7 +483,7 @@
   const BLD_ART = { market: 'market', barracks: 'barracks', harbor: 'harbor', granary: 'granary', plaza: 'plaza',
     steelworks: 'steelworks', refinery: 'refinery', chipfab: 'chipfab', textilemill: 'textilemill', rubberplant: 'rubberplant', workshop: 'goldsmith',
     industrial: 'shipyard', electronics: 'market2', theater: 'palace', netcenter: 'lab', satcenter: 'airfield', arsenal: 'barracks2',
-    commtower: 'lab', broadcast: 'palace', nuclearplant: 'steelmill' };
+    commtower: 'commtower', broadcast: 'broadcast', nuclearplant: 'nuclearplant' };
   function bldImg(k, alt) {
     return BLD_ART[k] ? h('img', { src: 'img/bld/' + BLD_ART[k] + '.png', alt: alt || '' }) : null;
   }
@@ -714,7 +714,7 @@
           const has = st.factories.includes(k);
           const noIn = has && !free(k) && !(st.inventory[f.input] > 0);
           return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) + (free(k) ? ' special' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
-            h('div', { class: 'bcard-body' }, h('b', {}, f.name, free(k) ? h('span', { class: 'chip lead' }, '우리 특산') : null),
+            h('div', { class: 'bcard-body' }, h('b', {}, f.name, free(k) ? h('span', { class: 'chip lead' }, '우리 특산') : null), free(k) ? h('small', { class: 'good' }, R.SPECIALTY[tp].why) : null,
               h('small', {}, (free(k) ? '원료 없이 매 턴 ' + itemName(f.output) + ' ' + f.perTurn + '개' : itemName(f.input) + ' → ' + itemName(f.output)) + ' · 가공비 ' + R.PROC_COST[tp][f.output] + '코인/개'),
               has ? h('small', { class: noIn ? 'bad' : 'good' }, noIn ? '원료(' + itemName(f.input) + ')가 없어 쉬는 중 — 무역으로 구해요' : '가동 중') : h('small', {}, '짓는 비용: ' + costText(bcost(k))),
               !has && short(bcost(k)) ? h('small', { class: 'bad' }, short(bcost(k))) : null),

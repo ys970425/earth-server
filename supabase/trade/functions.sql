@@ -74,7 +74,7 @@ language sql stable as $$ select case when item = 'coin' then '코인' else coal
 -- 도시 그림 종류: 수도는 나라 유형(K·J…), 도시국가는 harbor(바다) / fortress(방어 13 이상) / village
 create or replace function priv.city_art(p_id text) returns text
 language sql stable as $$
-  select case when c.kind = 'capital' then coalesce((select type from priv.countries where id = c.country), c.type)
+  select case when c.boss then 'boss' when c.kind = 'capital' then coalesce((select type from priv.countries where id = c.country), c.type)
               when c.tier >= 3 then 'fortress' when c.sea then 'harbor' else 'village' end
   from priv.cities c where c.id = p_id
 $$;

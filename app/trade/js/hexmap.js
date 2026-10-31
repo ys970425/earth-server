@@ -211,7 +211,7 @@
           const im = IMG['c:' + city.art] || IMG[big ? 'b:capital' : (t.terrain === 'coast' || city.sea ? 'b:port' : 'b:capital')];
           ctx.save();
           if (!city.country) ctx.filter = 'saturate(.55) brightness(.95)';
-          if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
+          if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, city.boss ? 230 : big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
           else drawImgBottom(im, x, y + HALF_H * 0.75, big ? 132 : 104);
           ctx.restore();
           if (city.country) drawFlag(city.country, x + 26, y - 30, big ? 1.2 : 0.9);
