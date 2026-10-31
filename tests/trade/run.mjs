@@ -133,10 +133,10 @@ ok((await one(`select country from priv.cities where id = '${k1.id}'`)).country 
 await A.click('.side-head button').catch(() => {}); await wait(300);
 await A.click('#btn-scout'); await wait(600);
 await shot(A, '12-scout-mode');
-const scout = await one(`select tile_id from priv.units where country = 1 and kind = 'scout'`);
+const scout = await one(`select string_agg(tile_id::text, ',' order by id) tile_id from priv.units where country = 1 and kind = 'scout'`);
 const far = await A.evaluate(() => { const ids = [...window.__map.st.hint]; return ids[ids.length - 1]; });
 await clickTile(A, far); await wait(2200);
-ok((await one(`select tile_id from priv.units where country = 1 and kind = 'scout'`)).tile_id !== scout.tile_id, 'UI: 정찰병 이동');
+ok((await one(`select string_agg(tile_id::text, ',' order by id) tile_id from priv.units where country = 1 and kind = 'scout'`)).tile_id !== scout.tile_id, 'UI: 정찰병 이동');
 await shot(A, '13-after-scout');
 
 // 다른 나라 봇: 첫 점령
@@ -192,6 +192,12 @@ await adm.reload(); await adm.waitForSelector('text=관제실'); await wait(800)
 await shot(adm, '21-admin-progress');
 await adm.click('.nav >> text=나라 현황'); await wait(500);
 await shot(adm, '22-admin-nations');
+// [테스트] 최종 성장 모드 버튼
+await A.reload(); await A.waitForSelector('.hexmap'); await wait(1000);
+await A.click('.test-btn'); await wait(2500);
+ok((await one(`select count(*)::int n from priv.cities where kind = 'cs' and country is null and type <> 'X'`)).n === 6, 'UI: 최종 성장 모드');
+await A.evaluate(() => window.__map.fitAll()); await wait(600);
+await shot(A, '20b-endgame');
 // 관전 모드 (관제실 기기에서)
 await adm.goto(BASE + '/index.html?observe=3'); await adm.waitForSelector('.topbar'); await wait(1500);
 ok(await adm.$('.obs-sel') !== null, 'UI: 관전 모드 열림');
@@ -208,9 +214,9 @@ ok((await one(`select max(control) control from priv.admins`)).control === 1, 'U
 await adm.click('.nav >> text=지도'); await wait(1000);
 await adm.click('#btn-scout'); await wait(500);
 const farS = await adm.evaluate(() => { const ids = [...window.__map.st.hint]; return ids[ids.length - 1]; });
-const sBefore = (await one(`select tile_id from priv.units where country = 1 and kind = 'scout'`)).tile_id;
+const sBefore = (await one(`select string_agg(tile_id::text, ',' order by id) tile_id from priv.units where country = 1 and kind = 'scout'`)).tile_id;
 if (farS !== undefined) { await clickTile(adm, farS); await wait(2000); }
-ok((await one(`select tile_id from priv.units where country = 1 and kind = 'scout'`)).tile_id !== sBefore, 'UI: 체험 조작으로 정찰병 이동');
+ok((await one(`select string_agg(tile_id::text, ',' order by id) tile_id from priv.units where country = 1 and kind = 'scout'`)).tile_id !== sBefore, 'UI: 체험 조작으로 정찰병 이동');
 await shot(adm, '26-control');
 ok((await one(`select coin from priv.countries where id = 1`)).coin === before, 'UI: 관전은 아무것도 안 바꿈');
 console.log('ERRORS:', errors.length ? '\n' + errors.join('\n') : 'none');

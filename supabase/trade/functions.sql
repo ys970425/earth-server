@@ -211,6 +211,9 @@ begin
     for k, v in select key, value from jsonb_each_text(cfg->'START') loop
       if k <> 'coin' then perform priv.add(co.id, k, v::int); end if;
     end loop;
+    for k, v in select key, value from jsonb_each_text(coalesce(cfg->'START_BONUS'->co.type, '{}'::jsonb)) loop
+      perform priv.add(co.id, k, v::int);
+    end loop;
     select * into cap from priv.cities where kind = 'capital' and type = co.type;
     update priv.cities set country = co.id, taken_turn = 0 where id = cap.id;
     perform priv.claim(co.id, cap.tile_id, 2);
@@ -527,7 +530,7 @@ begin
     'now', now(),
     'game', jsonb_build_object('phase', g.phase, 'turn', g.turn, 'turn_end', g.turn_end, 'market_open', g.market_open,
       'diplomacy_open', g.diplomacy_open, 'crisis', g.crisis, 'fair_cap', g.fair_cap, 'tariff', g.tariff, 'banned', g.banned,
-      'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label),
+      'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label, 'test_mode', g.test_mode),
     'me', jsonb_build_object('id', me.id, 'name', coalesce(me.nickname, me.name), 'roles', me.roles, 'is_leader', me.is_leader),
     'members', (select coalesce(jsonb_agg(jsonb_build_object('name', coalesce(s.nickname, '(아직 안 들어옴)'), 'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null,
         'online', s.last_seen > now() - interval '60 seconds') order by s.no, s.id), '[]') from priv.students s where s.country_id = co.id),
@@ -830,6 +833,61 @@ begin
   return jsonb_build_object('ok', true, 'city', c.id, 'name', c.name, 'tile', c.tile_id, 'from', u.tile_id,
     'city_dmg', dmg[1], 'unit_dmg', dmg[2], 'city_hp', chp, 'max_hp', c.max_hp, 'unit_hp', greatest(0, uhp), 'ranged', ranged and d > 1,
     'captured', captured, 'died', died, 'techs', to_jsonb(got), 'coin', bonus, 'res', res);
+end $$;
+
+-- [테스트용] 최종 성장 모드: 모든 나라가 연구·개발을 끝낸 상태로 (나라마다 가장 강한 도시국가 하나만 남김) → 무역 시험
+create or replace function public.test_endgame() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare cfg jsonb := priv.cfg(); g public.game; co record; c record; t record; keep text; k text; ik text; n int := 0;
+begin
+  select * into g from public.game where id = 1 for update;
+  if not g.test_mode and not priv.is_admin() then perform priv.err('OFF', '테스트 버튼이 꺼져 있어요.'); end if;
+  if g.turn < 1 then update public.game set turn = 1, phase = greatest(phase, 1) where id = 1; end if;
+  for co in select * from priv.countries order by id loop
+    -- 모든 기술
+    update priv.countries set techs = array(select jsonb_object_keys(cfg->'TECH_TREE')), coin = coin + 300, crisis = true where id = co.id;
+    -- 가장 강한 도시국가 하나만 남기고 차지
+    select id into keep from priv.cities where kind = 'cs' and type = co.type and country is null order by tier desc, def desc, id limit 1;
+    for c in select * from priv.cities where kind = 'cs' and type = co.type and country is null and id <> keep loop
+      update priv.cities set country = co.id, taken_turn = greatest(g.turn, 1), hp = max_hp where id = c.id;
+      update priv.tiles set owner = co.id where id = any(priv.within(c.tile_id, 1)) and owner is null and terrain not in ('ocean', 'coast');
+      if c.tech is not null then
+        foreach k in array string_to_array(c.tech, ',') loop
+          if not priv.has_tech(co.id, k) then update priv.countries set techs = techs || k where id = co.id; end if;
+        end loop;
+      end if;
+      n := n + 1;
+    end loop;
+    -- 우리 땅 모두 개발
+    for t in select * from priv.tiles where owner = co.id and imp is null and id not in (select tile_id from priv.cities) loop
+      ik := case
+        when t.res = 'oil' then 'oilwell'
+        when t.res in ('iron', 'copper', 'aluminum', 'gold', 'uranium') then 'mine'
+        when t.res in ('cotton', 'spice', 'wine', 'rubber') then 'plantation'
+        when t.terrain in ('plains', 'tundra', 'desert') then 'farm'
+        when t.terrain in ('forest', 'jungle') then 'lumber'
+        when t.terrain = 'hills' then 'quarry' end;
+      if ik is not null then update priv.tiles set imp = ik where id = t.id; end if;
+    end loop;
+    -- 모든 도시에 기본 건물 (항구는 바닷가만)
+    update priv.cities ci set buildings = array(select distinct x from unnest(ci.buildings || array['market', 'barracks', 'granary', 'plaza'] ||
+        case when exists(select 1 from priv.tiles tt, priv.tiles ct where ct.id = ci.tile_id and tt.terrain in ('ocean', 'coast') and priv.hdist(tt.c, tt.r, ct.c, ct.r) = 1)
+             then array['harbor'] else '{}'::text[] end) x)
+     where country = co.id;
+    -- 우리 나라가 만들 수 있는 공장 모두
+    insert into priv.factories(country, kind)
+      select co.id, f.key from jsonb_each(cfg->'FACTORIES') f where cfg->'PROC_COST'->co.type ? (f.value->>'output')
+      on conflict do nothing;
+  end loop;
+  -- 모두 서로 발견, 세계 지도 공개, 외교·시장 열기
+  update priv.countries set discovered = array(select id from priv.countries x where x.id <> priv.countries.id),
+    explored = array(select id from priv.tiles) where true;
+  update public.game set phase = greatest(phase, 3), market_open = true, diplomacy_open = true, crisis = true,
+    world_first = coalesce(world_first, 1) where id = 1;
+  perform priv.advance_turn();   -- 한 턴 정산해서 창고 채우기
+  perform priv.notice('[테스트] 최종 성장 모드! 모든 나라가 연구·개발을 마쳤어요. 이제 무역으로 모자란 자원을 구해 보세요.', 'world');
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true, 'captured', n);
 end $$;
 
 -- 기술 연구 (별빛 탐험가): 먼저 배울 기술을 다 알아야 하고, 한 턴에 하나
@@ -1280,7 +1338,8 @@ create or replace function public.admin_flags(p jsonb) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
 begin
   perform priv.need_admin();
-  update public.game set require_approval = coalesce((p->>'require_approval')::boolean, require_approval) where id = 1;
+  update public.game set require_approval = coalesce((p->>'require_approval')::boolean, require_approval),
+    test_mode = coalesce((p->>'test_mode')::boolean, test_mode) where id = 1;
   perform priv.bump_game();
   return (select to_jsonb(g) from public.game g where id = 1);
 end $$;

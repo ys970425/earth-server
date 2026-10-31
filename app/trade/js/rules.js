@@ -4,6 +4,8 @@
   const R = {};
   R.W = 40; R.H = 28;
   R.START = { coin: 150, food: 4, wood: 5, iron: 1 };
+  // 나라별 시작 보너스 (반도·섬은 숲이 적어서 목재를 더 줌)
+  R.START_BONUS = { K: { wood: 8 }, J: { wood: 4 } };
 
   R.ITEMS = {
     food: { name: '식량', kind: 'basic', ref: 5 },
@@ -129,7 +131,7 @@
   // 기술 아이콘 (img/tech/*.png). 없는 기술은 글자만
   R.TECH_ICON = { engineering: 'engineering', economics: 'economics', gunpowder: 'gunpowder', navigation: 'astronomy', shipbuilding: 'shipbuilding',
     steelmaking: 'steelmaking', refining: 'refining', chipmaking: 'chipmaking', radar: 'internet', missile: 'satellite', combustion: 'steam', warship: 'munitions', chivalry: 'education' };
-  R.START_UNITS = ['worker', 'scout', 'spear', 'spear', 'catapult'];
+  R.START_UNITS = ['worker', 'scout', 'scout', 'scout', 'spear', 'spear', 'catapult'];
   // 전투: 피해 = 30 × (공격 힘 ÷ 방어력). 다친 병력은 힘이 줄어요. 원거리는 반격을 1/4만 받아요.
   R.COMBAT = { base: 30, counter: 0.7, min: 3, max: 100, rangedCounter: 0.25, healField: 10, healHome: 20 };
   R.TRAIN_PER_TURN = 3;   // 한 도시에서 한 턴에 훈련할 수 있는 부대 수

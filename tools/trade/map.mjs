@@ -28,7 +28,7 @@ const LAND = [
 const TERRAIN = {
   N: [['tundra', 50], ['forest', 30], ['snow', 12], ['hills', 8]],
   C: [['plains', 42], ['hills', 15], ['forest', 15], ['mountain', 10], ['desert', 18]],
-  K: [['mountain', 28], ['hills', 25], ['plains', 32], ['forest', 15]],
+  K: [['mountain', 22], ['hills', 22], ['plains', 30], ['forest', 26]],
   J: [['hills', 30], ['forest', 35], ['plains', 25], ['mountain', 10]],
   T: [['jungle', 55], ['plains', 25], ['hills', 10], ['forest', 10]],
   A: [['plains', 45], ['desert', 20], ['forest', 20], ['hills', 10], ['mountain', 5]],

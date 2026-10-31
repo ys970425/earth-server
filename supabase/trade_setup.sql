@@ -222,6 +222,7 @@ alter table priv.countries add column if not exists research_turn int not null d
 alter table priv.countries add column if not exists crisis boolean not null default false;
 alter table priv.cities add column if not exists trained_count int not null default 0;
 alter table priv.students add column if not exists nickname text;
+alter table public.game add column if not exists test_mode boolean not null default true;
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 
@@ -253,7 +254,7 @@ end $$;
 
 -- ---------------------------------------------------------------------
 
-insert into priv.config(id, data) values (1, $cfg${"W":40,"H":28,"START":{"coin":150,"food":4,"wood":5,"iron":1},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"ERAS":["고대","중세","르네상스","산업","현대"],"ANCIENT":["농업","목축","채광","도기","궁술","청동기","기초 항해","역법","문자","바퀴"],"TECH_TREE":{"engineering":{"name":"공학","era":1,"row":0,"req":[],"cost":{"coin":30,"food":2},"unlock":"투석기 · 곡물 창고"},"chivalry":{"name":"기사도","era":1,"row":1,"req":[],"cost":{"coin":30,"food":2},"unlock":"기사 (빠른 기병)"},"shipbuilding":{"name":"조선","era":1,"row":2,"req":[],"cost":{"coin":35,"wood":2},"unlock":"항구 · 삼단노선"},"economics":{"name":"경제학","era":2,"row":0,"req":["engineering"],"cost":{"coin":60,"food":3},"unlock":"시장 코인 +6 · 섬유 공장 · 금 세공소 · 고무 공장 · 정글 개발비 절반"},"gunpowder":{"name":"화약","era":2,"row":1,"req":["engineering","chivalry"],"cost":{"coin":60,"iron":1},"unlock":"대포 · 머스킷 보병"},"navigation":{"name":"항해술","era":2,"row":2,"req":["shipbuilding"],"cost":{"coin":60,"wood":3},"unlock":"프리깃 · 정찰병 바다 이동 +2"},"refining":{"name":"석유","era":3,"row":0,"req":["economics"],"cost":{"coin":90,"wood":3},"unlock":"유정 · 정유소"},"steelmaking":{"name":"제철","era":3,"row":1,"req":["gunpowder"],"cost":{"coin":90,"iron":2},"unlock":"제철소 · 보병 · 포병 · 군수 공장"},"warship":{"name":"강철 군함","era":3,"row":2,"req":["navigation","steelmaking"],"cost":{"coin":110,"steel":1},"unlock":"전함"},"combustion":{"name":"내연 기관","era":4,"row":0,"req":["refining","steelmaking"],"cost":{"coin":150,"fuel":1},"unlock":"탱크"},"chipmaking":{"name":"전자공학","era":4,"row":1,"req":["steelmaking"],"cost":{"coin":150,"copper":2},"unlock":"반도체 공장 · 전자 상가 · 원자력 발전소"},"radar":{"name":"레이더·통신","era":4,"row":2,"req":["chipmaking"],"cost":{"coin":170,"aluminum":1},"unlock":"통신탑 · 방송국 · 인터넷 센터 · 인공위성 센터 (근미래)"},"missile":{"name":"유도 미사일","era":4,"row":3,"req":["radar","warship"],"cost":{"coin":200,"chip":1},"unlock":"미사일 순양함"}},"TECH_ALIAS":{"textile":"economics","metalcraft":"economics","rubberwork":"economics","woodwork":"economics","jungle":"economics","oil_drill":"refining","munitions":"steelmaking","electricity":"chipmaking","internet":"radar","satellite":"radar","nuclear":"chipmaking"},"TECHS":{"engineering":"공학","chivalry":"기사도","shipbuilding":"조선","economics":"경제학","gunpowder":"화약","navigation":"항해술","refining":"석유","steelmaking":"제철","warship":"강철 군함","combustion":"내연 기관","chipmaking":"전자공학","radar":"레이더·통신","missile":"유도 미사일"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra","desert"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium"],"cost":{"coin":15,"wood":1},"yield":2},"quarry":{"name":"채석장","on":["hills"],"noRes":true,"cost":{"coin":15,"wood":1},"coin":10,"yield":0},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"refining","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"QUARRY_COIN":10,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"tech":"engineering","effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"배 만들기, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":60,"wood":2},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"economics","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"economics","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"economics","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2}},"PROC_COST":{"K":{"steel":4,"fuel":3,"chip":5},"J":{"chip":15,"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5,"tire":12,"chip":50,"fuel":15},"A":{"chip":20,"clothes":20,"fuel":6},"N":{"jewelry":12,"fuel":10},"T":{"clothes":4,"tire":8}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","tech":"chipmaking","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"radar","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"radar","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"steelmaking","cost":{"coin":60,"steel":2},"unlock":"tank"},"commtower":{"name":"통신탑","tech":"radar","cost":{"coin":80,"aluminum":2,"copper":2},"happy":14,"culture":10},"broadcast":{"name":"방송국","tech":"radar","cost":{"coin":90,"chip":2,"aluminum":1},"happy":18,"culture":15},"nuclearplant":{"name":"원자력 발전소","tech":"chipmaking","cost":{"coin":100,"uranium":2,"steel":2},"econ":15,"coinPerTurn":25}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","era":0,"str":10,"move":3,"cost":{"coin":20,"food":1},"img":"spear"},"catapult":{"name":"투석기","era":1,"str":11,"move":2,"range":2,"tech":"engineering","cost":{"coin":30,"wood":2},"img":"catapult"},"knight":{"name":"기사","era":1,"str":14,"move":4,"tech":"chivalry","cost":{"coin":40,"food":2,"iron":1},"img":"knight"},"musket":{"name":"머스킷 보병","era":2,"str":20,"move":3,"tech":"gunpowder","cost":{"coin":50,"iron":1},"img":"swordsman"},"cannon":{"name":"대포","era":2,"str":26,"move":2,"range":2,"tech":"gunpowder","cost":{"coin":60,"iron":2,"wood":2},"img":"cannon"},"infantry":{"name":"보병","era":3,"str":36,"move":3,"tech":"steelmaking","cost":{"coin":70,"steel":1,"food":2},"img":"infantry"},"artillery":{"name":"포병","era":3,"str":48,"move":2,"range":3,"tech":"steelmaking","cost":{"coin":90,"steel":2},"img":"artillery"},"tank":{"name":"탱크","era":4,"str":75,"move":5,"tech":"combustion","cost":{"coin":130,"steel":2,"fuel":2,"tire":1},"img":"tank"},"trireme":{"name":"삼단노선","era":1,"str":10,"move":4,"sea":true,"tech":"shipbuilding","cost":{"coin":30,"wood":3},"img":"trireme"},"frigate":{"name":"프리깃","era":2,"str":24,"move":5,"range":2,"sea":true,"tech":"navigation","cost":{"coin":60,"wood":3,"iron":1},"img":"frigate"},"battleship":{"name":"전함","era":3,"str":55,"move":5,"range":2,"sea":true,"tech":"warship","cost":{"coin":110,"steel":3,"fuel":1},"img":"warship"},"cruiser":{"name":"미사일 순양함","era":4,"str":90,"move":6,"range":3,"sea":true,"tech":"missile","cost":{"coin":160,"steel":2,"fuel":2,"chip":2},"img":"cruiser"}},"UNIT_UPKEEP":1,"TECH_ICON":{"engineering":"engineering","economics":"economics","gunpowder":"gunpowder","navigation":"astronomy","shipbuilding":"shipbuilding","steelmaking":"steelmaking","refining":"refining","chipmaking":"chipmaking","radar":"internet","missile":"satellite","combustion":"steam","warship":"munitions","chivalry":"education"},"START_UNITS":["worker","scout","spear","spear","catapult"],"COMBAT":{"base":30,"counter":0.7,"min":3,"max":100,"rangedCounter":0.25,"healField":10,"healHome":20},"TRAIN_PER_TURN":3,"CS_TIERS":[{"name":"마을","def":6,"hp":60,"coin":100,"heal":6},{"name":"도시","def":12,"hp":100,"coin":40,"heal":12},{"name":"성곽 도시","def":22,"hp":150,"coin":60,"heal":18},{"name":"요새","def":40,"hp":220,"coin":90,"heal":25},{"name":"철옹성","def":70,"hp":320,"coin":150,"heal":35},{"name":"최종 보스","def":110,"hp":1200,"coin":500,"heal":80}],"SCOUT_MOVE":5,"WORKER_MOVE":0,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":55,"perLuxType":6,"perPlaza":6,"glory":10,"gloryDecay":5,"perCity":-3,"hunger":-8,"tariffPer":8,"crisis":{"perCity":-2,"fewLux":-8,"fewLuxUnder":2,"armyNeedsSteel":8,"noSteel":-5,"fuelCities":4,"noFuel":-6},"golden":70,"unhappy":40,"unrest":25,"revolt":15},"TYPES":{"K":{"name":"반도의 용","color":"#2F6FE0","techs":["shipbuilding","steelmaking","chipmaking"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"파도의 섬왕국","color":"#E0463C","techs":["shipbuilding","navigation","economics"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 제국","color":"#F29A2E","techs":["engineering","economics","steelmaking"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["engineering","refining","radar"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["chivalry","refining","steelmaking"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["shipbuilding","economics","navigation"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"CITY_ART":{"K":"capital_peninsula","J":"capital_island","C":"capital_continental","A":"capital_newworld","N":"capital_northern","T":"capital_tropical","village":"neutral_village","fortress":"neutral_fortress","harbor":"neutral_harbor"},"CITY_ANCHOR":0.83,"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","국방부 장관","기획부 장관","국토부 장관","과학기술부 장관"],"ROLE_INFO":{"국가 대표":{"icon":"leader","now":"모든 장관의 일 + 나라 이름·국기, 모둠 회의, 「턴 끝내기」","later":"무역 제안 최종 승인, 조약 서명"},"국방부 장관":{"icon":"spear","now":"병력 훈련·이동, 도시국가 공격","later":"무역 사절: 다른 나라에 거래 제안 보내기"},"기획부 장관":{"icon":"market","now":"도시 건물·공장·근미래 건물 짓기","later":"공장 가동, 무엇을 만들어 팔지 정하기"},"국토부 장관":{"icon":"worker","now":"노동자로 땅 개발(농장·광산·채석장…), 노동자 고용","later":"창고 관리, 모자란 자원 찾아 수입 요청"},"과학기술부 장관":{"icon":"scout","now":"기술 연구, 정찰병으로 세계 탐험","later":"시장 조사: 기준가·생산비 비교"}},"ROLE_KEY":{"leader":"국가 대표","army":"국방부 장관","build":"기획부 장관","land":"국토부 장관","explore":"과학기술부 장관"},"GROWTH_LIMIT":{"K":4,"J":4,"C":5,"A":5,"N":5,"T":5},"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요."},{"n":9,"name":"무역 갈등","desc":"거래 조건이 갑자기 바뀌었어요."},{"n":10,"name":"조약 회의","desc":"피해를 살펴보고 약속을 만들어요."},{"n":11,"name":"무역 헌장","desc":"함께 만든 약속으로 세계를 되살려요."}]}$cfg$::jsonb)
+insert into priv.config(id, data) values (1, $cfg${"W":40,"H":28,"START":{"coin":150,"food":4,"wood":5,"iron":1},"START_BONUS":{"K":{"wood":8},"J":{"wood":4}},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"ERAS":["고대","중세","르네상스","산업","현대"],"ANCIENT":["농업","목축","채광","도기","궁술","청동기","기초 항해","역법","문자","바퀴"],"TECH_TREE":{"engineering":{"name":"공학","era":1,"row":0,"req":[],"cost":{"coin":30,"food":2},"unlock":"투석기 · 곡물 창고"},"chivalry":{"name":"기사도","era":1,"row":1,"req":[],"cost":{"coin":30,"food":2},"unlock":"기사 (빠른 기병)"},"shipbuilding":{"name":"조선","era":1,"row":2,"req":[],"cost":{"coin":35,"wood":2},"unlock":"항구 · 삼단노선"},"economics":{"name":"경제학","era":2,"row":0,"req":["engineering"],"cost":{"coin":60,"food":3},"unlock":"시장 코인 +6 · 섬유 공장 · 금 세공소 · 고무 공장 · 정글 개발비 절반"},"gunpowder":{"name":"화약","era":2,"row":1,"req":["engineering","chivalry"],"cost":{"coin":60,"iron":1},"unlock":"대포 · 머스킷 보병"},"navigation":{"name":"항해술","era":2,"row":2,"req":["shipbuilding"],"cost":{"coin":60,"wood":3},"unlock":"프리깃 · 정찰병 바다 이동 +2"},"refining":{"name":"석유","era":3,"row":0,"req":["economics"],"cost":{"coin":90,"wood":3},"unlock":"유정 · 정유소"},"steelmaking":{"name":"제철","era":3,"row":1,"req":["gunpowder"],"cost":{"coin":90,"iron":2},"unlock":"제철소 · 보병 · 포병 · 군수 공장"},"warship":{"name":"강철 군함","era":3,"row":2,"req":["navigation","steelmaking"],"cost":{"coin":110,"steel":1},"unlock":"전함"},"combustion":{"name":"내연 기관","era":4,"row":0,"req":["refining","steelmaking"],"cost":{"coin":150,"fuel":1},"unlock":"탱크"},"chipmaking":{"name":"전자공학","era":4,"row":1,"req":["steelmaking"],"cost":{"coin":150,"copper":2},"unlock":"반도체 공장 · 전자 상가 · 원자력 발전소"},"radar":{"name":"레이더·통신","era":4,"row":2,"req":["chipmaking"],"cost":{"coin":170,"aluminum":1},"unlock":"통신탑 · 방송국 · 인터넷 센터 · 인공위성 센터 (근미래)"},"missile":{"name":"유도 미사일","era":4,"row":3,"req":["radar","warship"],"cost":{"coin":200,"chip":1},"unlock":"미사일 순양함"}},"TECH_ALIAS":{"textile":"economics","metalcraft":"economics","rubberwork":"economics","woodwork":"economics","jungle":"economics","oil_drill":"refining","munitions":"steelmaking","electricity":"chipmaking","internet":"radar","satellite":"radar","nuclear":"chipmaking"},"TECHS":{"engineering":"공학","chivalry":"기사도","shipbuilding":"조선","economics":"경제학","gunpowder":"화약","navigation":"항해술","refining":"석유","steelmaking":"제철","warship":"강철 군함","combustion":"내연 기관","chipmaking":"전자공학","radar":"레이더·통신","missile":"유도 미사일"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra","desert"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium"],"cost":{"coin":15,"wood":1},"yield":2},"quarry":{"name":"채석장","on":["hills"],"noRes":true,"cost":{"coin":15,"wood":1},"coin":10,"yield":0},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"refining","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"QUARRY_COIN":10,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"tech":"engineering","effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"배 만들기, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":60,"wood":2},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"economics","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"economics","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"economics","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2}},"PROC_COST":{"K":{"steel":4,"fuel":3,"chip":5},"J":{"chip":15,"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5,"tire":12,"chip":50,"fuel":15},"A":{"chip":20,"clothes":20,"fuel":6},"N":{"jewelry":12,"fuel":10},"T":{"clothes":4,"tire":8}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","tech":"chipmaking","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"radar","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"radar","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"steelmaking","cost":{"coin":60,"steel":2},"unlock":"tank"},"commtower":{"name":"통신탑","tech":"radar","cost":{"coin":80,"aluminum":2,"copper":2},"happy":14,"culture":10},"broadcast":{"name":"방송국","tech":"radar","cost":{"coin":90,"chip":2,"aluminum":1},"happy":18,"culture":15},"nuclearplant":{"name":"원자력 발전소","tech":"chipmaking","cost":{"coin":100,"uranium":2,"steel":2},"econ":15,"coinPerTurn":25}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","era":0,"str":10,"move":3,"cost":{"coin":20,"food":1},"img":"spear"},"catapult":{"name":"투석기","era":1,"str":11,"move":2,"range":2,"tech":"engineering","cost":{"coin":30,"wood":2},"img":"catapult"},"knight":{"name":"기사","era":1,"str":14,"move":4,"tech":"chivalry","cost":{"coin":40,"food":2,"iron":1},"img":"knight"},"musket":{"name":"머스킷 보병","era":2,"str":20,"move":3,"tech":"gunpowder","cost":{"coin":50,"iron":1},"img":"swordsman"},"cannon":{"name":"대포","era":2,"str":26,"move":2,"range":2,"tech":"gunpowder","cost":{"coin":60,"iron":2,"wood":2},"img":"cannon"},"infantry":{"name":"보병","era":3,"str":36,"move":3,"tech":"steelmaking","cost":{"coin":70,"steel":1,"food":2},"img":"infantry"},"artillery":{"name":"포병","era":3,"str":48,"move":2,"range":3,"tech":"steelmaking","cost":{"coin":90,"steel":2},"img":"artillery"},"tank":{"name":"탱크","era":4,"str":75,"move":5,"tech":"combustion","cost":{"coin":130,"steel":2,"fuel":2,"tire":1},"img":"tank"},"trireme":{"name":"삼단노선","era":1,"str":10,"move":4,"sea":true,"tech":"shipbuilding","cost":{"coin":30,"wood":3},"img":"trireme"},"frigate":{"name":"프리깃","era":2,"str":24,"move":5,"range":2,"sea":true,"tech":"navigation","cost":{"coin":60,"wood":3,"iron":1},"img":"frigate"},"battleship":{"name":"전함","era":3,"str":55,"move":5,"range":2,"sea":true,"tech":"warship","cost":{"coin":110,"steel":3,"fuel":1},"img":"warship"},"cruiser":{"name":"미사일 순양함","era":4,"str":90,"move":6,"range":3,"sea":true,"tech":"missile","cost":{"coin":160,"steel":2,"fuel":2,"chip":2},"img":"cruiser"}},"UNIT_UPKEEP":1,"TECH_ICON":{"engineering":"engineering","economics":"economics","gunpowder":"gunpowder","navigation":"astronomy","shipbuilding":"shipbuilding","steelmaking":"steelmaking","refining":"refining","chipmaking":"chipmaking","radar":"internet","missile":"satellite","combustion":"steam","warship":"munitions","chivalry":"education"},"START_UNITS":["worker","scout","scout","scout","spear","spear","catapult"],"COMBAT":{"base":30,"counter":0.7,"min":3,"max":100,"rangedCounter":0.25,"healField":10,"healHome":20},"TRAIN_PER_TURN":3,"CS_TIERS":[{"name":"마을","def":6,"hp":60,"coin":100,"heal":6},{"name":"도시","def":12,"hp":100,"coin":40,"heal":12},{"name":"성곽 도시","def":22,"hp":150,"coin":60,"heal":18},{"name":"요새","def":40,"hp":220,"coin":90,"heal":25},{"name":"철옹성","def":70,"hp":320,"coin":150,"heal":35},{"name":"최종 보스","def":110,"hp":1200,"coin":500,"heal":80}],"SCOUT_MOVE":5,"WORKER_MOVE":0,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":55,"perLuxType":6,"perPlaza":6,"glory":10,"gloryDecay":5,"perCity":-3,"hunger":-8,"tariffPer":8,"crisis":{"perCity":-2,"fewLux":-8,"fewLuxUnder":2,"armyNeedsSteel":8,"noSteel":-5,"fuelCities":4,"noFuel":-6},"golden":70,"unhappy":40,"unrest":25,"revolt":15},"TYPES":{"K":{"name":"반도의 용","color":"#2F6FE0","techs":["shipbuilding","steelmaking","chipmaking"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"파도의 섬왕국","color":"#E0463C","techs":["shipbuilding","navigation","economics"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 제국","color":"#F29A2E","techs":["engineering","economics","steelmaking"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["engineering","refining","radar"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["chivalry","refining","steelmaking"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["shipbuilding","economics","navigation"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"CITY_ART":{"K":"capital_peninsula","J":"capital_island","C":"capital_continental","A":"capital_newworld","N":"capital_northern","T":"capital_tropical","village":"neutral_village","fortress":"neutral_fortress","harbor":"neutral_harbor"},"CITY_ANCHOR":0.83,"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","국방부 장관","기획부 장관","국토부 장관","과학기술부 장관"],"ROLE_INFO":{"국가 대표":{"icon":"leader","now":"모든 장관의 일 + 나라 이름·국기, 모둠 회의, 「턴 끝내기」","later":"무역 제안 최종 승인, 조약 서명"},"국방부 장관":{"icon":"spear","now":"병력 훈련·이동, 도시국가 공격","later":"무역 사절: 다른 나라에 거래 제안 보내기"},"기획부 장관":{"icon":"market","now":"도시 건물·공장·근미래 건물 짓기","later":"공장 가동, 무엇을 만들어 팔지 정하기"},"국토부 장관":{"icon":"worker","now":"노동자로 땅 개발(농장·광산·채석장…), 노동자 고용","later":"창고 관리, 모자란 자원 찾아 수입 요청"},"과학기술부 장관":{"icon":"scout","now":"기술 연구, 정찰병으로 세계 탐험","later":"시장 조사: 기준가·생산비 비교"}},"ROLE_KEY":{"leader":"국가 대표","army":"국방부 장관","build":"기획부 장관","land":"국토부 장관","explore":"과학기술부 장관"},"GROWTH_LIMIT":{"K":4,"J":4,"C":5,"A":5,"N":5,"T":5},"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요."},{"n":9,"name":"무역 갈등","desc":"거래 조건이 갑자기 바뀌었어요."},{"n":10,"name":"조약 회의","desc":"피해를 살펴보고 약속을 만들어요."},{"n":11,"name":"무역 헌장","desc":"함께 만든 약속으로 세계를 되살려요."}]}$cfg$::jsonb)
   on conflict (id) do update set data = excluded.data;
 
 insert into priv.tiles(id, c, r, zone, terrain, res) values
@@ -595,8 +596,8 @@ insert into priv.tiles(id, c, r, zone, terrain, res) values
 (335,15,8,'C','desert',null),
 (336,16,8,'C','hills',null),
 (337,17,8,'C','plains',null),
-(338,18,8,'K','hills',null),
-(339,19,8,'K','plains',null),
+(338,18,8,'K','plains',null),
+(339,19,8,'K','forest',null),
 (340,20,8,'K','hills',null),
 (341,21,8,'K','hills',null),
 (342,22,8,null,'coast',null),
@@ -636,7 +637,7 @@ insert into priv.tiles(id, c, r, zone, terrain, res) values
 (376,16,9,null,'coast',null),
 (377,17,9,null,'coast',null),
 (378,18,9,'K','forest',null),
-(379,19,9,'K','plains',null),
+(379,19,9,'K','forest',null),
 (380,20,9,'K','plains',null),
 (381,21,9,'K','mountain',null),
 (382,22,9,null,'coast',null),
@@ -676,7 +677,7 @@ insert into priv.tiles(id, c, r, zone, terrain, res) values
 (416,16,10,null,'coast',null),
 (417,17,10,null,'coast',null),
 (418,18,10,null,'coast',null),
-(419,19,10,'K','plains',null),
+(419,19,10,'K','forest',null),
 (420,20,10,'K','plains',null),
 (421,21,10,'K','forest',null),
 (422,22,10,null,'coast',null),
@@ -718,7 +719,7 @@ insert into priv.tiles(id, c, r, zone, terrain, res) values
 (458,18,11,null,'coast',null),
 (459,19,11,'K','plains',null),
 (460,20,11,'K','plains',null),
-(461,21,11,'K','plains',null),
+(461,21,11,'K','forest',null),
 (462,22,11,null,'coast',null),
 (463,23,11,null,'ocean',null),
 (464,24,11,null,'coast',null),
@@ -797,8 +798,8 @@ insert into priv.tiles(id, c, r, zone, terrain, res) values
 (537,17,13,'C','plains',null),
 (538,18,13,null,'coast',null),
 (539,19,13,'K','hills',null),
-(540,20,13,'K','mountain','iron'),
-(541,21,13,'K','plains',null),
+(540,20,13,'K','hills','iron'),
+(541,21,13,'K','forest',null),
 (542,22,13,null,'coast',null),
 (543,23,13,null,'ocean',null),
 (544,24,13,null,'coast',null),
@@ -837,7 +838,7 @@ insert into priv.tiles(id, c, r, zone, terrain, res) values
 (577,17,14,'C','forest',null),
 (578,18,14,null,'coast',null),
 (579,19,14,'K','hills',null),
-(580,20,14,'K','hills',null),
+(580,20,14,'K','plains',null),
 (581,21,14,'K','plains',null),
 (582,22,14,null,'coast',null),
 (583,23,14,null,'ocean',null),
@@ -1651,6 +1652,9 @@ begin
     for k, v in select key, value from jsonb_each_text(cfg->'START') loop
       if k <> 'coin' then perform priv.add(co.id, k, v::int); end if;
     end loop;
+    for k, v in select key, value from jsonb_each_text(coalesce(cfg->'START_BONUS'->co.type, '{}'::jsonb)) loop
+      perform priv.add(co.id, k, v::int);
+    end loop;
     select * into cap from priv.cities where kind = 'capital' and type = co.type;
     update priv.cities set country = co.id, taken_turn = 0 where id = cap.id;
     perform priv.claim(co.id, cap.tile_id, 2);
@@ -1967,7 +1971,7 @@ begin
     'now', now(),
     'game', jsonb_build_object('phase', g.phase, 'turn', g.turn, 'turn_end', g.turn_end, 'market_open', g.market_open,
       'diplomacy_open', g.diplomacy_open, 'crisis', g.crisis, 'fair_cap', g.fair_cap, 'tariff', g.tariff, 'banned', g.banned,
-      'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label),
+      'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label, 'test_mode', g.test_mode),
     'me', jsonb_build_object('id', me.id, 'name', coalesce(me.nickname, me.name), 'roles', me.roles, 'is_leader', me.is_leader),
     'members', (select coalesce(jsonb_agg(jsonb_build_object('name', coalesce(s.nickname, '(아직 안 들어옴)'), 'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null,
         'online', s.last_seen > now() - interval '60 seconds') order by s.no, s.id), '[]') from priv.students s where s.country_id = co.id),
@@ -2270,6 +2274,61 @@ begin
   return jsonb_build_object('ok', true, 'city', c.id, 'name', c.name, 'tile', c.tile_id, 'from', u.tile_id,
     'city_dmg', dmg[1], 'unit_dmg', dmg[2], 'city_hp', chp, 'max_hp', c.max_hp, 'unit_hp', greatest(0, uhp), 'ranged', ranged and d > 1,
     'captured', captured, 'died', died, 'techs', to_jsonb(got), 'coin', bonus, 'res', res);
+end $$;
+
+-- [테스트용] 최종 성장 모드: 모든 나라가 연구·개발을 끝낸 상태로 (나라마다 가장 강한 도시국가 하나만 남김) → 무역 시험
+create or replace function public.test_endgame() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare cfg jsonb := priv.cfg(); g public.game; co record; c record; t record; keep text; k text; ik text; n int := 0;
+begin
+  select * into g from public.game where id = 1 for update;
+  if not g.test_mode and not priv.is_admin() then perform priv.err('OFF', '테스트 버튼이 꺼져 있어요.'); end if;
+  if g.turn < 1 then update public.game set turn = 1, phase = greatest(phase, 1) where id = 1; end if;
+  for co in select * from priv.countries order by id loop
+    -- 모든 기술
+    update priv.countries set techs = array(select jsonb_object_keys(cfg->'TECH_TREE')), coin = coin + 300, crisis = true where id = co.id;
+    -- 가장 강한 도시국가 하나만 남기고 차지
+    select id into keep from priv.cities where kind = 'cs' and type = co.type and country is null order by tier desc, def desc, id limit 1;
+    for c in select * from priv.cities where kind = 'cs' and type = co.type and country is null and id <> keep loop
+      update priv.cities set country = co.id, taken_turn = greatest(g.turn, 1), hp = max_hp where id = c.id;
+      update priv.tiles set owner = co.id where id = any(priv.within(c.tile_id, 1)) and owner is null and terrain not in ('ocean', 'coast');
+      if c.tech is not null then
+        foreach k in array string_to_array(c.tech, ',') loop
+          if not priv.has_tech(co.id, k) then update priv.countries set techs = techs || k where id = co.id; end if;
+        end loop;
+      end if;
+      n := n + 1;
+    end loop;
+    -- 우리 땅 모두 개발
+    for t in select * from priv.tiles where owner = co.id and imp is null and id not in (select tile_id from priv.cities) loop
+      ik := case
+        when t.res = 'oil' then 'oilwell'
+        when t.res in ('iron', 'copper', 'aluminum', 'gold', 'uranium') then 'mine'
+        when t.res in ('cotton', 'spice', 'wine', 'rubber') then 'plantation'
+        when t.terrain in ('plains', 'tundra', 'desert') then 'farm'
+        when t.terrain in ('forest', 'jungle') then 'lumber'
+        when t.terrain = 'hills' then 'quarry' end;
+      if ik is not null then update priv.tiles set imp = ik where id = t.id; end if;
+    end loop;
+    -- 모든 도시에 기본 건물 (항구는 바닷가만)
+    update priv.cities ci set buildings = array(select distinct x from unnest(ci.buildings || array['market', 'barracks', 'granary', 'plaza'] ||
+        case when exists(select 1 from priv.tiles tt, priv.tiles ct where ct.id = ci.tile_id and tt.terrain in ('ocean', 'coast') and priv.hdist(tt.c, tt.r, ct.c, ct.r) = 1)
+             then array['harbor'] else '{}'::text[] end) x)
+     where country = co.id;
+    -- 우리 나라가 만들 수 있는 공장 모두
+    insert into priv.factories(country, kind)
+      select co.id, f.key from jsonb_each(cfg->'FACTORIES') f where cfg->'PROC_COST'->co.type ? (f.value->>'output')
+      on conflict do nothing;
+  end loop;
+  -- 모두 서로 발견, 세계 지도 공개, 외교·시장 열기
+  update priv.countries set discovered = array(select id from priv.countries x where x.id <> priv.countries.id),
+    explored = array(select id from priv.tiles) where true;
+  update public.game set phase = greatest(phase, 3), market_open = true, diplomacy_open = true, crisis = true,
+    world_first = coalesce(world_first, 1) where id = 1;
+  perform priv.advance_turn();   -- 한 턴 정산해서 창고 채우기
+  perform priv.notice('[테스트] 최종 성장 모드! 모든 나라가 연구·개발을 마쳤어요. 이제 무역으로 모자란 자원을 구해 보세요.', 'world');
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true, 'captured', n);
 end $$;
 
 -- 기술 연구 (별빛 탐험가): 먼저 배울 기술을 다 알아야 하고, 한 턴에 하나
@@ -2720,7 +2779,8 @@ create or replace function public.admin_flags(p jsonb) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
 begin
   perform priv.need_admin();
-  update public.game set require_approval = coalesce((p->>'require_approval')::boolean, require_approval) where id = 1;
+  update public.game set require_approval = coalesce((p->>'require_approval')::boolean, require_approval),
+    test_mode = coalesce((p->>'test_mode')::boolean, test_mode) where id = 1;
   perform priv.bump_game();
   return (select to_jsonb(g) from public.game g where id = 1);
 end $$;

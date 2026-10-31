@@ -40,8 +40,8 @@ const L = c => of(c)[0].uid;
 
 // 처음 상태
 let m = await rpc(L(1), 'my_state');
-ok(m.country.type === 'K' && m.inventory.wood === 5 && m.inventory.iron === 1 && m.country.coin === 150, '반도의 나라 출발 재고');
-ok(m.units.length === 5 && m.targets.filter(t => t.mine).length === 5, '시작 병력 5(노동자·정찰병·창병2·투석기), 우리 쪽 도시국가 5곳');
+ok(m.country.type === 'K' && m.inventory.wood === 13 && m.inventory.iron === 1 && m.country.coin === 150, '반도의 나라 출발 재고');
+ok(m.units.length === 7 && m.units.filter(u => u.kind === 'scout').length === 3 && m.targets.filter(t => t.mine).length === 5, '시작 병력 5(노동자·정찰병·창병2·투석기), 우리 쪽 도시국가 5곳');
 ok(m.country.techs.length === 0, '처음엔 고대 기술만 (핵심 기술은 튜토리얼 도시국가에서)');
 ok((await one(`select count(*)::int n from priv.tiles t join priv.cities c on c.tile_id = t.id where c.kind = 'cs' and t.owner is not null`)).n === 0, '처음엔 어떤 도시국가도 국경 안에 없음');
 ok((await one(`select count(*)::int n from priv.cities where boss`)).n === 1 && (await one(`select count(*)::int n from priv.cities where kind = 'cs'`)).n >= 45, '도시국가 45곳 이상 + 최종 보스');
@@ -218,6 +218,15 @@ await db.query(`insert into priv.inventory values (1, 'copper', 3) on conflict (
 await rpc(ADMIN, 'admin_next_turn');
 ok((await rpc(L(1), 'my_state')).inventory.chip === 2, '반도체 공장: 구리 → 반도체 2개');
 
+// [테스트] 최종 성장 모드
+const eg = await rpc(L(2), 'test_endgame');
+const after = await rpc(ADMIN, 'admin_state');
+ok(eg.ok && eg.captured > 20, '최종 성장 모드: 도시국가 ' + eg.captured + '곳 차지');
+ok((await one(`select count(*)::int n from priv.cities where kind = 'cs' and country is null and type <> 'X'`)).n === 6, '나라마다 가장 강한 도시국가 하나만 남음');
+ok((await rpc(L(4), 'my_state')).country.techs.length >= 13 && (await one(`select count(*)::int n from priv.tiles where owner is not null and imp is null and terrain not in ('mountain', 'snow') and id not in (select tile_id from priv.cities)`)).n === 0, '모든 기술·모든 땅 개발 완료 (산·설원 빼고)');
+ok(after.game.market_open, '세계 시장 열림');
+await rpc(ADMIN, 'admin_flags', { test_mode: false });
+ok(await fail(rpc(L(2), 'test_endgame'), 'OFF'), '관제실에서 끄면 학생은 못 누름');
 // 보드·관제실·백업
 const b = await rpc(randomUUID(), 'get_board');
 ok(b.tiles.length === 1120 && b.countries.length === 6 && typeof b.gauge === 'number', '전자칠판 데이터, 안정도 ' + b.gauge);

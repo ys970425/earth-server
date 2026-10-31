@@ -215,7 +215,8 @@
           if (!rows.length) return toast('명단 형식을 확인해 주세요.', 'error');
           if (confirm(rows.length + '명으로 명단을 바꿀까요?')) act('admin_roster_import', [rows], '명단 저장');
         } }, '명단 저장'),
-          h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: g.require_approval, onchange: e => act('admin_flags', [{ require_approval: e.target.checked }]) }), '새 기기 연결 시 교사 승인'))),
+          h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: g.require_approval, onchange: e => act('admin_flags', [{ require_approval: e.target.checked }]) }), '새 기기 연결 시 교사 승인'),
+          h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: g.test_mode, onchange: e => act('admin_flags', [{ test_mode: e.target.checked }]) }), '학생 화면에 「최종 성장 모드(테스트)」 버튼 보이기'))),
       h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '학생', h('small', {}, '국가 대표를 정해 주세요 (이름·국기·조약 담당)')),
         h('table', { class: 'tbl' }, st.students.map(s => h('tr', {},
           h('td', {}, s.country_id + '모둠'), h('td', {}, s.name), h('td', {}, s.nick ? '「' + s.nick + '」' : h('span', { class: 'muted' }, '닉네임 없음')), h('td', {}, (s.roles || []).join(', ')), h('td', {}, s.bound ? (s.online ? '접속 중' : '연결됨') : '-'),
