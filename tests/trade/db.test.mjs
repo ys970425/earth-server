@@ -38,7 +38,21 @@ const L = c => of(c)[0].uid;
 // 처음 상태
 let m = await rpc(L(1), 'my_state');
 ok(m.country.type === 'K' && m.inventory.wood === 5 && m.inventory.iron === 1 && m.country.coin === 150, '반도의 나라 출발 재고');
-ok(m.units.length === 3 && m.targets.length === 3, '노동자·정찰병·창병, 도시국가 3곳');
+ok(m.units.length === 3 && m.targets.length === 4, '노동자·정찰병·창병, 도시국가 4곳(솔바람재 추가)');
+ok((await one(`select count(*)::int n from priv.tiles t join priv.cities c on c.tile_id = t.id where c.kind = 'cs' and t.owner is not null`)).n === 0, '처음엔 어떤 도시국가도 국경 안에 없음');
+// 역할
+ok(m.me.roles.includes('국가 대표'), '선생님이 정한 대표는 국가 대표 역할');
+ok(await fail(rpc(of(1)[1].uid, 'set_role', '국가 대표'), 'LEADER_TAKEN'), '국가 대표는 한 명만');
+await rpc(of(1)[1].uid, 'set_role', '장군'); await rpc(of(1)[1].uid, 'set_role', '건축가'); await rpc(of(1)[1].uid, 'set_role', '개척자');
+ok(await fail(rpc(of(1)[1].uid, 'set_role', '탐험가'), 'ROLE_MAX'), '역할은 3개까지');
+await rpc(of(1)[2].uid, 'set_role', '장군');
+ok((await one(`select count(*)::int n from priv.students where '장군' = any(roles) and country_id = 1`)).n === 2, '같은 역할 여러 명 가능 (결석 대비)');
+await rpc(of(1)[1].uid, 'set_role', '개척자');
+ok(!(await one(`select roles from priv.students where id = ${of(1)[1].id}`)).roles.includes('개척자'), '다시 누르면 역할 내려놓기');
+ok(await fail(rpc(L(1), 'city_build', 'K', 'market'), 'ROLE_ONLY'), '건축가가 있으면 다른 친구는 건설 불가');
+ok(!(await fail(rpc(L(1), 'worker_build', 0, 'farm'), 'ROLE_ONLY')), '아무도 안 맡은 역할(개척자)은 누구나');
+await db.query(`update priv.students set roles = case when is_leader then array['국가 대표'] else '{}' end where true`);
+
 const mv = await rpc(L(1), 'map_view');
 ok(mv.tiles.length > 15 && mv.tiles.length < 60, '처음 보이는 칸 ' + mv.tiles.length);
 ok(await fail(rpc(L(1), 'worker_build', 0, 'farm'), 'PHASE'), '시작 전에는 행동 불가');

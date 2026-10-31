@@ -83,6 +83,8 @@ create table if not exists priv.students (
   last_seen  timestamptz
 );
 
+alter table priv.students add column if not exists roles text[] not null default '{}';
+
 create table if not exists priv.pairing_requests (
   id         serial primary key,
   student_id int not null references priv.students(id) on delete cascade,
@@ -234,7 +236,7 @@ end $$;
 
 -- ---------------------------------------------------------------------
 
-insert into priv.config(id, data) values (1, $cfg${"W":32,"H":22,"START":{"coin":150,"food":4,"wood":5,"iron":1},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"TECHS":{"steelmaking":"제철","oil_drill":"석유 추출","refining":"석유 정제","munitions":"군수품 공장","nuclear":"원자력","chipmaking":"반도체 제조","rubberwork":"고무 가공","woodwork":"목재 가공","metalcraft":"금속 세공","textile":"섬유 가공","satellite":"인공위성","internet":"인터넷","tourism":"관광산업","shipbuilding":"조선","jungle":"밀림 개발"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium"],"cost":{"coin":15,"wood":1},"yield":2},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"oil_drill","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"바다 건너 도시국가 공격, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":60,"wood":2},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"textile","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"rubberwork","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"metalcraft","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2}},"PROC_COST":{"K":{"steel":4,"fuel":3,"chip":5},"J":{"chip":15,"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5,"tire":12,"chip":50,"fuel":15},"A":{"chip":20,"clothes":20,"fuel":6},"N":{"jewelry":12,"fuel":10},"T":{"clothes":4,"tire":8}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"internet","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"satellite","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"munitions","cost":{"coin":60,"steel":2,"aluminum":1},"unlock":"cannon"}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","str":5,"cost":{"coin":20,"food":1}},"catapult":{"name":"투석기","str":9,"cost":{"coin":30,"wood":2}},"ballista":{"name":"발리스타","str":14,"cost":{"coin":40,"wood":2,"iron":1}},"cannon":{"name":"대포","str":24,"cost":{"coin":60,"steel":1,"fuel":1},"needs":"arsenal"}},"UNIT_UPKEEP":2,"SCOUT_MOVE":5,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":55,"perLuxType":6,"perPlaza":6,"glory":10,"gloryDecay":5,"perCity":-3,"hunger":-8,"tariffPer":8,"crisis":{"perCity":-2,"fewLux":-8,"fewLuxUnder":2,"armyNeedsSteel":3,"noSteel":-5,"fuelCities":4,"noFuel":-6},"golden":70,"unhappy":40,"unrest":25,"revolt":15},"TYPES":{"K":{"name":"반도의 나라","color":"#2F6FE0","techs":["steelmaking","refining","chipmaking","shipbuilding","internet"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"섬의 나라","color":"#E0463C","techs":["metalcraft","rubberwork","munitions","tourism","shipbuilding","chipmaking"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 공장","color":"#F29A2E","techs":["textile","steelmaking","woodwork"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["oil_drill","refining","nuclear","satellite","internet","chipmaking","textile"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["oil_drill","refining","nuclear","satellite"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["textile"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"CITY_ART":{"K":"capital_peninsula","J":"capital_island","C":"capital_continental","A":"capital_newworld","N":"capital_northern","T":"capital_tropical","village":"neutral_village","fortress":"neutral_fortress","harbor":"neutral_harbor"},"CITY_ANCHOR":0.83,"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","도시·내정","군사·정찰","자원·생산","기록관"],"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요."},{"n":9,"name":"무역 갈등","desc":"거래 조건이 갑자기 바뀌었어요."},{"n":10,"name":"조약 회의","desc":"피해를 살펴보고 약속을 만들어요."},{"n":11,"name":"무역 헌장","desc":"함께 만든 약속으로 세계를 되살려요."}]}$cfg$::jsonb)
+insert into priv.config(id, data) values (1, $cfg${"W":32,"H":22,"START":{"coin":150,"food":4,"wood":5,"iron":1},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"TECHS":{"steelmaking":"제철","oil_drill":"석유 추출","refining":"석유 정제","munitions":"군수품 공장","nuclear":"원자력","chipmaking":"반도체 제조","rubberwork":"고무 가공","woodwork":"목재 가공","metalcraft":"금속 세공","textile":"섬유 가공","satellite":"인공위성","internet":"인터넷","tourism":"관광산업","shipbuilding":"조선","jungle":"밀림 개발"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium"],"cost":{"coin":15,"wood":1},"yield":2},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"oil_drill","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"바다 건너 도시국가 공격, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":60,"wood":2},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"textile","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"rubberwork","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"metalcraft","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2}},"PROC_COST":{"K":{"steel":4,"fuel":3,"chip":5},"J":{"chip":15,"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5,"tire":12,"chip":50,"fuel":15},"A":{"chip":20,"clothes":20,"fuel":6},"N":{"jewelry":12,"fuel":10},"T":{"clothes":4,"tire":8}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"internet","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"satellite","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"munitions","cost":{"coin":60,"steel":2,"aluminum":1},"unlock":"cannon"}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","str":5,"cost":{"coin":20,"food":1}},"catapult":{"name":"투석기","str":9,"cost":{"coin":30,"wood":2}},"ballista":{"name":"발리스타","str":14,"cost":{"coin":40,"wood":2,"iron":1}},"cannon":{"name":"대포","str":24,"cost":{"coin":60,"steel":1,"fuel":1},"needs":"arsenal"}},"UNIT_UPKEEP":2,"SCOUT_MOVE":5,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":55,"perLuxType":6,"perPlaza":6,"glory":10,"gloryDecay":5,"perCity":-3,"hunger":-8,"tariffPer":8,"crisis":{"perCity":-2,"fewLux":-8,"fewLuxUnder":2,"armyNeedsSteel":3,"noSteel":-5,"fuelCities":4,"noFuel":-6},"golden":70,"unhappy":40,"unrest":25,"revolt":15},"TYPES":{"K":{"name":"반도의 용","color":"#2F6FE0","techs":["steelmaking","refining","chipmaking","shipbuilding","internet"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"파도의 섬왕국","color":"#E0463C","techs":["metalcraft","rubberwork","munitions","tourism","shipbuilding","chipmaking"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 제국","color":"#F29A2E","techs":["textile","steelmaking","woodwork"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["oil_drill","refining","nuclear","satellite","internet","chipmaking","textile"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["oil_drill","refining","nuclear","satellite"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["textile"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"CITY_ART":{"K":"capital_peninsula","J":"capital_island","C":"capital_continental","A":"capital_newworld","N":"capital_northern","T":"capital_tropical","village":"neutral_village","fortress":"neutral_fortress","harbor":"neutral_harbor"},"CITY_ANCHOR":0.83,"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","장군","건축가","개척자","탐험가"],"ROLE_INFO":{"국가 대표":{"icon":"leader","now":"나라 이름·국기 정하기, 모둠 회의 이끌기, 다른 나라와 외교","later":"무역 제안 최종 승인, 조약 서명"},"장군":{"icon":"spear","now":"병력 훈련, 도시국가 공격","later":"무역 사절: 다른 나라에 거래 제안 보내기"},"건축가":{"icon":"market","now":"도시 건물·공장·발전 건물 짓기","later":"공장 가동, 무엇을 만들어 팔지 정하기"},"개척자":{"icon":"worker","now":"노동자로 땅 개발(농장·광산…), 노동자 고용","later":"창고 관리, 모자란 자원 찾아 수입 요청"},"탐험가":{"icon":"scout","now":"정찰병으로 다른 나라 찾기","later":"시장 조사: 기준가·생산비 비교"}},"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요."},{"n":9,"name":"무역 갈등","desc":"거래 조건이 갑자기 바뀌었어요."},{"n":10,"name":"조약 회의","desc":"피해를 살펴보고 약속을 만들어요."},{"n":11,"name":"무역 헌장","desc":"함께 만든 약속으로 세계를 되살려요."}]}$cfg$::jsonb)
   on conflict (id) do update set data = excluded.data;
 
 insert into priv.tiles(id, c, r, zone, terrain, res) values
@@ -441,9 +443,9 @@ insert into priv.tiles(id, c, r, zone, terrain, res) values
 (200,8,6,'C','plains',null),
 (201,9,6,null,'coast',null),
 (202,10,6,'C','desert',null),
-(203,11,6,'C','plains',null),
-(204,12,6,'C','desert',null),
-(205,13,6,'C','plains',null),
+(203,11,6,'K','mountain',null),
+(204,12,6,'K','forest',null),
+(205,13,6,'K','mountain',null),
 (206,14,6,'K','forest',null),
 (207,15,6,'K','plains',null),
 (208,16,6,'K','plains',null),
@@ -953,6 +955,7 @@ insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech) values
 ('T',555,'capital','T','수도',0,false,null),
 ('K1',240,'cs','K','소나무골',5,false,null),
 ('K2',368,'cs','K','푸른나루',10,false,null),
+('K4',204,'cs','K','솔바람재',12,false,null),
 ('K3',434,'cs','K','물새섬',15,true,null),
 ('J1',245,'cs','J','안개곶',5,false,null),
 ('J2',373,'cs','J','붉은항',10,false,null),
@@ -1189,6 +1192,10 @@ begin
     select * into cap from priv.cities where kind = 'capital' and type = co.type;
     update priv.cities set country = co.id, taken_turn = 0 where id = cap.id;
     perform priv.claim(co.id, cap.tile_id, 2);
+    -- 도시국가와 그 바로 옆 칸은 처음 국경에서 뺌 (아직 차지하지 않은 중립 도시가 국경 안에 들어가지 않게)
+    update priv.tiles t set owner = null
+     where t.owner = co.id and priv.tdist(t.id, cap.tile_id) >= 2
+       and exists(select 1 from priv.cities c2 where c2.kind = 'cs' and priv.tdist(t.id, c2.tile_id) <= 1);
     -- 우리 나라 주변 도시국가는 처음부터 지도에 보임 (확장 목표)
     perform priv.reveal(co.id, coalesce((select array_agg(x) from priv.cities c2, unnest(priv.within(c2.tile_id, 1)) x
       where c2.kind = 'cs' and c2.type = co.type), '{}'));
@@ -1424,10 +1431,19 @@ end $$;
 
 create or replace function public.set_role(p_role text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.me();
+declare me priv.students := priv.me(); who text; lead text := (priv.cfg()->'ROLES'->>0);
 begin
   if not (p_role = any(array(select jsonb_array_elements_text(priv.cfg()->'ROLES')))) then perform priv.err('BAD_ROLE', '없는 역할이에요.'); end if;
-  update priv.students set role = p_role where id = me.id;
+  if p_role = any(me.roles) then   -- 다시 누르면 내려놓기
+    update priv.students set roles = array_remove(roles, p_role), is_leader = case when p_role = lead then false else is_leader end where id = me.id;
+  else
+    if cardinality(me.roles) >= 3 then perform priv.err('ROLE_MAX', '역할은 3개까지 맡을 수 있어요.'); end if;
+    if p_role = lead then
+      select name into who from priv.students where country_id = me.country_id and id <> me.id and (is_leader or lead = any(roles)) limit 1;
+      if who is not null then perform priv.err('LEADER_TAKEN', who || ' 친구가 이미 국가 대표예요.'); end if;
+    end if;
+    update priv.students set roles = roles || p_role, is_leader = case when p_role = lead then true else is_leader end where id = me.id;
+  end if;
   perform priv.bump(me.country_id);
   return jsonb_build_object('ok', true);
 end $$;
@@ -1464,8 +1480,8 @@ begin
     'game', jsonb_build_object('phase', g.phase, 'turn', g.turn, 'turn_end', g.turn_end, 'market_open', g.market_open,
       'diplomacy_open', g.diplomacy_open, 'crisis', g.crisis, 'fair_cap', g.fair_cap, 'tariff', g.tariff, 'banned', g.banned,
       'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label),
-    'me', jsonb_build_object('id', me.id, 'name', me.name, 'role', me.role, 'is_leader', me.is_leader),
-    'members', (select coalesce(jsonb_agg(jsonb_build_object('name', s.name, 'role', s.role, 'is_leader', s.is_leader,
+    'me', jsonb_build_object('id', me.id, 'name', me.name, 'roles', me.roles, 'is_leader', me.is_leader),
+    'members', (select coalesce(jsonb_agg(jsonb_build_object('name', s.name, 'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null,
         'online', s.last_seen > now() - interval '60 seconds') order by s.no, s.id), '[]') from priv.students s where s.country_id = co.id),
     'country', jsonb_build_object('id', co.id, 'type', co.type, 'name', priv.cname(co.id), 'flag_url', co.flag_url, 'emblem_url', co.emblem_url,
       'coin', co.coin, 'happy', co.happy, 'income', co.income, 'lux_types', co.lux_types, 'short', co.short, 'techs', co.techs,
@@ -1522,10 +1538,22 @@ end $$;
 -- ---------------------------------------------------------------------
 -- 학생: 행동 (모두 나라 단위로 잠그고 검사)
 -- ---------------------------------------------------------------------
-create or replace function priv.act_start(need_phase int default 1) returns priv.students
+-- 역할: 맡은 친구가 있으면 그 친구만, 아무도 안 맡았으면 누구나 (결석·빈 역할 대비)
+create or replace function priv.need_role(me priv.students, p_role text) returns void
+language plpgsql stable as $$
+begin
+  if p_role is null or p_role = any(me.roles) then return; end if;
+  if exists(select 1 from priv.students s where s.country_id = me.country_id and s.uid is not null and p_role = any(s.roles)) then
+    perform priv.err('ROLE_ONLY', '「' || p_role || '」 역할을 맡은 친구가 할 수 있어요.');
+  end if;
+end $$;
+
+drop function if exists priv.act_start(int);
+create or replace function priv.act_start(need_phase int default 1, need_role text default null) returns priv.students
 language plpgsql as $$
 declare me priv.students := priv.me(); g public.game;
 begin
+  perform priv.need_role(me, need_role);
   select * into g from public.game where id = 1;
   if g.phase < need_phase or g.turn < 1 then perform priv.err('PHASE', '아직 시작 전이에요. 선생님 신호를 기다려 주세요.'); end if;
   if g.locked then perform priv.err('LOCKED', '지금은 회의 시간이라 게임 조작이 멈춰 있어요.'); end if;
@@ -1535,7 +1563,7 @@ end $$;
 
 create or replace function public.worker_build(p_tile int, p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '개척자'); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
 begin
   select * into t from priv.tiles where id = p_tile;
   if not found or t.owner is distinct from me.country_id then perform priv.err('NOT_MINE', '우리 나라 땅에만 개발할 수 있어요.'); end if;
@@ -1560,7 +1588,7 @@ end $$;
 
 create or replace function public.hire_worker(p_city text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); c priv.cities;
+declare me priv.students := priv.act_start(1, '개척자'); c priv.cities;
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시에서만 고용할 수 있어요.'); end if;
@@ -1572,7 +1600,7 @@ end $$;
 
 create or replace function public.city_build(p_city text, p_building text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '건축가'); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
@@ -1592,7 +1620,7 @@ end $$;
 
 create or replace function public.train_unit(p_city text, p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '장군'); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
@@ -1611,7 +1639,7 @@ end $$;
 
 create or replace function public.attack_city(p_city text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; co priv.countries; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '장군'); cfg jsonb := priv.cfg(); c priv.cities; co priv.countries; tn int := priv.turn();
   str int; need int; techmsg text := null; res jsonb; units jsonb;
 begin
   select * into co from priv.countries where id = me.country_id;
@@ -1650,7 +1678,7 @@ end $$;
 -- 정찰: 화면에서 계산한 길(칸 번호 목록)을 받아 한 칸씩 검사
 create or replace function public.scout_move(p_unit int, p_path int[]) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); u priv.units; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '탐험가'); cfg jsonb := priv.cfg(); u priv.units; tn int := priv.turn();
   left_ int; prev int; step int; t priv.tiles; before int; seen int[] := '{}'; disc_before int[]; disc_after int[];
 begin
   select * into u from priv.units where id = p_unit and country = me.country_id and kind = 'scout' for update;
@@ -1680,7 +1708,7 @@ end $$;
 
 create or replace function public.factory_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2); cfg jsonb := priv.cfg(); f jsonb; tp text;
+declare me priv.students := priv.act_start(2, '건축가'); cfg jsonb := priv.cfg(); f jsonb; tp text;
 begin
   tp := priv.ctype(me.country_id);
   f := cfg->'FACTORIES'->p_kind;
@@ -1696,7 +1724,7 @@ end $$;
 
 create or replace function public.advanced_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2); cfg jsonb := priv.cfg(); a jsonb;
+declare me priv.students := priv.act_start(2, '건축가'); cfg jsonb := priv.cfg(); a jsonb;
 begin
   a := cfg->'ADVANCED'->p_kind;
   if a is null then perform priv.err('BAD_KIND', '없는 건물이에요.'); end if;
@@ -1959,7 +1987,7 @@ begin
         'online', (select count(*) from priv.students where country_id = c.id and last_seen > now() - interval '60 seconds')
       ) order by c.id), '[]') from priv.countries c),
     'students', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'country_id', s.country_id, 'no', s.no, 'name', s.name,
-        'role', s.role, 'is_leader', s.is_leader, 'bound', s.uid is not null, 'online', s.last_seen > now() - interval '60 seconds',
+        'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null, 'online', s.last_seen > now() - interval '60 seconds',
         'reflection', (select body from priv.reflections where student_id = s.id)) order by s.country_id, s.no, s.id), '[]') from priv.students s),
     'pairings', (select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'student_id', r.student_id, 'name', s.name, 'country_id', s.country_id,
         'created_at', r.created_at) order by r.id), '[]') from priv.pairing_requests r join priv.students s on s.id = r.student_id where r.status = 'pending'),
@@ -2107,7 +2135,13 @@ language plpgsql security definer set search_path = public, priv as $$
 declare c int;
 begin
   perform priv.need_admin();
-  update priv.students set is_leader = p_on where id = p_student returning country_id into c;
+  select country_id into c from priv.students where id = p_student;
+  if p_on then   -- 국가 대표는 한 나라에 한 명
+    update priv.students set is_leader = false, roles = array_remove(roles, priv.cfg()->'ROLES'->>0) where country_id = c and id <> p_student;
+    update priv.students set is_leader = true, roles = case when (priv.cfg()->'ROLES'->>0) = any(roles) then roles else (priv.cfg()->'ROLES'->>0) || roles end where id = p_student;
+  else
+    update priv.students set is_leader = false, roles = array_remove(roles, priv.cfg()->'ROLES'->>0) where id = p_student;
+  end if;
   perform priv.bump(c);
   return jsonb_build_object('ok', true);
 end $$;
@@ -2299,7 +2333,8 @@ end $$;
 
 -- 처음 설치할 때 게임판 준비 (이미 시작한 게임은 건드리지 않음)
 do $$ begin
-  if not exists(select 1 from priv.units) and (select turn from public.game where id = 1) = 0 then
+  -- 아직 시작 전(0단계, 0턴)이면 새 지도·규칙으로 다시 준비 (명단·나라 이름·국기는 그대로)
+  if (select phase = 0 and turn = 0 from public.game where id = 1) then
     perform priv.init_world();
   end if;
 end $$;

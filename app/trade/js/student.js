@@ -152,7 +152,7 @@
       stat('res', '목재', fmt(inv.wood || 0), 'wood'),
       stat('res', '철광석', fmt(inv.iron || 0), 'iron'),
       h('span', { class: 'stat happy ' + happyClass(co.happy) }, h('span', { class: 'ico face' }), '행복도', h('b', {}, co.happy), h('small', {}, happyWord(co.happy))),
-      S.obs ? obsChip() : h('span', { class: 'me-chip' }, S.st.me.name, S.st.me.is_leader ? h('span', { class: 'lead' }, '국가 대표') : null, S.st.me.role && !S.st.me.is_leader ? h('span', { class: 'lead role' }, S.st.me.role) : null),
+      S.obs ? obsChip() : h('span', { class: 'me-chip' }, S.st.me.name, myRoles().length ? myRoles().map(r => h('span', { class: 'lead' + (r === R.ROLES[0] ? '' : ' role') }, r)) : h('span', { class: 'lead role nohold', onclick: () => go('nation') }, '역할 고르기 →')),
       h('span', { class: 'phase-badge' }, h('span', { class: 'n' }, g.turn ? '턴 ' + g.turn : PHASES[g.phase].name), h('span', { id: 'clock' }, PHASES[g.phase].name)));
     tickClock();
   }
@@ -164,6 +164,12 @@
   }
   // 관전 모드에서는 볼 수만 있음
   function viewOnly() { if (!S.obs) return false; toast('관전 모드에서는 볼 수만 있어요.', 'error'); return true; }
+  // 역할: 맡은 친구가 있으면 그 친구만, 아무도 안 맡았으면 누구나
+  const myRoles = () => (S.st.me.roles || []);
+  const canRole = r => !S.obs && (myRoles().includes(r) || !S.st.members.some(m => m.bound && (m.roles || []).includes(r)));
+  const roleWhy = r => canRole(r) ? '' : (S.obs ? '관전 중' : '「' + r + '」 담당 친구가 해요');
+  const ROLE_IMG = { leader: 'img/city/capital_peninsula.png', spear: 'img/unit/spear.png', market: 'img/bld/market.png', worker: 'img/unit/worker.png', scout: 'img/unit/scout.png' };
+  const roleImg = r => { const k = (R.ROLE_INFO[r] || {}).icon; return k === 'leader' ? 'img/city/' + (R.CITY_ART[S.st ? S.st.country.type : 'K'] || 'capital_peninsula') + '.png' : ROLE_IMG[k]; };
   function stat(kind, label, val, item) {
     const ico = kind === 'coin' ? h('span', { class: 'ico coin' }, 'C') : h('img', { class: 'ico img', src: itemImg(item), alt: '' });
     return h('span', { class: 'stat' }, ico, label, h('b', {}, val));
@@ -225,14 +231,14 @@
     if (S.obs && S.world) {   // 투명한 정찰병: 안개 없이 모든 땅·도시·병력
       const w = S.world;
       const tiles = new Map(w.tiles.map(([id, terrain, res, owner, imp]) => [id, { terrain, res, owner, imp }]));
-      const countries = Object.fromEntries(w.countries.map(c => [c.id, { color: typeColor(c.type), name: c.name, flag_url: c.flag_url }]));
+      const countries = Object.fromEntries(w.countries.map(c => [c.id, { color: typeColor(c.type), type: c.type, name: c.name, flag_url: c.flag_url }]));
       map.setData({ tiles, cities: w.cities, units: w.units.map(u => ({ ...u })), countries, all: true, tintUnits: true });
       return;
     }
     const tiles = new Map(S.mv.tiles.map(([id, terrain, res, owner, imp]) => [id, { terrain, res, owner, imp }]));
-    const countries = Object.fromEntries(S.st.countries.map(c => [c.id, { color: typeColor(c.type), name: c.name, flag_url: c.flag_url }]));
+    const countries = Object.fromEntries(S.st.countries.map(c => [c.id, { color: typeColor(c.type), type: c.type, name: c.name, flag_url: c.flag_url }]));
     const cities = S.mv.cities.map(c => ({ ...c, sea: (S.st.targets.find(t => t.id === c.id) || {}).sea }));
-    map.setData({ tiles, cities, units: S.st.units.map(u => ({ ...u })), countries });
+    map.setData({ tiles, cities, units: S.st.units.map(u => ({ ...u })), countries, myType: S.st.country.type });
   }
   function tileInfo(id) { const t = map.st.tiles.get(id); return t ? { id, ...t } : null; }
   const cityOn = id => S.mv.cities.find(c => c.tile === id);
@@ -269,6 +275,9 @@
     const targets = st.targets, taken = targets.filter(t => t.taken).length;
     side.append(sideHead(S.obs ? st.country.name + ' 한눈에 (관전)' : '우리 나라 한눈에', R.TYPES[st.country.type].desc));
     if (g.phase === 0 || g.turn === 0) side.append(h('div', { class: 'hint' }, '아직 시작 전이에요. 지도를 둘러보고, 국가 대표는 「우리 나라」에서 이름을 정해요.'));
+    if (!S.obs) side.append(myRoles().length
+      ? h('div', { class: 'my-mission' }, h('b', {}, '내 임무'), myRoles().map(r => h('div', { class: 'mm-row' }, h('img', { src: roleImg(r), alt: '' }), h('span', {}, h('i', {}, r), ' ' + R.ROLE_INFO[r].now))))
+      : h('div', { class: 'warn-box' }, '아직 역할이 없어요. 「우리 나라」 탭 아래에서 역할을 골라요.'));
     side.append(h('div', { class: 'todo' },
       todo('노동자', `일할 수 있는 노동자 ${ready} / ${workers}명`, '우리 땅(색칠된 칸)을 눌러 농장·벌목장·광산을 지어요.'),
       todo('도시', `도시 ${st.cities.length}곳`, '도시를 눌러 시장·병영 같은 건물을 지어요. 한 도시는 한 턴에 하나.'),
@@ -276,11 +285,13 @@
       todo('확장', `도시국가 ${taken} / ${targets.length}곳 차지`, taken === targets.length ? '주변 도시국가를 모두 차지했어요!' : '방어력이 낮은 곳부터 차지해요.'),
       scout ? todo('정찰', `이번 턴 이동 ${scout.moves}칸`, '정찰병으로 안개를 걷고 다른 나라를 찾아요.') : null));
     side.append(h('div', { class: 'row' },
-      scout ? h('button', { class: 'sky', disabled: !scout.moves || g.turn < 1, onclick: () => startScout(scout) }, '정찰병 움직이기') : null,
+      scout ? h('button', { class: 'sky', disabled: !scout.moves || g.turn < 1 || !canRole('탐험가'), title: roleWhy('탐험가'), onclick: () => startScout(scout) }, '정찰병 움직이기') : null,
       h('button', { onclick: () => { const t = capitalTile(); S.sel = t; map.select(t); map.centerOn(t); renderSide(); } }, '수도 열기')));
     if (st.country.short && st.country.short.length) side.append(h('div', { class: 'warn-box' }, '부족해요: ' + st.country.short.join(', ')));
   }
-  const todo = (k, a, b) => h('div', { class: 'todo-item' }, h('b', {}, k), h('div', {}, h('div', {}, a), h('small', { class: 'muted' }, b)));
+  const TODO_ROLE = { '노동자': '개척자', '도시': '건축가', '병력': '장군', '확장': '장군', '정찰': '탐험가' };
+  const todo = (k, a, b) => h('div', { class: 'todo-item' + (TODO_ROLE[k] && myRoles().includes(TODO_ROLE[k]) ? ' mine' : '') }, h('b', {}, k),
+    h('div', {}, h('div', {}, a, TODO_ROLE[k] ? h('span', { class: 'role-tag' }, TODO_ROLE[k]) : null), h('small', { class: 'muted' }, b)));
 
   function tileWindow(side, t, city) {
     const st = S.st, mine = t.owner === st.country.id;
@@ -296,7 +307,7 @@
     side.append(h('div', { class: 'card-list' }, opts.map(([k, v]) => {
       const mult = t.terrain === 'jungle' && !st.country.techs.includes('jungle') ? R.JUNGLE_MULT : 1;
       const cost = Object.fromEntries(Object.entries(v.cost).map(([a, b]) => [a, b * mult]));
-      const why = !ready ? '일할 노동자가 없어요' : v.tech && !st.country.techs.includes(v.tech) ? '「' + R.TECHS[v.tech] + '」 기술 필요' : short(cost);
+      const why = roleWhy('개척자') || (!ready ? '일할 노동자가 없어요' : v.tech && !st.country.techs.includes(v.tech) ? '「' + R.TECHS[v.tech] + '」 기술 필요' : short(cost));
       return h('div', { class: 'bcard' }, h('div', { class: 'bcard-img' }, impImg(k, t)),
         h('div', { class: 'bcard-body' }, h('b', {}, v.name), h('small', {}, '비용: ' + costText(cost) + (mult > 1 ? ' (정글이라 2배)' : '')),
           h('small', {}, '매 턴 ' + (v.item ? itemName(v.item) + ' +' + (t.terrain === 'tundra' && k === 'farm' ? R.TUNDRA_FOOD : v.yield) : itemName(t.res) + ' +' + v.yield)),
@@ -332,7 +343,7 @@
       if (c.built) side.append(h('div', { class: 'hint' }, '이 도시는 이번 턴에 건물을 지었어요. 다음 턴에 또 지을 수 있어요.'));
       side.append(h('div', { class: 'card-list' }, Object.entries(R.BUILDINGS).map(([k, b]) => {
         const has = c.buildings.includes(k);
-        const why = has ? '' : c.built ? '이번 턴 건설 끝' : b.tech && !st.country.techs.includes(b.tech) ? '「' + R.TECHS[b.tech] + '」 기술 필요'
+        const why = has ? '' : roleWhy('건축가') ? roleWhy('건축가') : c.built ? '이번 턴 건설 끝' : b.tech && !st.country.techs.includes(b.tech) ? '「' + R.TECHS[b.tech] + '」 기술 필요'
           : b.coastal && !c.coastal ? '바닷가 도시만' : short(b.cost);
         const eff = k === 'market' && R.PRODUCTIVITY[st.country.type] ? '매 턴 코인 +' + R.PRODUCTIVITY[st.country.type].market + ' (우리 도시 안의 시장)' : b.effect;
         return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, bldImg(k)),
@@ -342,14 +353,14 @@
       })));
       side.append(h('div', { class: 'bcard' }, h('div', { class: 'bcard-img' }, h('img', { src: 'img/unit/worker.png' })),
         h('div', { class: 'bcard-body' }, h('b', {}, '노동자 고용'), h('small', {}, '비용: ' + costText(R.HIRE_WORKER)), h('small', {}, '땅을 개발할 일꾼이 늘어나요. 매 턴 식량 1을 먹어요.'),
-          short(R.HIRE_WORKER) ? h('small', { class: 'bad' }, short(R.HIRE_WORKER)) : null),
-        h('button', { class: 'primary small', disabled: !!short(R.HIRE_WORKER) || S.busy, onclick: () => act('hire_worker', [c.id], () => map.floatText(c.tile, '노동자 +1')) }, '고용')));
+          (roleWhy('개척자') || short(R.HIRE_WORKER)) ? h('small', { class: 'bad' }, roleWhy('개척자') || short(R.HIRE_WORKER)) : null),
+        h('button', { class: 'primary small', disabled: !!(roleWhy('개척자') || short(R.HIRE_WORKER)) || S.busy, onclick: () => act('hire_worker', [c.id], () => map.floatText(c.tile, '노동자 +1')) }, '고용')));
     } else if (S.cityTab === 'train') {
       if (!c.buildings.includes('barracks')) side.append(h('div', { class: 'hint' }, '병영이 있어야 병력을 훈련할 수 있어요. 「건설」에서 병영을 지어요.'));
       else if (c.trained) side.append(h('div', { class: 'hint' }, '이 도시는 이번 턴에 이미 훈련했어요.'));
       side.append(h('div', { class: 'card-list' }, Object.entries(R.UNITS).map(([k, u]) => {
         const locked = u.needs && !st.advanced.includes(u.needs);
-        const why = !c.buildings.includes('barracks') ? '병영 필요' : c.trained ? '이번 턴 훈련 끝' : locked ? R.ADVANCED[u.needs].name + ' 필요' : short(u.cost);
+        const why = roleWhy('장군') || (!c.buildings.includes('barracks') ? '병영 필요' : c.trained ? '이번 턴 훈련 끝' : locked ? R.ADVANCED[u.needs].name + ' 필요' : short(u.cost));
         return h('div', { class: 'bcard' }, h('div', { class: 'bcard-img' }, h('img', { src: 'img/unit/' + (k === 'cannon' ? 'artillery' : k) + '.png' })),
           h('div', { class: 'bcard-body' }, h('b', {}, u.name + ' (힘 ' + u.str + ')'), h('small', {}, '비용: ' + costText(u.cost) + ' · 유지비 매 턴 ' + R.UNIT_UPKEEP + '코인'),
             why ? h('small', { class: 'bad' }, why) : null),
@@ -386,7 +397,7 @@
     gain.push(h('div', {}, '매 턴 코인 +' + R.INCOME.city + ', 주변 땅이 우리 영토로'));
     side.append(h('div', { class: 'gain' }, h('b', {}, '차지하면'), ...gain));
     const needHarbor = tg.sea && !st.cities.some(c => c.buildings.includes('harbor'));
-    const why = st.game.turn < 1 ? '아직 시작 전' : st.country.attacked ? '이번 턴에는 이미 공격했어요' : needHarbor ? '바다 건너예요. 항구를 먼저 지어요' : st.strength < tg.def ? '힘이 모자라요 (병력 훈련 필요)' : '';
+    const why = roleWhy('장군') || (st.game.turn < 1 ? '아직 시작 전' : st.country.attacked ? '이번 턴에는 이미 공격했어요' : needHarbor ? '바다 건너예요. 항구를 먼저 지어요' : st.strength < tg.def ? '힘이 모자라요 (병력 훈련 필요)' : '');
     side.append(h('button', { class: 'danger big', disabled: !!why || S.busy, onclick: () => attack(city) }, '공격!'));
     if (why) side.append(h('p', { class: 'bad' }, why));
     side.append(h('small', { class: 'muted' }, '병력의 힘을 모두 더해 방어력 이상이면 차지해요. 공격한 병력은 이번 턴에 쉬어요.'));
@@ -464,6 +475,8 @@
   function nationView(page) {
     const st = S.st, co = st.country, g = st.game;
     const inv = Object.entries(st.inventory).filter(([k, v]) => v > 0 && R.ITEMS[k]);
+    const rolesFirst = !S.obs && (g.phase === 0 || !myRoles().length);   // 처음에는 역할 나누기가 맨 위
+    if (rolesFirst) page.append(membersPanel());
     page.append(h('div', { class: 'grid2' },
       h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '창고', h('small', {}, '매 턴 생산하고, 사치품은 종류마다 1개씩 써요')),
         inv.length ? h('div', { class: 'inv-grid' }, inv.map(([k, v]) => h('div', { class: 'inv' + (R.LUX.includes(k) ? ' lux' : '') }, h('img', { src: itemImg(k) }), h('b', {}, v), h('small', {}, itemName(k))))) : h('p', { class: 'muted' }, '아직 비어 있어요.')),
@@ -479,7 +492,7 @@
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '기술', h('small', {}, '도시국가를 차지하면 기술자가 합류하기도 해요')),
       h('div', { class: 'row' }, co.techs.map(t => h('span', { class: 'chip tech' }, R.TECHS[t])))));
     if (g.phase >= 2) page.append(industryPanel());
-    page.append(h('div', { class: 'grid2' }, setupPanel(), membersPanel()));
+    if (rolesFirst) page.append(setupPanel()); else page.append(membersPanel(), setupPanel());
   }
   function industryPanel() {
     const st = S.st, tp = st.country.type;
@@ -491,14 +504,14 @@
           return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
             h('div', { class: 'bcard-body' }, h('b', {}, f.name), h('small', {}, itemName(f.input) + ' → ' + itemName(f.output) + ' · 가공비 ' + R.PROC_COST[tp][f.output] + '코인/개'),
               has ? h('small', { class: 'good' }, '가동 중') : h('small', {}, '짓는 비용: ' + costText(f.build))),
-            has ? null : h('button', { class: 'primary small', disabled: !!short(f.build) || S.busy, onclick: () => act('factory_build', [k]) }, '짓기'));
+            has ? null : h('button', { class: 'primary small', disabled: !!short(f.build) || !canRole('건축가') || S.busy, title: roleWhy('건축가'), onclick: () => act('factory_build', [k]) }, '짓기'));
         }) : h('p', { class: 'muted' }, '우리 나라 기술로 지을 수 있는 공장이 없어요. 제품은 다른 나라에서 사 와야 해요.'),
         Object.entries(R.ADVANCED).filter(([, a]) => !a.tech || st.country.techs.includes(a.tech)).map(([k, a]) => {
           const has = st.advanced.includes(k);
           return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, a.name)),
             h('div', { class: 'bcard-body' }, h('b', {}, a.name), h('small', {}, (a.econ ? '경제력 +' + a.econ : '') + (a.culture ? '문화력 +' + a.culture : '') + (a.coinPerTurn ? ', 매 턴 코인 +' + a.coinPerTurn : '') + (a.happy ? ', 행복도 +' + a.happy : '') + (a.unlock ? '대포 훈련 가능' : '')),
               has ? h('small', { class: 'good' }, '지었어요') : h('small', {}, '비용: ' + costText(a.cost)), !has && short(a.cost) ? h('small', { class: 'bad' }, short(a.cost)) : null),
-            has ? null : h('button', { class: 'primary small', disabled: !!short(a.cost) || S.busy, onclick: () => act('advanced_build', [k]) }, '짓기'));
+            has ? null : h('button', { class: 'primary small', disabled: !!short(a.cost) || !canRole('건축가') || S.busy, title: roleWhy('건축가'), onclick: () => act('advanced_build', [k]) }, '짓기'));
         })));
   }
   function setupPanel() {
@@ -519,13 +532,23 @@
       h('div', { class: 'row', style: { marginTop: '10px', alignItems: 'flex-start' } }, up('flag_url', '국기', '(가로 3:세로 2)'), up('emblem_url', '왕국 문장', '(정사각형)')));
   }
   function membersPanel() {
-    const st = S.st;
-    const sel = h('select', { id: 'role' }, h('option', { value: '' }, '역할 고르기'), R.ROLES.map(r => h('option', { value: r, selected: st.me.role === r }, r)));
-    sel.addEventListener('change', () => sel.value && act('set_role', [sel.value]));
-    return h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '우리 나라 사람들'),
+    const st = S.st, mine = myRoles(), lead = R.ROLES[0];
+    const holders = r => st.members.filter(m => (m.roles || []).includes(r));
+    return h('div', { class: 'panel roles-panel' }, h('div', { class: 'panel-title' }, '역할 나누기', h('small', {}, '누르면 맡기 / 다시 누르면 내려놓기 · 한 사람 3개까지 · 국가 대표는 한 명')),
+      h('div', { class: 'role-grid' }, R.ROLES.map(r => {
+        const hs = holders(r), on = mine.includes(r), info = R.ROLE_INFO[r];
+        const taken = r === lead && !on && hs.length > 0;
+        return h('button', { class: 'role-card' + (on ? ' on' : '') + (hs.length ? '' : ' empty'), disabled: S.obs || taken || (!on && mine.length >= 3),
+            onclick: () => act('set_role', [r]) },
+          h('span', { class: 'rc-check' }, on ? '✓' : ''),
+          h('img', { src: roleImg(r), alt: '' }),
+          h('b', {}, r),
+          h('small', { class: 'rc-now' }, info.now),
+          h('small', { class: 'rc-later' }, '무역 때: ' + info.later),
+          h('span', { class: 'rc-who' }, hs.length ? hs.map(m => m.name).join(', ') : '아직 없음 (누구나 할 수 있음)'));
+      })),
       h('div', { class: 'members' }, st.members.map(m => h('div', { class: 'member' }, h('span', { class: 'dot ' + (m.online ? 'on' : '') }), m.name,
-        m.is_leader ? h('span', { class: 'chip lead' }, '국가 대표') : null, m.role ? h('small', { class: 'muted' }, m.role) : null))),
-      h('div', { class: 'row', style: { marginTop: '10px' } }, '내 역할', sel));
+        (m.roles || []).map(r => h('span', { class: 'chip ' + (r === lead ? 'lead' : 'tech') }, r))))));
   }
 
   // ================= 외교 =================

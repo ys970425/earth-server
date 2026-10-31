@@ -751,3 +751,27 @@ body.observer .topbar { background: linear-gradient(180deg, #3A2442, #1E1426); }
 .brand .logo-empty { font-weight: 700; color: #fff; text-shadow: 0 2px 0 #000; }
 .board .b-title { color: #FFE7A6; text-shadow: 0 3px 0 #B07A1E, 0 6px 0 #3E2808; }
 .topbar .company { font-weight: 700; color: #FFF0C9; text-shadow: 0 2px 0 #000; }
+/* 역할 나누기 */
+.roles-panel { margin-bottom: 14px; }
+.role-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+@media (max-width: 1000px) { .role-grid { grid-template-columns: repeat(2, 1fr); } }
+.role-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 10px 10px; text-align: center; font-weight: 400;
+  --b-top: #FBF4E1; --b-bot: #E9D9B2; --b-edge: #5A4228; --b-text: #2B2116; }
+.role-card img { height: 64px; width: auto; object-fit: contain; filter: drop-shadow(0 3px 2px rgba(0,0,0,.3)); }
+.role-card b { font-size: 18px; }
+.role-card .rc-now { font-family: var(--font-ui); font-size: 12.5px; line-height: 1.35; color: #3A2716; min-height: 2.7em; }
+.role-card .rc-later { font-family: var(--font-ui); font-size: 11.5px; line-height: 1.3; color: #7A6849; }
+.role-card .rc-who { margin-top: 4px; font-size: 12px; background: rgba(42,28,16,.1); border-radius: 2px; padding: 2px 6px; width: 100%; }
+.role-card.empty .rc-who { color: #9A6F22; }
+.role-card .rc-check { position: absolute; top: 6px; left: 6px; width: 22px; height: 22px; border: 2px solid #2A1C10; background: #FFFBEF; display: grid; place-items: center; font-size: 15px; color: #fff; }
+.role-card.on { --b-top: #FBE09A; --b-bot: #D49B37; --b-edge: #3E2808; box-shadow: inset 0 2px 0 rgba(255,255,255,.55), 0 0 0 2px #2A1C10, 0 0 0 4px #E2B85C, 0 3px 0 #000, 0 0 18px rgba(226,184,92,.5); }
+.role-card.on .rc-check { background: #23784F; }
+.my-mission { background: linear-gradient(180deg, #2C3548, #161C28); color: #F3E3BC; border: 2px solid #000; box-shadow: 0 0 0 1px var(--gold); border-radius: 3px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.my-mission > b { font-family: var(--font-display); color: #FFE7A6; }
+.mm-row { display: flex; gap: 8px; align-items: center; font-size: 13.5px; line-height: 1.35; }
+.mm-row img { width: 34px; height: 34px; object-fit: contain; flex: none; }
+.mm-row i { font-style: normal; font-family: var(--font-display); color: #FFE7A6; }
+.role-tag { margin-left: 6px; font-family: var(--font-display); font-size: 11px; background: #2C3548; color: #F3D489; padding: 0 5px; border-radius: 2px; vertical-align: 1px; }
+.todo-item.mine { background: linear-gradient(180deg, #FFF1CC, #F5DE9E); border-color: #C08A2A; box-shadow: 0 0 0 1px #E2B85C; }
+.me-chip .lead { margin-left: 2px; }
+.me-chip .nohold { cursor: pointer; background: #8E1F2F; color: #FFE9B8; }

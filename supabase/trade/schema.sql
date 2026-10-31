@@ -83,6 +83,8 @@ create table if not exists priv.students (
   last_seen  timestamptz
 );
 
+alter table priv.students add column if not exists roles text[] not null default '{}';
+
 create table if not exists priv.pairing_requests (
   id         serial primary key,
   student_id int not null references priv.students(id) on delete cascade,

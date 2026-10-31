@@ -205,6 +205,10 @@ begin
     select * into cap from priv.cities where kind = 'capital' and type = co.type;
     update priv.cities set country = co.id, taken_turn = 0 where id = cap.id;
     perform priv.claim(co.id, cap.tile_id, 2);
+    -- 도시국가와 그 바로 옆 칸은 처음 국경에서 뺌 (아직 차지하지 않은 중립 도시가 국경 안에 들어가지 않게)
+    update priv.tiles t set owner = null
+     where t.owner = co.id and priv.tdist(t.id, cap.tile_id) >= 2
+       and exists(select 1 from priv.cities c2 where c2.kind = 'cs' and priv.tdist(t.id, c2.tile_id) <= 1);
     -- 우리 나라 주변 도시국가는 처음부터 지도에 보임 (확장 목표)
     perform priv.reveal(co.id, coalesce((select array_agg(x) from priv.cities c2, unnest(priv.within(c2.tile_id, 1)) x
       where c2.kind = 'cs' and c2.type = co.type), '{}'));
@@ -440,10 +444,19 @@ end $$;
 
 create or replace function public.set_role(p_role text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.me();
+declare me priv.students := priv.me(); who text; lead text := (priv.cfg()->'ROLES'->>0);
 begin
   if not (p_role = any(array(select jsonb_array_elements_text(priv.cfg()->'ROLES')))) then perform priv.err('BAD_ROLE', '없는 역할이에요.'); end if;
-  update priv.students set role = p_role where id = me.id;
+  if p_role = any(me.roles) then   -- 다시 누르면 내려놓기
+    update priv.students set roles = array_remove(roles, p_role), is_leader = case when p_role = lead then false else is_leader end where id = me.id;
+  else
+    if cardinality(me.roles) >= 3 then perform priv.err('ROLE_MAX', '역할은 3개까지 맡을 수 있어요.'); end if;
+    if p_role = lead then
+      select name into who from priv.students where country_id = me.country_id and id <> me.id and (is_leader or lead = any(roles)) limit 1;
+      if who is not null then perform priv.err('LEADER_TAKEN', who || ' 친구가 이미 국가 대표예요.'); end if;
+    end if;
+    update priv.students set roles = roles || p_role, is_leader = case when p_role = lead then true else is_leader end where id = me.id;
+  end if;
   perform priv.bump(me.country_id);
   return jsonb_build_object('ok', true);
 end $$;
@@ -480,8 +493,8 @@ begin
     'game', jsonb_build_object('phase', g.phase, 'turn', g.turn, 'turn_end', g.turn_end, 'market_open', g.market_open,
       'diplomacy_open', g.diplomacy_open, 'crisis', g.crisis, 'fair_cap', g.fair_cap, 'tariff', g.tariff, 'banned', g.banned,
       'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label),
-    'me', jsonb_build_object('id', me.id, 'name', me.name, 'role', me.role, 'is_leader', me.is_leader),
-    'members', (select coalesce(jsonb_agg(jsonb_build_object('name', s.name, 'role', s.role, 'is_leader', s.is_leader,
+    'me', jsonb_build_object('id', me.id, 'name', me.name, 'roles', me.roles, 'is_leader', me.is_leader),
+    'members', (select coalesce(jsonb_agg(jsonb_build_object('name', s.name, 'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null,
         'online', s.last_seen > now() - interval '60 seconds') order by s.no, s.id), '[]') from priv.students s where s.country_id = co.id),
     'country', jsonb_build_object('id', co.id, 'type', co.type, 'name', priv.cname(co.id), 'flag_url', co.flag_url, 'emblem_url', co.emblem_url,
       'coin', co.coin, 'happy', co.happy, 'income', co.income, 'lux_types', co.lux_types, 'short', co.short, 'techs', co.techs,
@@ -538,10 +551,22 @@ end $$;
 -- ---------------------------------------------------------------------
 -- 학생: 행동 (모두 나라 단위로 잠그고 검사)
 -- ---------------------------------------------------------------------
-create or replace function priv.act_start(need_phase int default 1) returns priv.students
+-- 역할: 맡은 친구가 있으면 그 친구만, 아무도 안 맡았으면 누구나 (결석·빈 역할 대비)
+create or replace function priv.need_role(me priv.students, p_role text) returns void
+language plpgsql stable as $$
+begin
+  if p_role is null or p_role = any(me.roles) then return; end if;
+  if exists(select 1 from priv.students s where s.country_id = me.country_id and s.uid is not null and p_role = any(s.roles)) then
+    perform priv.err('ROLE_ONLY', '「' || p_role || '」 역할을 맡은 친구가 할 수 있어요.');
+  end if;
+end $$;
+
+drop function if exists priv.act_start(int);
+create or replace function priv.act_start(need_phase int default 1, need_role text default null) returns priv.students
 language plpgsql as $$
 declare me priv.students := priv.me(); g public.game;
 begin
+  perform priv.need_role(me, need_role);
   select * into g from public.game where id = 1;
   if g.phase < need_phase or g.turn < 1 then perform priv.err('PHASE', '아직 시작 전이에요. 선생님 신호를 기다려 주세요.'); end if;
   if g.locked then perform priv.err('LOCKED', '지금은 회의 시간이라 게임 조작이 멈춰 있어요.'); end if;
@@ -551,7 +576,7 @@ end $$;
 
 create or replace function public.worker_build(p_tile int, p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '개척자'); cfg jsonb := priv.cfg(); t priv.tiles; imp jsonb; u priv.units; mult numeric := 1; tn int := priv.turn();
 begin
   select * into t from priv.tiles where id = p_tile;
   if not found or t.owner is distinct from me.country_id then perform priv.err('NOT_MINE', '우리 나라 땅에만 개발할 수 있어요.'); end if;
@@ -576,7 +601,7 @@ end $$;
 
 create or replace function public.hire_worker(p_city text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); c priv.cities;
+declare me priv.students := priv.act_start(1, '개척자'); c priv.cities;
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시에서만 고용할 수 있어요.'); end if;
@@ -588,7 +613,7 @@ end $$;
 
 create or replace function public.city_build(p_city text, p_building text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '건축가'); cfg jsonb := priv.cfg(); c priv.cities; b jsonb; tn int := priv.turn();
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
@@ -608,7 +633,7 @@ end $$;
 
 create or replace function public.train_unit(p_city text, p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '장군'); cfg jsonb := priv.cfg(); c priv.cities; u jsonb; tn int := priv.turn();
 begin
   select * into c from priv.cities where id = p_city and country = me.country_id;
   if not found then perform priv.err('NOT_MINE', '우리 도시가 아니에요.'); end if;
@@ -627,7 +652,7 @@ end $$;
 
 create or replace function public.attack_city(p_city text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); c priv.cities; co priv.countries; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '장군'); cfg jsonb := priv.cfg(); c priv.cities; co priv.countries; tn int := priv.turn();
   str int; need int; techmsg text := null; res jsonb; units jsonb;
 begin
   select * into co from priv.countries where id = me.country_id;
@@ -666,7 +691,7 @@ end $$;
 -- 정찰: 화면에서 계산한 길(칸 번호 목록)을 받아 한 칸씩 검사
 create or replace function public.scout_move(p_unit int, p_path int[]) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(); cfg jsonb := priv.cfg(); u priv.units; tn int := priv.turn();
+declare me priv.students := priv.act_start(1, '탐험가'); cfg jsonb := priv.cfg(); u priv.units; tn int := priv.turn();
   left_ int; prev int; step int; t priv.tiles; before int; seen int[] := '{}'; disc_before int[]; disc_after int[];
 begin
   select * into u from priv.units where id = p_unit and country = me.country_id and kind = 'scout' for update;
@@ -696,7 +721,7 @@ end $$;
 
 create or replace function public.factory_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2); cfg jsonb := priv.cfg(); f jsonb; tp text;
+declare me priv.students := priv.act_start(2, '건축가'); cfg jsonb := priv.cfg(); f jsonb; tp text;
 begin
   tp := priv.ctype(me.country_id);
   f := cfg->'FACTORIES'->p_kind;
@@ -712,7 +737,7 @@ end $$;
 
 create or replace function public.advanced_build(p_kind text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(2); cfg jsonb := priv.cfg(); a jsonb;
+declare me priv.students := priv.act_start(2, '건축가'); cfg jsonb := priv.cfg(); a jsonb;
 begin
   a := cfg->'ADVANCED'->p_kind;
   if a is null then perform priv.err('BAD_KIND', '없는 건물이에요.'); end if;
@@ -975,7 +1000,7 @@ begin
         'online', (select count(*) from priv.students where country_id = c.id and last_seen > now() - interval '60 seconds')
       ) order by c.id), '[]') from priv.countries c),
     'students', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'country_id', s.country_id, 'no', s.no, 'name', s.name,
-        'role', s.role, 'is_leader', s.is_leader, 'bound', s.uid is not null, 'online', s.last_seen > now() - interval '60 seconds',
+        'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null, 'online', s.last_seen > now() - interval '60 seconds',
         'reflection', (select body from priv.reflections where student_id = s.id)) order by s.country_id, s.no, s.id), '[]') from priv.students s),
     'pairings', (select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'student_id', r.student_id, 'name', s.name, 'country_id', s.country_id,
         'created_at', r.created_at) order by r.id), '[]') from priv.pairing_requests r join priv.students s on s.id = r.student_id where r.status = 'pending'),
@@ -1123,7 +1148,13 @@ language plpgsql security definer set search_path = public, priv as $$
 declare c int;
 begin
   perform priv.need_admin();
-  update priv.students set is_leader = p_on where id = p_student returning country_id into c;
+  select country_id into c from priv.students where id = p_student;
+  if p_on then   -- 국가 대표는 한 나라에 한 명
+    update priv.students set is_leader = false, roles = array_remove(roles, priv.cfg()->'ROLES'->>0) where country_id = c and id <> p_student;
+    update priv.students set is_leader = true, roles = case when (priv.cfg()->'ROLES'->>0) = any(roles) then roles else (priv.cfg()->'ROLES'->>0) || roles end where id = p_student;
+  else
+    update priv.students set is_leader = false, roles = array_remove(roles, priv.cfg()->'ROLES'->>0) where id = p_student;
+  end if;
   perform priv.bump(c);
   return jsonb_build_object('ok', true);
 end $$;
@@ -1315,7 +1346,8 @@ end $$;
 
 -- 처음 설치할 때 게임판 준비 (이미 시작한 게임은 건드리지 않음)
 do $$ begin
-  if not exists(select 1 from priv.units) and (select turn from public.game where id = 1) = 0 then
+  -- 아직 시작 전(0단계, 0턴)이면 새 지도·규칙으로 다시 준비 (명단·나라 이름·국기는 그대로)
+  if (select phase = 0 and turn = 0 from public.game where id = 1) then
     perform priv.init_world();
   end if;
 end $$;

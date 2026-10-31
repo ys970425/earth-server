@@ -65,6 +65,10 @@ await shot(A, '03-map-before');
 // 나라 이름
 await A.click('.nav >> text=우리 나라'); await wait(500);
 await A.fill('#cname', '푸른반도'); await A.click('text=이름 저장'); await wait(800);
+await A.click('.role-card:has-text("개척자")'); await wait(700);
+await A.click('.role-card:has-text("건축가")'); await wait(700);
+ok((await one(`select roles from priv.students where name = '학생1'`)).roles.length === 3, 'UI: 역할 고르기 (대표+개척자+건축가)');
+ok(await A.$eval('.role-card:has-text("장군")', b => b.disabled), 'UI: 3개 넘으면 더 못 고름');
 await shot(A, '04-nation');
 await A.click('.nav >> text=지도'); await wait(800);
 

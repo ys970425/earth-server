@@ -3,11 +3,11 @@ export const W = 32, H = 22;
 
 // 나라 6유형 (화면에는 학생이 정한 이름이 나옴)
 export const COUNTRIES = {
-  K: { type: '반도의 나라', model: '한국', capital: [16, 9], techs: ['steelmaking', 'refining', 'chipmaking', 'shipbuilding', 'internet'],
+  K: { type: '반도의 용', model: '한국', capital: [16, 9], techs: ['steelmaking', 'refining', 'chipmaking', 'shipbuilding', 'internet'],
        capitalRes: [] },
-  J: { type: '섬의 나라', model: '일본', capital: [21, 9], techs: ['metalcraft', 'rubberwork', 'munitions', 'tourism', 'shipbuilding', 'chipmaking'],
+  J: { type: '파도의 섬왕국', model: '일본', capital: [21, 9], techs: ['metalcraft', 'rubberwork', 'munitions', 'tourism', 'shipbuilding', 'chipmaking'],
        capitalRes: [] },
-  C: { type: '대륙의 공장', model: '중국', capital: [8, 10], techs: ['textile', 'steelmaking', 'woodwork'],
+  C: { type: '대륙의 제국', model: '중국', capital: [8, 10], techs: ['textile', 'steelmaking', 'woodwork'],
        capitalRes: ['iron', 'cotton'] },
   A: { type: '신대륙의 강국', model: '미국', capital: [28, 10], techs: ['oil_drill', 'refining', 'nuclear', 'satellite', 'internet', 'chipmaking', 'textile'],
        capitalRes: ['oil', 'cotton'] },
@@ -21,6 +21,7 @@ export const COUNTRIES = {
 export const CITYSTATES = [
   { id: 'K1', name: '소나무골', owner: 'K', at: [16, 7], def: 5, res: [] },
   { id: 'K2', name: '푸른나루', owner: 'K', at: [16, 11], def: 10, res: [] },
+  { id: 'K4', name: '솔바람재', owner: 'K', at: [12, 6], def: 12, res: [] },   // 대륙과 북방 사이 고갯마루
   { id: 'K3', name: '물새섬', owner: 'K', at: [18, 13], def: 15, res: [], sea: true },
   { id: 'J1', name: '안개곶', owner: 'J', at: [21, 7], def: 5, res: ['copper'] },
   { id: 'J2', name: '붉은항', owner: 'J', at: [21, 11], def: 10, res: [] },
@@ -57,6 +58,7 @@ const LAND = [
   { z: 'C', r: [10, 5, 14, 6] },          // 대륙과 북방 사이 땅
   { z: 'K', r: [15, 6, 17, 11] }, { z: 'K', r: [14, 6, 14, 7] },
   { z: 'K', r: [18, 13, 18, 13] },        // 반도 앞바다 섬
+  { z: 'K', r: [11, 6, 13, 6] },          // 솔바람재 고개 (반도 북서쪽 땅)
   { z: 'J', e: [21.3, 9, 1.4, 3.3] }, { z: 'J', r: [24, 13, 24, 13] },
   { z: 'T', e: [11, 17.6, 5.2, 2.8] }, { z: 'T', r: [15, 18, 16, 19] },
   { z: 'A', e: [28, 10.5, 3.2, 7.2] }

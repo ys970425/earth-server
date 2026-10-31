@@ -108,11 +108,11 @@
 
   // 나라 유형 (모둠 번호 → 유형은 관제실에서 정함)
   R.TYPES = {
-    K: { name: '반도의 나라', color: '#2F6FE0', techs: ['steelmaking', 'refining', 'chipmaking', 'shipbuilding', 'internet'],
+    K: { name: '반도의 용', color: '#2F6FE0', techs: ['steelmaking', 'refining', 'chipmaking', 'shipbuilding', 'internet'],
          like: '한국', desc: '땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요.' },
-    J: { name: '섬의 나라', color: '#E0463C', techs: ['metalcraft', 'rubberwork', 'munitions', 'tourism', 'shipbuilding', 'chipmaking'],
+    J: { name: '파도의 섬왕국', color: '#E0463C', techs: ['metalcraft', 'rubberwork', 'munitions', 'tourism', 'shipbuilding', 'chipmaking'],
          like: '일본', desc: '바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요.' },
-    C: { name: '대륙의 공장', color: '#F29A2E', techs: ['textile', 'steelmaking', 'woodwork'],
+    C: { name: '대륙의 제국', color: '#F29A2E', techs: ['textile', 'steelmaking', 'woodwork'],
          like: '중국', desc: '넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요.' },
     A: { name: '신대륙의 강국', color: '#8A4FD8', techs: ['oil_drill', 'refining', 'nuclear', 'satellite', 'internet', 'chipmaking', 'textile'],
          like: '미국', desc: '넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요.' },
@@ -127,7 +127,15 @@
   R.CITY_ANCHOR = 0.83;
   R.DEFAULT_TYPES = { 1: 'K', 2: 'J', 3: 'C', 4: 'A', 5: 'N', 6: 'T' };
 
-  R.ROLES = ['국가 대표', '도시·내정', '군사·정찰', '자원·생산', '기록관'];
+  // 모둠 역할 5개 (한 사람이 3개까지, 국가 대표는 한 명). 맡은 친구가 있으면 그 친구만 그 버튼을 누를 수 있어요.
+  R.ROLES = ['국가 대표', '장군', '건축가', '개척자', '탐험가'];
+  R.ROLE_INFO = {
+    '국가 대표': { icon: 'leader', now: '나라 이름·국기 정하기, 모둠 회의 이끌기, 다른 나라와 외교', later: '무역 제안 최종 승인, 조약 서명' },
+    '장군': { icon: 'spear', now: '병력 훈련, 도시국가 공격', later: '무역 사절: 다른 나라에 거래 제안 보내기' },
+    '건축가': { icon: 'market', now: '도시 건물·공장·발전 건물 짓기', later: '공장 가동, 무엇을 만들어 팔지 정하기' },
+    '개척자': { icon: 'worker', now: '노동자로 땅 개발(농장·광산…), 노동자 고용', later: '창고 관리, 모자란 자원 찾아 수입 요청' },
+    '탐험가': { icon: 'scout', now: '정찰병으로 다른 나라 찾기', later: '시장 조사: 기준가·생산비 비교' }
+  };
 
   R.PHASES = [
     { n: 0, name: '건국', desc: '나라 이름을 정하고 지도를 살펴봐요.' },

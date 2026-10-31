@@ -218,7 +218,7 @@
           h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: g.require_approval, onchange: e => act('admin_flags', [{ require_approval: e.target.checked }]) }), '새 기기 연결 시 교사 승인'))),
       h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '학생', h('small', {}, '국가 대표를 정해 주세요 (이름·국기·조약 담당)')),
         h('table', { class: 'tbl' }, st.students.map(s => h('tr', {},
-          h('td', {}, s.country_id + '모둠'), h('td', {}, s.name), h('td', {}, s.role || ''), h('td', {}, s.bound ? (s.online ? '접속 중' : '연결됨') : '-'),
+          h('td', {}, s.country_id + '모둠'), h('td', {}, s.name), h('td', {}, (s.roles || []).join(', ')), h('td', {}, s.bound ? (s.online ? '접속 중' : '연결됨') : '-'),
           h('td', {}, h('button', { class: 'small ' + (s.is_leader ? 'gold' : ''), onclick: () => act('admin_set_leader', [s.id, !s.is_leader]) }, s.is_leader ? '국가 대표' : '대표로')),
           h('td', {}, s.bound ? h('button', { class: 'small', onclick: () => confirm(s.name + ' 연결을 초기화할까요?') && act('admin_reset_binding', [s.id], '연결 초기화') }, '연결 초기화') : null)))))));
   }
