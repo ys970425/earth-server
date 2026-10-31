@@ -268,8 +268,14 @@
     nav.append(...tabs.map(([k, label]) => h('button', { class: S.view === k ? 'on' : '', 'data-v': k, onclick: () => go(k) }, h('span', { class: 'dot' }), label,
       k === 'trade' && pendingIn() ? h('span', { class: 'badge' }, pendingIn()) : null,
       k === 'diplo' && g.diplomacy_open ? null : null)),
+      S.st.game.test_mode && (!S.obs || S.ctl) ? h('button', { class: 'small danger test-btn', title: '테스트용: 모든 나라가 연구·개발을 끝낸 상태로', onclick: testEndgame }, '최종 성장 모드 (테스트)') : null,
       h('span', { class: 'credit-nav' }, '제작 · 조영산'),
       S.obs ? h('a', { href: 'admin.html', class: 'leave' }, h('button', { class: 'ghost small' }, '관제실로')) : h('button', { class: 'ghost small leave', onclick: leave }, '나가기'));
+  }
+  async function testEndgame() {
+    if (!confirm('[테스트] 모든 나라가 기술을 다 연구하고, 가장 강한 도시국가 하나만 남기고 모두 차지하고, 땅·건물·공장을 모두 지은 상태가 돼요. 세계 시장도 열려요. 되돌릴 수 없어요(관제실 초기화로만). 할까요?')) return;
+    try { const r = await rpc('test_endgame'); toast('최종 성장 모드! 도시국가 ' + r.captured + '곳을 차지했어요. 이제 무역해 보세요.'); Sound.play('win'); await refresh(true); }
+    catch (e) { toast(e.message, 'error'); }
   }
   const pendingIn = () => S.st.offers.filter(o => o.to_c === S.st.country.id && o.status === 'pending').length;
   function go(v) { S.view = v; S.mode = null; S.unit = null; renderNav(); renderPage(); }
@@ -358,7 +364,7 @@
   function overview(side) {
     const st = S.st, g = st.game, ready = st.units.filter(u => u.kind === 'worker' && !u.acted).length;
     const workers = st.units.filter(u => u.kind === 'worker').length;
-    const scout = st.units.find(u => u.kind === 'scout');
+    const scouts = st.units.filter(u => u.kind === 'scout'), scout = scouts.find(u => u.moves > 0) || scouts[0];
     const army = st.units.filter(u => u.kind !== 'worker' && u.kind !== 'scout');
     const mine = st.targets.filter(t => t.mine), taken = mine.filter(t => t.owner === st.country.id).length;
     side.append(sideHead(S.obs ? st.country.name + ' 한눈에' + (S.ctl ? ' (체험 조작)' : ' (관전)') : '우리 나라 한눈에', R.TYPES[st.country.type].desc));
@@ -371,7 +377,7 @@
       todo('도시', `도시 ${st.cities.length}곳`, '도시를 눌러 시장·병영 같은 건물을 지어요. 한 도시는 한 턴에 하나.'),
       todo('병력', `병력 ${army.length}부대 · 움직일 수 있는 ${army.filter(u => u.moves > 0).length}부대`, '지도에서 병력을 눌러 골라요 → 노란 칸으로 이동, 붉은 도시국가를 공격.'),
       todo('확장', `우리 쪽 도시국가 ${taken} / ${mine.length}곳 차지`, '다른 나라 쪽 도시국가와 바다 건너 요새도 차지할 수 있어요.'),
-      scout ? todo('정찰', `이번 턴 이동 ${scout.moves}칸`, '정찰병으로 안개를 걷고 다른 나라를 찾아요. 바다에선 배로 바뀌어요.') : null));
+      scouts.length ? todo('정찰', `정찰병 ${scouts.length}명 · 움직일 수 있는 ${scouts.filter(u => u.moves > 0).length}명`, '정찰병을 여러 방향으로 보내 다른 나라를 빨리 찾아요. 바다에선 배로 바뀌어요.') : null));
     side.append(h('div', { class: 'row' },
       scout ? h('button', { id: 'btn-scout', class: 'sky' + off('과학기술부 장관'), disabled: !scout.moves || g.turn < 1 || !canRole('과학기술부 장관'), title: roleWhy('과학기술부 장관'), onclick: () => pickUnit(scout) }, '정찰병 움직이기') : null,
       army.length ? h('button', { id: 'btn-army', class: 'danger' + off('국방부 장관'), disabled: g.turn < 1, onclick: () => pickUnit(army.find(u => !unitDone(u)) || army[0]) }, '병력 고르기') : null,
@@ -379,6 +385,7 @@
     if (st.country.short && st.country.short.length) side.append(h('div', { class: 'warn-box' }, '부족해요: ' + st.country.short.join(', ')));
     if (st.country.crisis) side.append(h('div', { class: 'warn-box' }, '성장의 한계: 시민들이 사치품 2종류·강철·연료를 원해요. 무역으로 구해요!'));
     if (canRole('국방부 장관') && g.turn >= 1) side.append(armyList(null));
+    if (canRole('과학기술부 장관') && g.turn >= 1) side.append(armyList(null, true));
   }
   const TODO_ROLE = { '노동자': '국토부 장관', '도시': '기획부 장관', '병력': '국방부 장관', '확장': '국방부 장관', '정찰': '과학기술부 장관' };
   const todo = (k, a, b) => h('div', { class: 'todo-item' + (TODO_ROLE[k] && myRoles().includes(TODO_ROLE[k]) ? ' mine' : '') }, h('b', {}, k),
@@ -538,14 +545,14 @@
     return false;
   }
   // 병력 목록: 할 수 있는 병력은 밝게, 끝난 병력은 어둡게
-  function armyList(cur) {
-    const army = armyOf(); if (!army.length) return null;
-    return h('div', { class: 'army-list' }, h('div', { class: 'al-head' }, '우리 병력 ', h('small', {}, army.filter(u => !unitDone(u)).length + ' / ' + army.length + '부대 움직일 수 있어요')),
+  function armyList(cur, scouts) {
+    const army = scouts ? S.st.units.filter(u => u.kind === 'scout') : armyOf(); if (!army.length) return null;
+    return h('div', { class: 'army-list' }, h('div', { class: 'al-head' }, scouts ? '우리 정찰병 ' : '우리 병력 ', h('small', {}, army.filter(u => !unitDone(u)).length + ' / ' + army.length + (scouts ? '명' : '부대') + ' 움직일 수 있어요')),
       army.map(u => {
         const done = unitDone(u), info = R.UNITS[u.kind] || {};
         return h('button', { class: 'al-row' + (done ? ' done' : '') + (cur && cur.id === u.id ? ' cur' : ''), disabled: done, onclick: () => pickUnit(u) },
           h('img', { src: unitImg(u.kind), alt: '' }),
-          h('span', { class: 'al-name' }, info.name, h('small', {}, done ? '이번 턴 끝' : (u.moves ? '이동 ' + u.moves + '칸' : '') + (attackable(u).length ? ' · 공격 가능' : ''))),
+          h('span', { class: 'al-name' }, info.name || unitName(u.kind), h('small', {}, done ? '이번 턴 끝' : (u.moves ? '이동 ' + u.moves + '칸' : '') + (attackable(u).length ? ' · 공격 가능' : ''))),
           h('i', { class: 'al-hp' }, h('b', { style: { width: u.hp + '%', background: u.hp > 60 ? '#4FD06A' : u.hp > 30 ? '#F2B530' : '#E8443C' } })));
       }));
   }
@@ -570,7 +577,7 @@
           h('small', { class: pv.dies ? 'bad' : '' }, '예상: 도시 -' + pv.dc + ' · 우리 -' + pv.du + (pv.dies ? ' (쓰러질 수 있어요!)' : pv.capture ? ' → 점령!' : ''))),
         h('button', { class: 'danger small', disabled: !can || S.busy, onclick: () => attack(u, c) }, '공격'));
     })));
-    if (u.kind !== 'scout') side.append(armyList(u));
+    side.append(armyList(u, u.kind === 'scout'));
   }
   // 전투 미리보기 (서버와 같은 식)
   function preview(u, c) {
