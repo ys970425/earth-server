@@ -193,6 +193,9 @@ begin
     select * into cap from priv.cities where kind = 'capital' and type = co.type;
     update priv.cities set country = co.id, taken_turn = 0 where id = cap.id;
     perform priv.claim(co.id, cap.tile_id, 2);
+    -- 우리 나라 주변 도시국가는 처음부터 지도에 보임 (확장 목표)
+    perform priv.reveal(co.id, coalesce((select array_agg(x) from priv.cities c2, unnest(priv.within(c2.tile_id, 1)) x
+      where c2.kind = 'cs' and c2.type = co.type), '{}'));
     insert into priv.units(country, kind, tile_id) values (co.id, 'worker', cap.tile_id), (co.id, 'scout', cap.tile_id), (co.id, 'spear', cap.tile_id);
   end loop;
   perform priv.check_discovery();
@@ -1001,13 +1004,16 @@ begin
 end $$;
 
 -- 다음 턴: 이번 턴 정산 후 턴 번호 +1
-create or replace function public.admin_next_turn() returns jsonb
+drop function if exists public.admin_next_turn();
+create or replace function public.admin_next_turn(p_from int default null) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
 declare g public.game;
 begin
   perform priv.need_admin();
   select * into g from public.game where id = 1 for update;
   if g.phase < 1 or g.turn < 1 then perform priv.err('PHASE', '먼저 1단계 「나라 키우기」를 시작해 주세요.'); end if;
+  -- 자동 넘김이 두 번 겹치지 않게: 화면이 알던 턴과 다르면 그냥 둠
+  if p_from is not null and p_from <> g.turn then return jsonb_build_object('ok', true, 'turn', g.turn, 'skipped', true); end if;
   perform priv.end_turn();
   update priv.offers set status = 'expired', decided_at = now() where status = 'pending';
   update public.game set turn = turn + 1, turn_end = case when auto_turn > 0 then now() + make_interval(secs => auto_turn) end,

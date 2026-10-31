@@ -1,2 +1,4 @@
 node_modules/
 tests/e2e/shots/
+node_modules
+tests/trade/shots/
