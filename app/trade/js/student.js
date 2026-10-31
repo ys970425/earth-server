@@ -367,7 +367,7 @@
   }
   // 건물 그림 (GPT 그림): 도시 건물·공장·발전 건물
   const BLD_ART = { market: 'market', barracks: 'barracks', harbor: 'harbor', granary: 'granary', plaza: 'plaza',
-    steelworks: 'steelworks', refinery: 'steelmill', chipfab: 'lab', textilemill: 'tradepost', rubberplant: 'tankfactory', workshop: 'forge',
+    steelworks: 'steelworks', refinery: 'refinery', chipfab: 'chipfab', textilemill: 'textilemill', rubberplant: 'rubberplant', workshop: 'goldsmith',
     industrial: 'shipyard', electronics: 'market2', theater: 'palace', netcenter: 'lab', satcenter: 'airfield', arsenal: 'barracks2' };
   function bldImg(k, alt) {
     return BLD_ART[k] ? h('img', { src: 'img/bld/' + BLD_ART[k] + '.png', alt: alt || '' }) : null;
