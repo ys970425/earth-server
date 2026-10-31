@@ -32,7 +32,7 @@
     attack_city: ['p_city'], scout_move: ['p_unit', 'p_path'], factory_build: ['p_kind'], advanced_build: ['p_kind'],
     offer_create: ['p_to', 'p_give_item', 'p_give_qty', 'p_get_item', 'p_get_qty'], offer_cancel: ['p_offer'], offer_respond: ['p_offer', 'p_accept'],
     treaty_submit: ['p_focus', 'p_problem', 'p_promise', 'p_reason'], reflection_submit: ['p_body'],
-    admin_login: ['p_pw'], admin_next_turn: ['p_from'], admin_set_phase: ['p_target'], admin_force_phase: ['p_target'], admin_auto_turn: ['p_seconds'], admin_timer: ['p_seconds', 'p_label'],
+    admin_login: ['p_pw'], admin_observe: ['p_country'], admin_next_turn: ['p_from'], admin_set_phase: ['p_target'], admin_force_phase: ['p_target'], admin_auto_turn: ['p_seconds'], admin_timer: ['p_seconds', 'p_label'],
     admin_flags: ['p'], admin_set_type: ['p_country', 'p_type'], admin_roster_import: ['p_rows'], admin_set_leader: ['p_student', 'p_on'],
     admin_reset_binding: ['p_student'], admin_approve: ['p_request'], admin_approve_group: ['p_country'], admin_reject: ['p_request'],
     admin_grant: ['p_country', 'p_items', 'p_reason'], admin_relief: ['p_country'], admin_turn_help: ['p_country'], admin_explore_help: ['p_country'],

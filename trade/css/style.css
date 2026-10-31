@@ -566,6 +566,12 @@ canvas.hexmap { width: 100%; height: 100%; display: block; touch-action: none; c
 .ov-flag img, .ov-flag .none { width: 120px; height: 80px; object-fit: cover; border: 4px solid #fff; border-radius: 8px; }
 .ov-flag .none { display: grid; place-items: center; background: var(--gc); font-family: var(--font-display); font-size: 36px; }
 .capture-pic { width: 200px; display: block; margin: 0 auto -6px; animation: flagin .5s ease-out; }
+.board-link + .board-link { margin-left: 14px; }
+.me-chip.obs { gap: 6px; } .obs-sel { padding: 4px 8px; border-radius: 10px; border: 2px solid var(--line); font: inherit; font-size: 15px; }
+body.observer .topbar { background: linear-gradient(180deg, #3B2A6E, #22184A); }
+.city-blds { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
+.bld-mini { display: flex; flex-direction: column; align-items: center; font-size: 11px; }
+.bld-mini img { width: 54px !important; }
 .img-fb { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; padding: 4px 6px; border-radius: 12px; background: var(--paper-2); border: 2px solid var(--line); font-family: var(--font-display); font-size: 13px; line-height: 1.1; text-align: center; color: var(--ink); }
 .board.tb .b-gauge { padding: 10px 16px; }
 @keyframes flagin { from { opacity: 0; transform: translateY(30px) scale(.8); } to { opacity: 1; transform: none; } }

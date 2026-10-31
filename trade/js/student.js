@@ -12,6 +12,15 @@
   async function start() {
     root.innerHTML = '<div class="entry"><p>지구 서버에 접속하는 중…</p></div>';
     try { await ensureSession(); } catch (e) { root.innerHTML = ''; root.appendChild(h('div', { class: 'entry' }, h('p', {}, e.message))); return; }
+    // 선생님 관전 모드: index.html?observe (관제실에서 로그인한 기기만)
+    const q = new URLSearchParams(location.search);
+    if (q.has('observe')) {
+      const a = await rpc('admin_check').catch(() => ({ admin: false }));
+      if (!a.admin) { entryShell(h('h1', {}, '관전 모드'), h('p', { class: 'sub' }, '관제실에서 먼저 로그인해 주세요.'), h('a', { href: 'admin.html' }, h('button', { class: 'primary' }, '관제실로'))); return; }
+      S.obs = +q.get('observe') || 1; S.me = { status: 'observer' };
+      document.body.classList.add('observer');
+      return main();
+    }
     const me = await rpc('get_me');
     if (me.status === 'joined') { S.me = me; return main(); }
     if (me.status === 'pending') return waiting();
@@ -52,14 +61,16 @@
   async function main() {
     root.innerHTML = '';
     await refresh(true);
-    subscribe({ game: refreshSoon, tick: t => { if (!S.st || t.country_id === S.st.country.id) refreshSoon(); }, notice: n => { if (!n.country || (S.st && n.country === S.st.country.id)) noticeToast(n); } });
+    subscribe({ game: refreshSoon, tick: t => { if (S.obs || !S.st || t.country_id === S.st.country.id) refreshSoon(); }, notice: n => { if (!n.country || S.obs || (S.st && n.country === S.st.country.id)) noticeToast(n); } });
     setInterval(() => refresh(false), 15000);
     setInterval(tickClock, 1000);
   }
   const refreshSoon = debounce(() => refresh(false), 350);
   async function refresh(first) {
     try {
-      const [st, mv] = await Promise.all([rpc('my_state'), rpc('map_view')]);
+      let st, mv;
+      if (S.obs) { const r = await rpc('admin_observe', S.obs); st = r.state; mv = r.map; S.world = r.world; }
+      else [st, mv] = await Promise.all([rpc('my_state'), rpc('map_view')]);
       const prevPhase = S.st && S.st.game.phase;
       S.st = st; S.mv = mv;
       if (st.now) S.offset = new Date(st.now).getTime() - Date.now();
@@ -97,10 +108,18 @@
       stat('res', '목재', fmt(inv.wood || 0), 'wood'),
       stat('res', '철광석', fmt(inv.iron || 0), 'iron'),
       h('span', { class: 'stat happy ' + happyClass(co.happy) }, h('span', { class: 'ico face' }), '행복도', h('b', {}, co.happy), h('small', {}, happyWord(co.happy))),
-      h('span', { class: 'me-chip' }, S.st.me.name, S.st.me.is_leader ? h('span', { class: 'lead' }, '국가 대표') : null, S.st.me.role && !S.st.me.is_leader ? h('span', { class: 'lead role' }, S.st.me.role) : null),
+      S.obs ? obsChip() : h('span', { class: 'me-chip' }, S.st.me.name, S.st.me.is_leader ? h('span', { class: 'lead' }, '국가 대표') : null, S.st.me.role && !S.st.me.is_leader ? h('span', { class: 'lead role' }, S.st.me.role) : null),
       h('span', { class: 'phase-badge' }, h('span', { class: 'n' }, g.turn ? '턴 ' + g.turn : PHASES[g.phase].name), h('span', { id: 'clock' }, PHASES[g.phase].name)));
     tickClock();
   }
+  // 관전: 어느 나라 화면을 볼지 고르기 (지도는 언제나 온 세상)
+  function obsChip() {
+    const sel = h('select', { class: 'obs-sel', onchange: () => { S.obs = +sel.value; S.sel = null; history.replaceState(null, '', '?observe=' + S.obs); refresh(true); } },
+      (S.world ? S.world.countries : S.st.countries).map(c => h('option', { value: c.id, selected: c.id === S.obs }, c.id + '. ' + c.name)));
+    return h('span', { class: 'me-chip obs' }, h('span', { class: 'lead' }, '관전'), sel);
+  }
+  // 관전 모드에서는 볼 수만 있음
+  function viewOnly() { if (!S.obs) return false; toast('관전 모드에서는 볼 수만 있어요.', 'error'); return true; }
   function stat(kind, label, val, item) {
     const ico = kind === 'coin' ? h('span', { class: 'ico coin' }, 'C') : h('img', { class: 'ico img', src: itemImg(item), alt: '' });
     return h('span', { class: 'stat' }, ico, label, h('b', {}, val));
@@ -121,7 +140,7 @@
     nav.append(...tabs.map(([k, label]) => h('button', { class: S.view === k ? 'on' : '', onclick: () => go(k) }, h('span', { class: 'dot' }), label,
       k === 'trade' && pendingIn() ? h('span', { class: 'badge' }, pendingIn()) : null,
       k === 'diplo' && g.diplomacy_open ? null : null)),
-      h('button', { class: 'ghost small leave', onclick: leave }, '나가기'));
+      S.obs ? h('a', { href: 'admin.html', class: 'leave' }, h('button', { class: 'ghost small' }, '관제실로')) : h('button', { class: 'ghost small leave', onclick: leave }, '나가기'));
   }
   const pendingIn = () => S.st.offers.filter(o => o.to_c === S.st.country.id && o.status === 'pending').length;
   function go(v) { S.view = v; S.mode = null; renderNav(); renderPage(); }
@@ -159,6 +178,13 @@
   const capitalTile = () => { const c = S.st.cities.find(x => x.kind === 'capital'); return c ? c.tile : -1; };
   function updateMap() {
     if (!map || !S.mv) return;
+    if (S.obs && S.world) {   // 투명한 정찰병: 안개 없이 모든 땅·도시·병력
+      const w = S.world;
+      const tiles = new Map(w.tiles.map(([id, terrain, res, owner, imp]) => [id, { terrain, res, owner, imp }]));
+      const countries = Object.fromEntries(w.countries.map(c => [c.id, { color: typeColor(c.type), name: c.name, flag_url: c.flag_url }]));
+      map.setData({ tiles, cities: w.cities, units: w.units.map(u => ({ ...u })), countries, all: true, tintUnits: true });
+      return;
+    }
     const tiles = new Map(S.mv.tiles.map(([id, terrain, res, owner, imp]) => [id, { terrain, res, owner, imp }]));
     const countries = Object.fromEntries(S.st.countries.map(c => [c.id, { color: typeColor(c.type), name: c.name, flag_url: c.flag_url }]));
     const cities = S.mv.cities.map(c => ({ ...c, sea: (S.st.targets.find(t => t.id === c.id) || {}).sea }));
@@ -197,7 +223,7 @@
     const workers = st.units.filter(u => u.kind === 'worker').length;
     const scout = st.units.find(u => u.kind === 'scout');
     const targets = st.targets, taken = targets.filter(t => t.taken).length;
-    side.append(sideHead('우리 나라 한눈에', R.TYPES[st.country.type].desc));
+    side.append(sideHead(S.obs ? st.country.name + ' 한눈에 (관전)' : '우리 나라 한눈에', R.TYPES[st.country.type].desc));
     if (g.phase === 0 || g.turn === 0) side.append(h('div', { class: 'hint' }, '아직 시작 전이에요. 지도를 둘러보고, 국가 대표는 「우리 나라」에서 이름을 정해요.'));
     side.append(h('div', { class: 'todo' },
       todo('노동자', `일할 수 있는 노동자 ${ready} / ${workers}명`, '우리 땅(색칠된 칸)을 눌러 농장·벌목장·광산을 지어요.'),
@@ -254,7 +280,7 @@
     const st = S.st, cap = c.kind === 'capital';
     side.append(sideHead(cap ? st.country.name + ' 수도' : c.name, (cap ? '수도' : '도시') + (c.unrest ? ' · 불안 (생산 멈춤)' : ''), back));
     side.append(h('div', { class: 'city-pic' }, h('img', { src: cityArt(c, cap ? 'capital' : 'port') }),
-      h('div', { class: 'city-blds' }, c.buildings.map(b => h('span', { class: 'chip bld' }, R.BUILDINGS[b].name)))));
+      h('div', { class: 'city-blds' }, c.buildings.map(b => h('span', { class: 'bld-mini', title: R.BUILDINGS[b].name }, bldImg(b, R.BUILDINGS[b].name), h('small', {}, R.BUILDINGS[b].name))))));
     const tabs = h('div', { class: 'subtabs' }, [['build', '건설'], ['train', '병력 훈련'], ['info', '도시 정보']].map(([k, l]) =>
       h('button', { class: 'small ' + (S.cityTab === k ? 'gold' : ''), onclick: () => { S.cityTab = k; renderSide(); } }, l)));
     side.append(tabs);
@@ -280,7 +306,7 @@
       side.append(h('div', { class: 'card-list' }, Object.entries(R.UNITS).map(([k, u]) => {
         const locked = u.needs && !st.advanced.includes(u.needs);
         const why = !c.buildings.includes('barracks') ? '병영 필요' : c.trained ? '이번 턴 훈련 끝' : locked ? R.ADVANCED[u.needs].name + ' 필요' : short(u.cost);
-        return h('div', { class: 'bcard' }, h('div', { class: 'bcard-img' }, h('img', { src: 'img/unit/' + (k === 'cannon' ? 'catapult' : k) + '.png' })),
+        return h('div', { class: 'bcard' }, h('div', { class: 'bcard-img' }, h('img', { src: 'img/unit/' + (k === 'cannon' ? 'artillery' : k) + '.png' })),
           h('div', { class: 'bcard-body' }, h('b', {}, u.name + ' (힘 ' + u.str + ')'), h('small', {}, '비용: ' + costText(u.cost) + ' · 유지비 매 턴 ' + R.UNIT_UPKEEP + '코인'),
             why ? h('small', { class: 'bad' }, why) : null),
           h('button', { class: 'primary small', disabled: !!why || S.busy, onclick: () => act('train_unit', [c.id, k], () => map.floatText(c.tile, u.name + ' 훈련!')) }, '훈련'));
@@ -295,9 +321,12 @@
         h('small', { class: 'muted' }, '도시가 늘면 수입이 늘지만, 시민들이 원하는 것도 많아져요.')));
     }
   }
-  function bldImg(k) {
-    const src = { market: 'img/bld/market.png', barracks: 'img/bld/barracks.png', harbor: 'img/bld/port.png', granary: 'img/res/food.png', plaza: 'img/bld/capital.png' }[k];
-    return src ? h('img', { src, alt: '' }) : null;
+  // 건물 그림 (GPT 그림): 도시 건물·공장·발전 건물
+  const BLD_ART = { market: 'market', barracks: 'barracks', harbor: 'harbor', granary: 'granary', plaza: 'plaza',
+    steelworks: 'steelworks', refinery: 'steelmill', chipfab: 'lab', textilemill: 'tradepost', rubberplant: 'tankfactory', workshop: 'forge',
+    industrial: 'shipyard', electronics: 'market2', theater: 'palace', netcenter: 'lab', satcenter: 'airfield', arsenal: 'barracks2' };
+  function bldImg(k, alt) {
+    return BLD_ART[k] ? h('img', { src: 'img/bld/' + BLD_ART[k] + '.png', alt: alt || '' }) : null;
   }
   const count = arr => arr.reduce((m, k) => (m[k] = (m[k] || 0) + 1, m), {});
 
@@ -319,6 +348,7 @@
     side.append(h('small', { class: 'muted' }, '병력의 힘을 모두 더해 방어력 이상이면 차지해요. 공격한 병력은 이번 턴에 쉬어요.'));
   }
   async function attack(city) {
+    if (viewOnly()) return;
     S.busy = true; renderSide();
     const from = capitalTile();
     map.centerOn(city.tile);
@@ -340,6 +370,7 @@
 
   // ---------- 정찰 ----------
   function startScout(scout) {
+    if (viewOnly()) return;
     S.mode = 'scout'; S.scout = scout;
     map.centerOn(scout.tile);
     const reach = HexMap.reachable(scout.tile, passable, scout.moves);
@@ -375,7 +406,7 @@
 
   // ---------- 공통 행동 ----------
   async function act(fn, args, after) {
-    if (S.busy) return;
+    if (viewOnly() || S.busy) return;
     S.busy = true;
     try {
       const r = await rpc(fn, ...args);
@@ -413,14 +444,14 @@
       h('div', { class: 'card-list wide' },
         facts.length ? facts.map(([k, f]) => {
           const has = st.factories.includes(k);
-          return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, h('img', { src: itemImg(f.output) })),
+          return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
             h('div', { class: 'bcard-body' }, h('b', {}, f.name), h('small', {}, itemName(f.input) + ' → ' + itemName(f.output) + ' · 가공비 ' + R.PROC_COST[tp][f.output] + '코인/개'),
               has ? h('small', { class: 'good' }, '가동 중') : h('small', {}, '짓는 비용: ' + costText(f.build))),
             has ? null : h('button', { class: 'primary small', disabled: !!short(f.build) || S.busy, onclick: () => act('factory_build', [k]) }, '짓기'));
         }) : h('p', { class: 'muted' }, '우리 나라 기술로 지을 수 있는 공장이 없어요. 제품은 다른 나라에서 사 와야 해요.'),
         Object.entries(R.ADVANCED).filter(([, a]) => !a.tech || st.country.techs.includes(a.tech)).map(([k, a]) => {
           const has = st.advanced.includes(k);
-          return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img adv' }, a.econ ? '경제' : a.culture ? '문화' : '군사'),
+          return h('div', { class: 'bcard' + (has ? ' have' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, a.name)),
             h('div', { class: 'bcard-body' }, h('b', {}, a.name), h('small', {}, (a.econ ? '경제력 +' + a.econ : '') + (a.culture ? '문화력 +' + a.culture : '') + (a.coinPerTurn ? ', 매 턴 코인 +' + a.coinPerTurn : '') + (a.happy ? ', 행복도 +' + a.happy : '') + (a.unlock ? '대포 훈련 가능' : '')),
               has ? h('small', { class: 'good' }, '지었어요') : h('small', {}, '비용: ' + costText(a.cost)), !has && short(a.cost) ? h('small', { class: 'bad' }, short(a.cost)) : null),
             has ? null : h('button', { class: 'primary small', disabled: !!short(a.cost) || S.busy, onclick: () => act('advanced_build', [k]) }, '짓기'));
@@ -432,7 +463,7 @@
     const up = (field, label, ratio) => {
       const inp = h('input', { type: 'file', accept: 'image/*', class: 'hidden' });
       inp.addEventListener('change', async () => {
-        if (!inp.files[0]) return;
+        if (!inp.files[0] || viewOnly()) return;
         try { const url = await uploadImage(inp.files[0], 'country', 600, 'image/png'); await rpc('country_update', { [field]: url }); toast(label + '을(를) 올렸어요.'); refresh(false); }
         catch (e) { toast(e.message, 'error'); }
       });
