@@ -158,6 +158,17 @@ await adm.reload(); await adm.waitForSelector('text=관제실'); await wait(800)
 await shot(adm, '21-admin-progress');
 await adm.click('.nav >> text=나라 현황'); await wait(500);
 await shot(adm, '22-admin-nations');
+// 관전 모드 (관제실 기기에서)
+await adm.goto(BASE + '/index.html?observe=3'); await adm.waitForSelector('.topbar'); await wait(1500);
+ok(await adm.$('.obs-sel') !== null, 'UI: 관전 모드 열림');
+await shot(adm, '23-observe');
+await adm.evaluate(() => window.__map.fitAll()); await wait(500);
+await shot(adm, '24-observe-world');
+await adm.selectOption('.obs-sel', '1'); await wait(1500);
+const before = (await one(`select coin from priv.countries where id = 1`)).coin;
+await adm.click('.nav >> text=우리 나라'); await wait(500);
+await shot(adm, '25-observe-nation');
+ok((await one(`select coin from priv.countries where id = 1`)).coin === before, 'UI: 관전은 아무것도 안 바꿈');
 console.log('ERRORS:', errors.length ? '\n' + errors.join('\n') : 'none');
 await browser.close();
 process.exit(0);

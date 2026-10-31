@@ -12,7 +12,7 @@
   const ready = Promise.all([
     ...Object.keys(R.TERRAIN).map(t => load('t:' + t, 'img/terrain/' + t + '.png')),
     ...Object.keys(R.ITEMS).map(i => load('r:' + i, 'img/res/' + i + '.png')),
-    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
+    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
     ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, 'img/bld/' + b + '.png')),
     ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, 'img/city/' + f + '.png'))
   ]);
@@ -217,14 +217,19 @@
           if (t.res && !t.imp) drawImgBottom(IMG['r:' + t.res], x + 20, y + 30, 44);
         }
         const us = unitsAt.get(id);
-        if (us && us.length) drawUnits(us, x, y, t, !!city);
+        if (us && us.length) {
+          if (st.tintUnits) {   // 관전: 나라별로 나눠 그리고 발밑에 나라 색
+            const by = new Map(); for (const u of us) { if (!by.has(u.country)) by.set(u.country, []); by.get(u.country).push(u); }
+            [...by.entries()].forEach(([c, g], i) => drawUnits(g, x + i * 22, y - i * 10, t, !!city, colorOf(c)));
+          } else drawUnits(us, x, y, t, !!city);
+        }
       }
       // 5) 효과
       const now = performance.now();
       st.fx = st.fx.filter(f => f.draw(ctx, now) !== false);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
-    function drawUnits(us, x, y, t, onCity) {
+    function drawUnits(us, x, y, t, onCity, tint) {
       const sea = t.terrain === 'ocean' || t.terrain === 'coast';
       const order = ['cannon', 'ballista', 'catapult', 'spear', 'scout', 'worker'];
       const mil = us.filter(u => ['spear', 'catapult', 'ballista', 'cannon'].includes(u.kind));
@@ -234,9 +239,11 @@
       for (const u of others) list.push({ kind: u.kind, n: 1, anim: u.anim });
       const sx = onCity ? -38 : -18;
       list.slice(0, 3).forEach((u, i) => {
-        let key = u.kind === 'scout' && sea ? 'u:ship' : u.kind === 'cannon' ? 'u:catapult' : 'u:' + u.kind;
+        let key = u.kind === 'scout' && sea ? 'u:ship' : u.kind === 'cannon' ? 'u:artillery' : 'u:' + u.kind;
         const px = x + sx + i * 30, py = y + (onCity ? 22 : 34);
-        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(px, py, 20, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(px, py, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
+        if (tint) { ctx.globalAlpha = .9; ctx.strokeStyle = tint; ctx.lineWidth = 4; ctx.stroke(); }
+        ctx.restore();
         drawImgBottom(IMG[key], px, py, u.kind === 'catapult' || u.kind === 'ballista' ? 58 : 50);
         if (u.n > 1) {
           ctx.fillStyle = '#FFC83D'; ctx.beginPath(); ctx.arc(px + 18, py - 46, 12, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#3A2600'; ctx.lineWidth = 2; ctx.stroke();

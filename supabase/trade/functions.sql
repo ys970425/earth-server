@@ -15,9 +15,13 @@ language sql stable as $$ select phase from public.game where id = 1 $$;
 
 create or replace function priv.me() returns priv.students
 language plpgsql stable as $$
-declare r priv.students;
+declare r priv.students; obs text := current_setting('trade.observe', true);
 begin
   if auth.uid() is null then perform priv.err('NO_AUTH', '접속 정보가 없어요. 새로고침해 주세요.'); end if;
+  -- 선생님 관전: admin_observe 안에서만 잠깐 그 나라 학생처럼 보기 (아무것도 바꿀 수 없음)
+  if obs is not null and obs <> '' and exists(select 1 from priv.admins where uid = auth.uid()) then
+    r.id := 0; r.country_id := obs::int; r.name := '선생님 관전'; r.is_leader := false; return r;
+  end if;
   select * into r from priv.students where uid = auth.uid();
   if not found then perform priv.err('NOT_JOINED', '아직 나라에 입장하지 않았어요.'); end if;
   return r;
@@ -920,6 +924,26 @@ end $$;
 
 create or replace function public.admin_check() returns jsonb
 language sql stable security definer set search_path = public, priv as $$ select jsonb_build_object('admin', priv.is_admin()) $$;
+
+-- 선생님 관전 모드 (투명한 무적 정찰병): 고른 나라의 화면 + 온 세상 지도와 모든 병력
+create or replace function public.admin_observe(p_country int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare st jsonb; mv jsonb;
+begin
+  perform priv.need_admin();
+  if not exists(select 1 from priv.countries where id = p_country) then perform priv.err('BAD_COUNTRY', '없는 나라예요.'); end if;
+  perform set_config('trade.observe', p_country::text, true);
+  st := public.my_state(); mv := public.map_view();
+  perform set_config('trade.observe', '', true);
+  return jsonb_build_object('state', st, 'map', mv, 'world', jsonb_build_object(
+    'tiles', (select jsonb_agg(jsonb_build_array(t.id, t.terrain, t.res, t.owner, t.imp) order by t.id) from priv.tiles t),
+    'cities', (select jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
+        'country', c.country, 'buildings', c.buildings, 'unrest', c.unrest,
+        'def', case when c.kind = 'cs' and c.country is null then greatest(1, c.def - c.def_help) end)) from priv.cities c),
+    'units', (select coalesce(jsonb_agg(jsonb_build_object('id', u.id, 'country', u.country, 'kind', u.kind, 'tile', u.tile_id) order by u.id), '[]') from priv.units u),
+    'countries', (select jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'name', priv.cname(c.id), 'flag_url', c.flag_url,
+        'happy', c.happy, 'coin', c.coin, 'discovered', coalesce(array_length(c.discovered, 1), 0)) order by c.id) from priv.countries c)));
+end $$;
 
 create or replace function public.admin_logout() returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
