@@ -36,7 +36,7 @@
     document.getElementById('b-desc').textContent = PHASES[g.phase].desc;
     document.getElementById('b-turn').textContent = g.turn ? '턴 ' + g.turn : '';
     const tiles = new Map(b.tiles.map(([id, terrain, res, owner, imp]) => [id, { terrain, res, owner, imp }]));
-    const countries = Object.fromEntries(b.countries.map(c => [c.id, { color: typeColor(c.type), name: c.name, flag_url: c.flag_url }]));
+    const countries = Object.fromEntries(b.countries.map(c => [c.id, { color: typeColor(c.type), type: c.type, name: c.name, flag_url: c.flag_url }]));
     map.setData({ tiles, cities: b.cities.map(c => ({ ...c, def: null })), units: [], countries, all: true });
     const right = document.getElementById('tb-right'); right.innerHTML = '';
     right.append(h('div', { class: 'panel b-gauge' }, h('div', { class: 'b-gauge-label' }, '지구 서버 안정도 ', h('b', {}, b.gauge + '%')),

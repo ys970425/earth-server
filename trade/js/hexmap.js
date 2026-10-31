@@ -14,6 +14,8 @@
     ...Object.keys(R.TERRAIN).map(t => load('t:' + t, 'img/terrain/' + t + '.png')),
     ...Object.keys(R.ITEMS).map(i => load('r:' + i, 'img/res/' + i + '.png')),
     ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
+    // 나라 색 병력 (K는 원래 파랑)
+    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, 'img/unit/' + u + '_' + t + '.png'))),
     ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, 'img/bld/' + b + '.png')),
     ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, 'img/city/' + f + '.png'))
   ]);
@@ -248,11 +250,13 @@
       const mil = us.filter(u => ['spear', 'catapult', 'ballista', 'cannon'].includes(u.kind));
       const others = us.filter(u => !mil.includes(u));
       const list = [];
-      if (mil.length) { const top = order.find(k => mil.some(u => u.kind === k)); list.push({ kind: top, n: mil.length }); }
-      for (const u of others) list.push({ kind: u.kind, n: 1, anim: u.anim });
+      if (mil.length) { const top = order.find(k => mil.some(u => u.kind === k)); list.push({ kind: top, n: mil.length, country: mil[0].country }); }
+      for (const u of others) list.push({ kind: u.kind, n: 1, anim: u.anim, country: u.country });
       const sx = onCity ? -38 : -18;
       list.slice(0, 3).forEach((u, i) => {
-        let key = u.kind === 'scout' && sea ? 'u:ship' : u.kind === 'cannon' ? 'u:artillery' : 'u:' + u.kind;
+        let key = u.kind === 'scout' && sea ? 'u:ship' : u.kind === 'cannon' ? 'u:artillery' : 'u:' + u.kind;   // 정찰병이 바다에 있으면 배로 (탑승)
+        const tp = u.country ? (st.countries[u.country] || {}).type : st.myType;
+        if (tp && IMG[key + '_' + tp]) key = key + '_' + tp;
         const px = x + sx + i * 30, py = y + (onCity ? 22 : 34);
         ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(px, py, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
         if (tint) { ctx.globalAlpha = .9; ctx.strokeStyle = tint; ctx.lineWidth = 4; ctx.stroke(); }
