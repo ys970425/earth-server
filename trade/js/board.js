@@ -26,7 +26,7 @@
     if (!root.querySelector('.tb')) {
       root.innerHTML = '';
       root.className = 'board tb';
-      root.append(h('div', { class: 'b-head' }, h('div', {}, h('div', { class: 'b-kicker' }, '지구 서버: 문명의 시대'), h('div', { class: 'title b-title', id: 'b-title' }), h('div', { class: 'b-desc', id: 'b-desc' })),
+      root.append(h('div', { class: 'b-head' }, h('div', {}, h('div', { class: 'b-kicker' }, '지구 서버: 문명의 시대 · 제작 조영산'), h('div', { class: 'title b-title', id: 'b-title' }), h('div', { class: 'b-desc', id: 'b-desc' })),
           h('div', { class: 'b-side' }, h('div', { id: 'b-timer', class: 'b-timer' }), h('div', { id: 'b-turn' }))),
         h('div', { class: 'tb-main' }, h('div', { class: 'tb-map', id: 'tb-map' }, h('canvas', { class: 'hexmap', id: 'tb-canvas' })), h('div', { class: 'tb-right', id: 'tb-right' })));
       map = HexMap.create(document.getElementById('tb-canvas'), {});

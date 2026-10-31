@@ -862,3 +862,11 @@ ol.how li.done { color: #6A8A5A; text-decoration: line-through; }
 button.nick-slot { --b-top: #3A4A2A; --b-bot: #1E2A14; --b-text: #FFE7A6; border-style: dashed; }
 .nick-in { font-size: 24px; text-align: center; width: 260px; font-family: var(--font-display); }
 .snd { font-size: 12px !important; }
+
+/* 제작자 표시 */
+.entry .credit { display: inline-block; margin: -10px 0 16px; padding: 3px 14px; font-family: var(--font-display); font-weight: 700; font-size: 15px; color: #FFE7A6;
+  background: rgba(10,13,20,.7); border: 1px solid rgba(226,184,92,.7); border-radius: 2px; letter-spacing: 2px; text-shadow: 0 2px 0 #000; }
+.entry .title-sub + .credit { display: table; margin: -8px auto 18px; }
+.credit-nav { margin-left: auto; align-self: center; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: #E2C887; letter-spacing: 1px;
+  padding: 4px 12px; border: 1px solid rgba(226,184,92,.5); background: rgba(10,13,20,.6); }
+.nav .credit-nav + .leave { margin-left: 10px; }
