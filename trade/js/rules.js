@@ -35,29 +35,21 @@
   R.TECH_TREE = {
     engineering:  { name: '공학', era: 1, row: 0, req: [], cost: { coin: 30, food: 2 }, unlock: '투석기 · 곡물 창고' },
     chivalry:     { name: '기사도', era: 1, row: 1, req: [], cost: { coin: 30, food: 2 }, unlock: '기사 (빠른 기병)' },
-    woodwork:     { name: '목재 가공', era: 1, row: 2, req: [], cost: { coin: 25, food: 2 }, unlock: '벌목장 목재 +1' },
-    shipbuilding: { name: '조선', era: 1, row: 3, req: [], cost: { coin: 35, wood: 2 }, unlock: '항구 · 삼단노선' },
-    jungle:       { name: '밀림 개발', era: 1, row: 4, req: [], cost: { coin: 25, food: 2 }, unlock: '정글 개발비 절반' },
-    economics:    { name: '경제학', era: 2, row: 0, req: ['engineering'], cost: { coin: 60, food: 3 }, unlock: '도시 시장 코인 +6' },
-    gunpowder:    { name: '화약', era: 2, row: 1, req: ['chivalry', 'engineering'], cost: { coin: 60, iron: 1 }, unlock: '대포 · 머스킷 보병' },
-    textile:      { name: '섬유 가공', era: 2, row: 2, req: ['woodwork'], cost: { coin: 50, food: 3 }, unlock: '섬유 공장' },
-    navigation:   { name: '항해술', era: 2, row: 3, req: ['shipbuilding'], cost: { coin: 60, wood: 3 }, unlock: '프리깃 · 정찰병 바다 이동 +2' },
-    metalcraft:   { name: '금속 세공', era: 2, row: 4, req: [], cost: { coin: 50, food: 3 }, unlock: '금 세공소' },
-    steelmaking:  { name: '제철', era: 3, row: 0, req: ['economics'], cost: { coin: 90, iron: 2 }, unlock: '제철소' },
-    munitions:    { name: '군수', era: 3, row: 1, req: ['gunpowder', 'steelmaking'], cost: { coin: 100, iron: 2 }, unlock: '보병 · 포병 · 군수 공장' },
-    oil_drill:    { name: '석유 추출', era: 3, row: 2, req: [], cost: { coin: 80, wood: 3 }, unlock: '유정' },
-    refining:     { name: '석유 정제', era: 3, row: 3, req: ['oil_drill'], cost: { coin: 90, food: 4 }, unlock: '정유소' },
-    rubberwork:   { name: '고무 가공', era: 3, row: 4, req: ['jungle'], cost: { coin: 80, food: 4 }, unlock: '고무 공장' },
-    warship:      { name: '강철 군함', era: 3, row: 5, req: ['navigation', 'steelmaking'], cost: { coin: 110, steel: 1 }, unlock: '전함' },
-    combustion:   { name: '내연 기관', era: 4, row: 1, req: ['munitions', 'refining', 'rubberwork'], cost: { coin: 150, fuel: 1 }, unlock: '탱크' },
-    electricity:  { name: '전기', era: 4, row: 0, req: ['steelmaking'], cost: { coin: 130, copper: 2 }, unlock: '전자 상가' },
-    chipmaking:   { name: '반도체 제조', era: 4, row: 2, req: ['electricity'], cost: { coin: 160, copper: 2 }, unlock: '반도체 공장' },
-    radar:        { name: '레이더', era: 4, row: 3, req: ['electricity'], cost: { coin: 160, aluminum: 1 }, unlock: '통신탑 · 방송국 (근미래 건물)' },
-    internet:     { name: '인터넷', era: 4, row: 4, req: ['chipmaking', 'radar'], cost: { coin: 200, chip: 1 }, unlock: '인터넷 센터' },
-    missile:      { name: '유도 미사일', era: 4, row: 5, req: ['radar', 'warship'], cost: { coin: 200, chip: 1 }, unlock: '미사일 순양함' },
-    nuclear:      { name: '원자력', era: 4, row: 6, req: ['electricity'], cost: { coin: 180, uranium: 1 }, unlock: '원자력 발전소' },
-    satellite:    { name: '인공위성', era: 4, row: 7, req: ['missile'], cost: { coin: 240, aluminum: 2 }, unlock: '인공위성 센터' }
+    shipbuilding: { name: '조선', era: 1, row: 2, req: [], cost: { coin: 35, wood: 2 }, unlock: '항구 · 삼단노선' },
+    economics:    { name: '경제학', era: 2, row: 0, req: ['engineering'], cost: { coin: 60, food: 3 }, unlock: '시장 코인 +6 · 섬유 공장 · 금 세공소 · 고무 공장 · 정글 개발비 절반' },
+    gunpowder:    { name: '화약', era: 2, row: 1, req: ['engineering', 'chivalry'], cost: { coin: 60, iron: 1 }, unlock: '대포 · 머스킷 보병' },
+    navigation:   { name: '항해술', era: 2, row: 2, req: ['shipbuilding'], cost: { coin: 60, wood: 3 }, unlock: '프리깃 · 정찰병 바다 이동 +2' },
+    refining:     { name: '석유', era: 3, row: 0, req: ['economics'], cost: { coin: 90, wood: 3 }, unlock: '유정 · 정유소' },
+    steelmaking:  { name: '제철', era: 3, row: 1, req: ['gunpowder'], cost: { coin: 90, iron: 2 }, unlock: '제철소 · 보병 · 포병 · 군수 공장' },
+    warship:      { name: '강철 군함', era: 3, row: 2, req: ['navigation', 'steelmaking'], cost: { coin: 110, steel: 1 }, unlock: '전함' },
+    combustion:   { name: '내연 기관', era: 4, row: 0, req: ['refining', 'steelmaking'], cost: { coin: 150, fuel: 1 }, unlock: '탱크' },
+    chipmaking:   { name: '전자공학', era: 4, row: 1, req: ['steelmaking'], cost: { coin: 150, copper: 2 }, unlock: '반도체 공장 · 전자 상가 · 원자력 발전소' },
+    radar:        { name: '레이더·통신', era: 4, row: 2, req: ['chipmaking'], cost: { coin: 170, aluminum: 1 }, unlock: '통신탑 · 방송국 · 인터넷 센터 · 인공위성 센터 (근미래)' },
+    missile:      { name: '유도 미사일', era: 4, row: 3, req: ['radar', 'warship'], cost: { coin: 200, chip: 1 }, unlock: '미사일 순양함' }
   };
+  // 예전 기술 이름 → 합친 기술 (공장·건물·도시국가 기술자에 씀)
+  R.TECH_ALIAS = { textile: 'economics', metalcraft: 'economics', rubberwork: 'economics', woodwork: 'economics', jungle: 'economics',
+    oil_drill: 'refining', munitions: 'steelmaking', electricity: 'chipmaking', internet: 'radar', satellite: 'radar', nuclear: 'chipmaking' };
   R.TECHS = Object.fromEntries(Object.entries(R.TECH_TREE).map(([k, t]) => [k, t.name]));
 
   R.TERRAIN = {
@@ -69,10 +61,13 @@
     farm: { name: '농장', on: ['plains', 'tundra', 'desert'], cost: { coin: 10, wood: 1 }, item: 'food', yield: 2 },
     lumber: { name: '벌목장', on: ['forest', 'jungle'], cost: { coin: 10 }, item: 'wood', yield: 2 },
     mine: { name: '광산', res: ['iron', 'copper', 'aluminum', 'gold', 'uranium'], cost: { coin: 15, wood: 1 }, yield: 2 },
+    quarry: { name: '채석장', on: ['hills'], noRes: true, cost: { coin: 15, wood: 1 }, coin: 10, yield: 0 },
     plantation: { name: '농원', res: ['cotton', 'spice', 'wine', 'rubber'], cost: { coin: 15, wood: 1 }, yield: 2 },
-    oilwell: { name: '유정', res: ['oil'], tech: 'oil_drill', cost: { coin: 20, wood: 1 }, yield: 2 }
+    oilwell: { name: '유정', res: ['oil'], tech: 'refining', cost: { coin: 20, wood: 1 }, yield: 2 }
   };
   R.JUNGLE_MULT = 2;
+  // 채석장: 언덕(자원 없는 칸)에 지으면 매 턴 코인 +10
+  R.QUARRY_COIN = 10;
   R.TUNDRA_FOOD = 1;
 
   R.BUILDINGS = {
@@ -87,9 +82,9 @@
     steelworks: { name: '제철소', tech: 'steelmaking', input: 'iron', output: 'steel', build: { coin: 50, wood: 2 }, perTurn: 2 },
     refinery: { name: '정유소', tech: 'refining', input: 'oil', output: 'fuel', build: { coin: 50, wood: 2 }, perTurn: 2 },
     chipfab: { name: '반도체 공장', tech: 'chipmaking', input: 'copper', output: 'chip', build: { coin: 60, wood: 2 }, perTurn: 2 },
-    textilemill: { name: '섬유 공장', tech: 'textile', input: 'cotton', output: 'clothes', build: { coin: 50, wood: 2 }, perTurn: 2 },
-    rubberplant: { name: '고무 공장', tech: 'rubberwork', input: 'rubber', output: 'tire', build: { coin: 50, wood: 2 }, perTurn: 2 },
-    workshop: { name: '금 세공소', tech: 'metalcraft', input: 'gold', output: 'jewelry', build: { coin: 50, wood: 2 }, perTurn: 2 }
+    textilemill: { name: '섬유 공장', tech: 'economics', input: 'cotton', output: 'clothes', build: { coin: 50, wood: 2 }, perTurn: 2 },
+    rubberplant: { name: '고무 공장', tech: 'economics', input: 'rubber', output: 'tire', build: { coin: 50, wood: 2 }, perTurn: 2 },
+    workshop: { name: '금 세공소', tech: 'economics', input: 'gold', output: 'jewelry', build: { coin: 50, wood: 2 }, perTurn: 2 }
   };
   // 나라별 가공비 (코인/개). 없으면 못 만듦
   R.PROC_COST = {
@@ -103,27 +98,27 @@
 
   R.ADVANCED = {
     industrial: { name: '공장 지대', cost: { coin: 40, steel: 2, tire: 1 }, econ: 12, coinPerTurn: 15 },
-    electronics: { name: '전자 상가', cost: { coin: 40, chip: 2 }, econ: 12, coinPerTurn: 15 },
+    electronics: { name: '전자 상가', tech: 'chipmaking', cost: { coin: 40, chip: 2 }, econ: 12, coinPerTurn: 15 },
     theater: { name: '극장', cost: { coin: 30, clothes: 2 }, culture: 10, happy: 6 },
-    netcenter: { name: '인터넷 센터', tech: 'internet', cost: { coin: 40, chip: 2 }, culture: 15 },
-    satcenter: { name: '인공위성 센터', tech: 'satellite', cost: { coin: 60, aluminum: 2, chip: 2 }, culture: 20 },
-    arsenal: { name: '군수 공장', tech: 'munitions', cost: { coin: 60, steel: 2 }, unlock: 'tank' },
+    netcenter: { name: '인터넷 센터', tech: 'radar', cost: { coin: 40, chip: 2 }, culture: 15 },
+    satcenter: { name: '인공위성 센터', tech: 'radar', cost: { coin: 60, aluminum: 2, chip: 2 }, culture: 20 },
+    arsenal: { name: '군수 공장', tech: 'steelmaking', cost: { coin: 60, steel: 2 }, unlock: 'tank' },
     // 근미래 건물: 레이더 기술 + 대부분 나라에 없는 자원 → 무역이 꼭 필요해요
     commtower: { name: '통신탑', tech: 'radar', cost: { coin: 80, aluminum: 2, copper: 2 }, happy: 14, culture: 10 },
     broadcast: { name: '방송국', tech: 'radar', cost: { coin: 90, chip: 2, aluminum: 1 }, happy: 18, culture: 15 },
-    nuclearplant: { name: '원자력 발전소', tech: 'nuclear', cost: { coin: 100, uranium: 2, steel: 2 }, econ: 15, coinPerTurn: 25 }
+    nuclearplant: { name: '원자력 발전소', tech: 'chipmaking', cost: { coin: 100, uranium: 2, steel: 2 }, econ: 15, coinPerTurn: 25 }
   };
 
   R.HIRE_WORKER = { coin: 25, food: 2 };
   // 병력: str 힘, move 한 턴 이동 칸, range 원거리(2칸 밖에서 공격, 반격을 덜 받음), sea 배, img 그림
   R.UNITS = {
-    spear:     { name: '창병', era: 0, str: 8, move: 3, cost: { coin: 20, food: 1 }, img: 'spear' },
+    spear:     { name: '창병', era: 0, str: 10, move: 3, cost: { coin: 20, food: 1 }, img: 'spear' },
     catapult:  { name: '투석기', era: 1, str: 11, move: 2, range: 2, tech: 'engineering', cost: { coin: 30, wood: 2 }, img: 'catapult' },
     knight:    { name: '기사', era: 1, str: 14, move: 4, tech: 'chivalry', cost: { coin: 40, food: 2, iron: 1 }, img: 'knight' },
     musket:    { name: '머스킷 보병', era: 2, str: 20, move: 3, tech: 'gunpowder', cost: { coin: 50, iron: 1 }, img: 'swordsman' },
     cannon:    { name: '대포', era: 2, str: 26, move: 2, range: 2, tech: 'gunpowder', cost: { coin: 60, iron: 2, wood: 2 }, img: 'cannon' },
-    infantry:  { name: '보병', era: 3, str: 36, move: 3, tech: 'munitions', cost: { coin: 70, steel: 1, food: 2 }, img: 'infantry' },
-    artillery: { name: '포병', era: 3, str: 48, move: 2, range: 3, tech: 'munitions', cost: { coin: 90, steel: 2 }, img: 'artillery' },
+    infantry:  { name: '보병', era: 3, str: 36, move: 3, tech: 'steelmaking', cost: { coin: 70, steel: 1, food: 2 }, img: 'infantry' },
+    artillery: { name: '포병', era: 3, str: 48, move: 2, range: 3, tech: 'steelmaking', cost: { coin: 90, steel: 2 }, img: 'artillery' },
     tank:      { name: '탱크', era: 4, str: 75, move: 5, tech: 'combustion', cost: { coin: 130, steel: 2, fuel: 2, tire: 1 }, img: 'tank' },
     trireme:   { name: '삼단노선', era: 1, str: 10, move: 4, sea: true, tech: 'shipbuilding', cost: { coin: 30, wood: 3 }, img: 'trireme' },
     frigate:   { name: '프리깃', era: 2, str: 24, move: 5, range: 2, sea: true, tech: 'navigation', cost: { coin: 60, wood: 3, iron: 1 }, img: 'frigate' },
@@ -132,12 +127,12 @@
   };
   R.UNIT_UPKEEP = 1;
   // 기술 아이콘 (img/tech/*.png). 없는 기술은 글자만
-  R.TECH_ICON = { engineering: 'engineering', economics: 'economics', gunpowder: 'gunpowder', textile: 'textile', navigation: 'astronomy', shipbuilding: 'shipbuilding',
-    metalcraft: 'metalcraft', steelmaking: 'steelmaking', munitions: 'munitions', refining: 'refining', rubberwork: 'rubberwork', electricity: 'electricity',
-    chipmaking: 'chipmaking', internet: 'internet', satellite: 'satellite', combustion: 'steam', woodwork: 'printing', chivalry: 'education' };
+  R.TECH_ICON = { engineering: 'engineering', economics: 'economics', gunpowder: 'gunpowder', navigation: 'astronomy', shipbuilding: 'shipbuilding',
+    steelmaking: 'steelmaking', refining: 'refining', chipmaking: 'chipmaking', radar: 'internet', missile: 'satellite', combustion: 'steam', warship: 'munitions', chivalry: 'education' };
   R.START_UNITS = ['worker', 'scout', 'spear', 'spear', 'catapult'];
   // 전투: 피해 = 30 × (공격 힘 ÷ 방어력). 다친 병력은 힘이 줄어요. 원거리는 반격을 1/4만 받아요.
-  R.COMBAT = { base: 30, min: 3, max: 100, rangedCounter: 0.25, healField: 10, healHome: 20 };
+  R.COMBAT = { base: 30, counter: 0.7, min: 3, max: 100, rangedCounter: 0.25, healField: 10, healHome: 20 };
+  R.TRAIN_PER_TURN = 3;   // 한 도시에서 한 턴에 훈련할 수 있는 부대 수
   // 도시국가 등급: 0 튜토리얼(바로 옆, 아주 약함) … 4 철옹성(탱크·전함 필요) · 5 최종 보스
   R.CS_TIERS = [
     { name: '마을', def: 6, hp: 60, coin: 100, heal: 6 },
@@ -157,7 +152,7 @@
 
   R.HAPPY = {
     base: 55, perLuxType: 6, perPlaza: 6, glory: 10, gloryDecay: 5, perCity: -3, hunger: -8, tariffPer: 8,
-    crisis: { perCity: -2, fewLux: -8, fewLuxUnder: 2, armyNeedsSteel: 6, noSteel: -5, fuelCities: 4, noFuel: -6 },
+    crisis: { perCity: -2, fewLux: -8, fewLuxUnder: 2, armyNeedsSteel: 8, noSteel: -5, fuelCities: 4, noFuel: -6 },
     golden: 70, unhappy: 40, unrest: 25, revolt: 15
   };
 
@@ -165,15 +160,15 @@
   R.TYPES = {
     K: { name: '반도의 용', color: '#2F6FE0', techs: ['shipbuilding', 'steelmaking', 'chipmaking'],
          like: '한국', desc: '땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요.' },
-    J: { name: '파도의 섬왕국', color: '#E0463C', techs: ['shipbuilding', 'metalcraft', 'rubberwork'],
+    J: { name: '파도의 섬왕국', color: '#E0463C', techs: ['shipbuilding', 'navigation', 'economics'],
          like: '일본', desc: '바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요.' },
-    C: { name: '대륙의 제국', color: '#F29A2E', techs: ['textile', 'steelmaking', 'woodwork'],
+    C: { name: '대륙의 제국', color: '#F29A2E', techs: ['engineering', 'economics', 'steelmaking'],
          like: '중국', desc: '넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요.' },
-    A: { name: '신대륙의 강국', color: '#8A4FD8', techs: ['oil_drill', 'refining', 'radar'],
+    A: { name: '신대륙의 강국', color: '#8A4FD8', techs: ['engineering', 'refining', 'radar'],
          like: '미국', desc: '넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요.' },
-    N: { name: '북방의 대국', color: '#22A36A', techs: ['oil_drill', 'refining', 'nuclear'],
+    N: { name: '북방의 대국', color: '#22A36A', techs: ['chivalry', 'refining', 'steelmaking'],
          like: '러시아', desc: '가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요.' },
-    T: { name: '열대 해양국', color: '#EC5C9A', techs: ['jungle', 'rubberwork', 'textile'],
+    T: { name: '열대 해양국', color: '#EC5C9A', techs: ['shipbuilding', 'economics', 'navigation'],
          like: '동남아시아 여러 나라', desc: '정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요.' }
   };
   // 도시 그림 (img/city/*.png, 160×160, 기준점: 가로 50%, 세로 83%가 칸 중심)
@@ -183,15 +178,17 @@
   R.DEFAULT_TYPES = { 1: 'K', 2: 'J', 3: 'C', 4: 'A', 5: 'N', 6: 'T' };
 
   // 모둠 역할 5개 (한 사람이 3개까지, 국가 대표는 한 명). 맡은 친구가 있으면 그 친구만 그 버튼을 누를 수 있어요.
-  R.ROLES = ['국가 대표', '총사령관', '수석 건축가', '대지 개척자', '별빛 탐험가'];
+  R.ROLES = ['국가 대표', '국방부 장관', '기획부 장관', '국토부 장관', '과학기술부 장관'];
   R.ROLE_INFO = {
-    '국가 대표': { icon: 'leader', now: '나라 이름·국기, 모둠 회의, 「턴 끝내기」', later: '무역 제안 최종 승인, 조약 서명' },
-    '총사령관': { icon: 'spear', now: '병력 훈련·이동, 도시국가 공격', later: '무역 사절: 다른 나라에 거래 제안 보내기' },
-    '수석 건축가': { icon: 'market', now: '도시 건물·공장·근미래 건물 짓기', later: '공장 가동, 무엇을 만들어 팔지 정하기' },
-    '대지 개척자': { icon: 'worker', now: '노동자로 땅 개발(농장·광산…), 노동자 고용', later: '창고 관리, 모자란 자원 찾아 수입 요청' },
-    '별빛 탐험가': { icon: 'scout', now: '정찰병으로 세계 탐험, 기술 연구', later: '시장 조사: 기준가·생산비 비교' }
+    '국가 대표': { icon: 'leader', now: '모든 장관의 일 + 나라 이름·국기, 모둠 회의, 「턴 끝내기」', later: '무역 제안 최종 승인, 조약 서명' },
+    '국방부 장관': { icon: 'spear', now: '병력 훈련·이동, 도시국가 공격', later: '무역 사절: 다른 나라에 거래 제안 보내기' },
+    '기획부 장관': { icon: 'market', now: '도시 건물·공장·근미래 건물 짓기', later: '공장 가동, 무엇을 만들어 팔지 정하기' },
+    '국토부 장관': { icon: 'worker', now: '노동자로 땅 개발(농장·광산·채석장…), 노동자 고용', later: '창고 관리, 모자란 자원 찾아 수입 요청' },
+    '과학기술부 장관': { icon: 'scout', now: '기술 연구, 정찰병으로 세계 탐험', later: '시장 조사: 기준가·생산비 비교' }
   };
-  R.ROLE_KEY = { leader: '국가 대표', army: '총사령관', build: '수석 건축가', land: '대지 개척자', explore: '별빛 탐험가' };
+  R.ROLE_KEY = { leader: '국가 대표', army: '국방부 장관', build: '기획부 장관', land: '국토부 장관', explore: '과학기술부 장관' };
+  // 성장의 한계: 도시국가를 이만큼 차지하면 시민들이 더 많은 것을 원하기 시작해요 (나라마다 자동)
+  R.GROWTH_LIMIT = { K: 4, J: 4, C: 5, A: 5, N: 5, T: 5 };
 
   R.PHASES = [
     { n: 0, name: '건국', desc: '나라 이름을 정하고 지도를 살펴봐요.' },
