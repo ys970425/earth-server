@@ -71,7 +71,7 @@
     const tabs = [['progress', '진행'], ['nations', '나라 현황'], ['trade', '무역 기록'], ['roster', '명단·연결'], ['backup', '백업·복구']];
     root.appendChild(h('div', { class: 'nav' }, tabs.map(([k, l]) => h('button', { class: A.tab === k ? 'on' : '', onclick: () => { A.tab = k; render(); } }, h('span', { class: 'dot' }), l,
       k === 'roster' && A.st.pairings.length ? h('span', { class: 'badge' }, A.st.pairings.length) : null)),
-      h('a', { href: 'index.html?observe=1', target: '_blank', class: 'board-link' }, '관전 모드 ↗'),
+      h('a', { href: 'index.html?observe=1', target: '_blank', class: 'board-link' }, '관전·체험 모드 ↗'),
       h('a', { href: 'board.html', target: '_blank', class: 'board-link' }, '전자칠판 화면 열기 ↗'),
       h('button', { class: 'ghost small leave', onclick: logout }, '나가기')));
     const page = h('div', { class: 'page' }); root.appendChild(page);

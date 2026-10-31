@@ -775,3 +775,55 @@ body.observer .topbar { background: linear-gradient(180deg, #3A2442, #1E1426); }
 .todo-item.mine { background: linear-gradient(180deg, #FFF1CC, #F5DE9E); border-color: #C08A2A; box-shadow: 0 0 0 1px #E2B85C; }
 .me-chip .lead { margin-left: 2px; }
 .me-chip .nohold { cursor: pointer; background: #8E1F2F; color: #FFE9B8; }
+
+/* ---------- v2: 병력·기술·임무 ---------- */
+.entry-bg.trade { filter: blur(0.6px) saturate(.85) brightness(.72) !important; }
+.entry-bg.trade::after { background: radial-gradient(ellipse at 50% 30%, rgba(11,15,23,.15) 0%, rgba(11,15,23,.6) 55%, rgba(5,7,11,.9) 100%), var(--hexbg) !important; }
+.unit-card { display: flex; gap: 12px; align-items: center; background: linear-gradient(180deg, #2C3548, #161C28); color: #F3E3BC; border: 2px solid #000; box-shadow: 0 0 0 1px var(--gold); border-radius: 3px; padding: 8px 10px; }
+.unit-card img { width: 72px; height: 72px; object-fit: contain; }
+.unit-card b { color: #FFE7A6; font-family: var(--font-display); }
+.unit-card .meter { background: #3A2A20; border-color: #000; }
+.bcard.atk { border-color: #8E1F2F; background: #FFF0EC; }
+.bcard.locked { opacity: .6; }
+/* 임무 상자 (지도 왼쪽 위) */
+.quest { position: absolute; left: 10px; top: 10px; width: 300px; max-height: calc(100% - 20px); overflow: auto; z-index: 3;
+  background: linear-gradient(180deg, rgba(28,35,50,.95), rgba(14,18,26,.95)); color: #F3E3BC; border: 2px solid #000; box-shadow: 0 0 0 1px var(--gold), 0 8px 18px rgba(0,0,0,.5); border-radius: 3px; padding: 8px 10px; font-size: 13.5px; }
+.quest.hidden { display: none; }
+.q-head { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-display); font-weight: 700; color: #FFE7A6; font-size: 16px; margin-bottom: 4px; }
+button.q-open { --b-top: #2C3548; --b-bot: #161C28; --b-text: #FFE7A6; width: 100%; }
+.q-x { font-size: 11px !important; padding: 1px 6px !important; }
+.q-role { border-top: 1px solid rgba(226,184,92,.3); padding: 6px 0 4px; }
+.q-rname { display: flex; align-items: center; gap: 6px; font-family: var(--font-display); color: #FFE7A6; margin-bottom: 3px; }
+.q-rname img { width: 24px; height: 24px; object-fit: contain; }
+.q-rname span { margin-left: auto; font-size: 12px; color: #BFA878; }
+.q-step { line-height: 1.4; padding: 2px 0 2px 4px; }
+.q-step.done { color: #8FCB8F; }
+.q-step.now { color: #FFF4D6; background: rgba(226,184,92,.12); border-left: 3px solid #E2B85C; padding-left: 6px; }
+.pulse { animation: pulseglow 1.1s ease-in-out infinite; position: relative; z-index: 2; }
+@keyframes pulseglow { 0%, 100% { box-shadow: 0 0 0 2px #E2B85C, 0 0 6px 2px rgba(255,220,120,.4); } 50% { box-shadow: 0 0 0 3px #FFF0B8, 0 0 22px 8px rgba(255,220,120,.85); } }
+.role-pop { width: 110px; height: 110px; object-fit: contain; display: block; margin: 0 auto; }
+.q-intro { text-align: left; background: #FFF1CC; border: 1px solid #C08A2A; border-radius: 3px; padding: 8px 12px; margin: 8px 0; line-height: 1.6; }
+/* 기술 계통도 */
+.tree-wrap { position: relative; overflow-x: auto; padding-bottom: 6px; }
+.tree-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.tree-lines path { fill: none; stroke: #9A8A6A; stroke-width: 2.5; opacity: .55; }
+.tree-lines path.on { stroke: #C08A2A; opacity: 1; stroke-width: 3; }
+.tree { position: relative; display: grid; grid-template-columns: 150px repeat(4, minmax(180px, 1fr)); grid-auto-rows: minmax(84px, auto); column-gap: 46px; row-gap: 10px; min-width: 1010px; }
+.era-head { font-family: var(--font-display); font-weight: 700; text-align: center; color: #3A2716; border-bottom: 2px solid #C08A2A; padding-bottom: 4px; align-self: end; grid-row: 1; }
+.tcard { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border: 2px solid #5A4228; border-radius: 4px; background: #FBF4E1; }
+.tcard .tc-top { display: flex; justify-content: space-between; align-items: center; }
+.tcard b { font-family: var(--font-display); font-size: 15px; }
+.tcard small { font-size: 11.5px; line-height: 1.3; }
+.tcard button { align-self: flex-start; margin-top: 2px; }
+.tcard.done { background: linear-gradient(180deg, #6B4A1A, #3E2808); border-color: #000; color: #FFE7A6; box-shadow: 0 0 0 1px #E2B85C; }
+.tcard.done .tc-un { color: #E8D3A0; }
+.tc-done { font-size: 11px; background: #E2B85C; color: #2A1A05; padding: 0 5px; border-radius: 2px; font-family: var(--font-display); }
+.tcard.open { background: linear-gradient(180deg, #FFF8E2, #F3E1B0); border-color: #23784F; box-shadow: 0 0 0 1px #5CC991, 0 0 12px rgba(92,201,145,.35); }
+.tcard.locked { opacity: .55; filter: grayscale(.6); }
+.tcard.ancient { justify-content: flex-start; }
+.tcard .anc { display: inline-block; font-size: 12px; background: rgba(0,0,0,.25); padding: 1px 6px; margin: 2px 2px 0 0; border-radius: 2px; }
+
+.obs-sel { max-width: 150px; }
+.topbar { flex-wrap: wrap; row-gap: 6px; }
+.tree-wrap > .tree-lines { z-index: 0; }
+.tree { grid-template-rows: 40px; }
