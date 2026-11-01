@@ -137,7 +137,7 @@
   const itemName = k => k === 'coin' ? '코인' : ((window.RULES.ITEMS[k] || {}).name || k);
   const itemImg = k => 'img/res/' + k + '.png';
   const costText = cost => Object.entries(cost || {}).map(([k, v]) => itemName(k) + ' ' + v).join(' · ');
-  const happyWord = v => v >= 70 ? '황금기' : v >= 40 ? '보통' : v >= 25 ? '불만' : '불안';
+  const happyWord = v => v >= 30 ? '황금기' : v >= 0 ? '보통' : v >= -20 ? '불만' : '불안';
 
   // 그림이 아직 없는 물건(강철·반도체 등)은 글자 배지로 대신 보여 줌
   document.addEventListener('error', e => {

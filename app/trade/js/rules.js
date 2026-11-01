@@ -3,7 +3,7 @@
 (function (root) {
   const R = {};
   R.W = 40; R.H = 28;
-  R.START = { coin: 150, food: 4, wood: 5, iron: 1 };
+  R.START = { coin: 200, food: 6, wood: 6, iron: 2 };
   // 나라별 시작 보너스 (반도·섬은 숲이 적어서 목재를 더 줌)
   R.START_BONUS = { K: { wood: 8 }, J: { wood: 4 } };
 
@@ -14,6 +14,7 @@
     copper: { name: '구리', kind: 'ore', ref: 8 },
     aluminum: { name: '알루미늄', kind: 'ore', ref: 12 },
     uranium: { name: '우라늄', kind: 'ore', ref: 15 },
+    rare: { name: '희토류', kind: 'ore', ref: 15 },
     gold: { name: '금', kind: 'lux', ref: 12 },
     oil: { name: '석유', kind: 'oil', ref: 10 },
     cotton: { name: '목화', kind: 'lux', ref: 6 },
@@ -25,7 +26,8 @@
     chip: { name: '반도체', kind: 'product', ref: 25 },
     clothes: { name: '옷', kind: 'lux', ref: 15 },
     tire: { name: '타이어', kind: 'product', ref: 15 },
-    jewelry: { name: '장신구', kind: 'lux', ref: 25 }
+    jewelry: { name: '장신구', kind: 'lux', ref: 25 },
+    engine: { name: '항공 엔진', kind: 'product', ref: 30 }
   };
   R.LUX = Object.keys(R.ITEMS).filter(k => R.ITEMS[k].kind === 'lux');
   R.FAIR_CAP = 2;
@@ -62,7 +64,7 @@
   R.IMPROVE = {
     farm: { name: '농장', on: ['plains', 'tundra', 'desert'], cost: { coin: 10, wood: 1 }, item: 'food', yield: 2 },
     lumber: { name: '벌목장', on: ['forest', 'jungle'], cost: { coin: 10 }, item: 'wood', yield: 2 },
-    mine: { name: '광산', res: ['iron', 'copper', 'aluminum', 'gold', 'uranium'], cost: { coin: 15, wood: 1 }, yield: 2 },
+    mine: { name: '광산', res: ['iron', 'copper', 'aluminum', 'gold', 'uranium', 'rare'], cost: { coin: 15, wood: 1 }, yield: 2 },
     quarry: { name: '채석장', on: ['hills'], noRes: true, cost: { coin: 15, wood: 1 }, coin: 10, yield: 0 },
     plantation: { name: '농원', res: ['cotton', 'spice', 'wine', 'rubber'], cost: { coin: 15, wood: 1 }, yield: 2 },
     oilwell: { name: '유정', res: ['oil'], tech: 'refining', cost: { coin: 20, wood: 1 }, yield: 2 }
@@ -86,17 +88,18 @@
     chipfab: { name: '반도체 공장', tech: 'chipmaking', input: 'copper', output: 'chip', build: { coin: 150, aluminum: 4, copper: 3 }, perTurn: 2 },
     textilemill: { name: '섬유 공장', tech: 'economics', input: 'cotton', output: 'clothes', build: { coin: 50, wood: 2 }, perTurn: 2 },
     rubberplant: { name: '고무 공장', tech: 'economics', input: 'rubber', output: 'tire', build: { coin: 50, wood: 2 }, perTurn: 2 },
-    workshop: { name: '금 세공소', tech: 'economics', input: 'gold', output: 'jewelry', build: { coin: 50, wood: 2 }, perTurn: 2 }
+    workshop: { name: '금 세공소', tech: 'economics', input: 'gold', output: 'jewelry', build: { coin: 50, wood: 2 }, perTurn: 2 },
+    aircraft: { name: '항공기 공장', tech: 'engineering', input: 'aluminum', output: 'engine', build: { coin: 150, steel: 3 }, perTurn: 2 }
   };
   // 나라별 공장 짓는 비용 (없으면 위 기본 비용). 반도는 반도체 공장을 싸게, 섬나라는 조금 비싸게, 나머지는 아주 비싸게
   // 나라마다 특산품 하나: 특산 공장은 싸게 짓고(코인 40·목재 2·식량 2), 원료 없이 매 턴 2개 만들어요 (가공비만 냄)
   R.SPECIALTY = {
-    K: { factory: 'chipfab', why: '기술이 뛰어나 원료가 없어도 반도체를 만들어요' },
-    J: { factory: 'rubberplant', why: '부품 기술이 좋아 타이어를 잘 만들어요' },
-    C: { factory: 'steelworks', why: '큰 제철소가 많아 강철을 많이 만들어요' },
-    A: { factory: 'refinery', why: '석유가 많아 연료를 넉넉히 만들어요' },
-    N: { factory: 'workshop', why: '금과 보석이 많이 나서 장신구를 잘 만들어요' },
-    T: { factory: 'textilemill', why: '일손이 많아 옷을 많이 만들어요' }
+    K: { factory: 'chipfab', why: '기술이 뛰어나 원료가 없어도 반도체를 만들어요 (실제 한국의 1위 수출품)' },
+    J: { factory: 'rubberplant', why: '자동차 부품 기술이 좋아 타이어를 만들어요 (실제 일본은 자동차·부품을 많이 수출)' },
+    C: { factory: 'steelworks', why: '큰 제철소가 많아 강철을 많이 만들어요 (실제 중국은 세계 1위 철강 생산국)' },
+    A: { factory: 'aircraft', why: '과학 기술로 항공 엔진을 만들어요 (실제 미국은 비행기·엔진을 많이 수출)' },
+    N: { factory: 'refinery', why: '석유가 많아 연료를 넉넉히 만들어요 (실제 러시아는 석유·가스를 많이 수출)' },
+    T: { factory: 'textilemill', why: '일손이 많아 옷을 많이 만들어요 (실제 베트남은 옷을 많이 수출)' }
   };
   R.SPECIALTY_BUILD = { coin: 40, wood: 2, food: 2 };
   R.FACTORY_BUILD = { chipfab: { J: { coin: 90, aluminum: 2, copper: 2 } } };
@@ -107,12 +110,12 @@
   }
   // 나라별 가공비 (코인/개). 없으면 못 만듦
   R.PROC_COST = {
-    K: { steel: 4, fuel: 3, chip: 5 },
-    J: { chip: 15, tire: 4, jewelry: 5 },
-    C: { steel: 4, clothes: 5, tire: 12, chip: 50, fuel: 15 },
-    A: { chip: 20, clothes: 20, fuel: 6 },
-    N: { jewelry: 12, fuel: 10 },
-    T: { clothes: 4, tire: 8 }
+    K: { chip: 5, steel: 4 },
+    J: { tire: 4, jewelry: 5 },
+    C: { steel: 4, clothes: 5 },
+    A: { engine: 6, fuel: 6 },
+    N: { fuel: 3, jewelry: 8 },
+    T: { clothes: 4 }
   };
 
   R.ADVANCED = {
@@ -131,17 +134,23 @@
   R.HIRE_WORKER = { coin: 25, food: 2 };
   // 병력: str 힘, move 한 턴 이동 칸, range 원거리(2칸 밖에서 공격, 반격을 덜 받음), sea 배, img 그림
   R.UNITS = {
-    spear:     { name: '창병', era: 0, str: 10, move: 3, cost: { coin: 20, food: 1 }, img: 'spear' },
-    catapult:  { name: '투석기', era: 1, str: 11, move: 2, range: 2, tech: 'engineering', cost: { coin: 30, wood: 2 }, img: 'catapult' },
-    knight:    { name: '기사', era: 1, str: 14, move: 4, tech: 'chivalry', cost: { coin: 40, food: 2, iron: 1 }, img: 'knight' },
-    musket:    { name: '머스킷 보병', era: 2, str: 20, move: 3, tech: 'gunpowder', cost: { coin: 50, iron: 1 }, img: 'swordsman' },
-    cannon:    { name: '대포', era: 2, str: 26, move: 2, range: 2, tech: 'gunpowder', cost: { coin: 60, iron: 2, wood: 2 }, img: 'cannon' },
+    spear:     { name: '창병', era: 0, str: 14, move: 3, cost: { coin: 20, food: 1 }, img: 'spear' },
+    catapult:  { name: '투석기', era: 1, str: 16, move: 2, range: 2, tech: 'engineering', cost: { coin: 30, wood: 2 }, img: 'catapult' },
+    knight:    { name: '기사', era: 1, str: 20, move: 4, tech: 'chivalry', cost: { coin: 40, food: 2, iron: 1 }, img: 'knight' },
+    musket:    { name: '머스킷 보병', era: 2, str: 26, move: 3, tech: 'gunpowder', cost: { coin: 50, iron: 1 }, img: 'swordsman' },
+    cannon:    { name: '대포', era: 2, str: 32, move: 2, range: 2, tech: 'gunpowder', cost: { coin: 60, iron: 2, wood: 2 }, img: 'cannon' },
     infantry:  { name: '보병', era: 3, str: 36, move: 3, tech: 'steelmaking', cost: { coin: 70, steel: 1, food: 2 }, img: 'infantry' },
     artillery: { name: '포병', era: 3, str: 48, move: 2, range: 3, tech: 'steelmaking', cost: { coin: 90, steel: 2 }, img: 'artillery' },
     tank:      { name: '탱크', era: 4, str: 75, move: 5, tech: 'combustion', cost: { coin: 130, steel: 2, fuel: 2, tire: 1 }, img: 'tank' },
     trireme:   { name: '삼단노선', era: 1, str: 10, move: 4, sea: true, tech: 'shipbuilding', cost: { coin: 30, wood: 3 }, img: 'trireme' },
     frigate:   { name: '프리깃', era: 2, str: 24, move: 5, range: 2, sea: true, tech: 'navigation', cost: { coin: 60, wood: 3, iron: 1 }, img: 'frigate' },
     battleship:{ name: '전함', era: 3, str: 55, move: 5, range: 2, sea: true, tech: 'warship', cost: { coin: 110, steel: 3, fuel: 1 }, img: 'warship' },
+    k_missile: { name: '장거리 미사일 부대', boss: 'K', era: 4, str: 140, move: 5, range: 3, fly: true, cost: { coin: 80, uranium: 2, fuel: 2, aluminum: 2 }, img: 'artillery' },
+    j_patrol:  { name: '해상 초계기', boss: 'J', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, fuel: 2, steel: 2 }, img: 'cruiser' },
+    c_jet:     { name: '대형 전투기 편대', boss: 'C', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, engine: 2, fuel: 2, aluminum: 2 }, img: 'tank' },
+    a_stealth: { name: '스텔스 폭격기', boss: 'A', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, rubber: 2, steel: 2, copper: 2 }, img: 'tank' },
+    n_hyper:   { name: '극초음속 미사일', boss: 'N', era: 4, str: 140, move: 5, range: 3, fly: true, cost: { coin: 80, chip: 2, steel: 2, copper: 2 }, img: 'artillery' },
+    t_marine:  { name: '상륙 기갑부대', boss: 'T', era: 4, str: 140, move: 5, range: 2, fly: true, cost: { coin: 80, tire: 2, fuel: 2, steel: 2 }, img: 'tank' },
     cruiser:   { name: '미사일 순양함', era: 4, str: 90, move: 6, range: 3, sea: true, tech: 'missile', cost: { coin: 160, steel: 2, fuel: 2, chip: 2 }, img: 'cruiser' }
   };
   R.UNIT_UPKEEP = 1;
@@ -150,17 +159,36 @@
     steelmaking: 'steelmaking', refining: 'oil', chipmaking: 'chipmaking', radar: 'radar', missile: 'missile', combustion: 'steam', warship: 'munitions', chivalry: 'chivalry' };
   R.START_UNITS = ['worker', 'scout', 'scout', 'scout', 'spear', 'spear', 'catapult'];
   // 전투: 피해 = 30 × (공격 힘 ÷ 방어력). 다친 병력은 힘이 줄어요. 원거리는 반격을 1/4만 받아요.
-  R.COMBAT = { base: 30, counter: 0.7, min: 3, max: 100, rangedCounter: 0.25, healField: 10, healHome: 20 };
+  R.COMBAT = { base: 30, counter: 0.6, min: 3, max: 100, rangedCounter: 0.25, healField: 15, healHome: 25, unhappyMult: 0.7 };
+  R.BUILD_PER_TURN = 2;      // 한 도시에서 한 턴에 지을 수 있는 건물 수
+  R.RESEARCH_PER_TURN = 2;   // 한 나라가 한 턴에 연구할 수 있는 기술 수
   R.TRAIN_PER_TURN = 3;   // 한 도시에서 한 턴에 훈련할 수 있는 부대 수
   // 도시국가 등급: 0 튜토리얼(바로 옆, 아주 약함) … 4 철옹성(탱크·전함 필요) · 5 최종 보스
   R.CS_TIERS = [
-    { name: '마을', def: 6, hp: 60, coin: 100, heal: 6 },
-    { name: '도시', def: 12, hp: 100, coin: 40, heal: 12 },
-    { name: '성곽 도시', def: 22, hp: 150, coin: 60, heal: 18 },
-    { name: '요새', def: 40, hp: 220, coin: 90, heal: 25 },
-    { name: '철옹성', def: 70, hp: 320, coin: 150, heal: 35 },
-    { name: '최종 보스', def: 110, hp: 1200, coin: 500, heal: 80 }
+    { name: '마을', def: 5, hp: 50, coin: 100, heal: 5 },
+    { name: '도시', def: 8, hp: 80, coin: 50, heal: 8 },
+    { name: '성곽 도시', def: 13, hp: 110, coin: 70, heal: 12 },
+    { name: '요새', def: 20, hp: 150, coin: 90, heal: 16 },
+    { name: '철옹성', def: 40, hp: 220, coin: 150, heal: 25 },
+    { name: '잊힌 제국', def: 110, hp: 1200, coin: 500, heal: 80 }
   ];
+  // 나라마다 하나: 최종 도시국가. 그 나라의 특수 부대로만 무너뜨릴 수 있어요 (다른 병력은 꿈쩍도 안 함)
+  R.FINAL_CS = { name: '최종 도전', def: 70, hp: 300, coin: 300, heal: 40, glory: 40 };
+  // 특수 부대: 우리 나라에 없는 자원 3가지가 필요해요. 첫째는 딱 한 나라만 가지고 있어요!
+  R.BOSS_UNIT = {
+    K: { unit: 'k_missile', needs: ['uranium', 'fuel', 'aluminum'] },
+    J: { unit: 'j_patrol', needs: ['rare', 'fuel', 'steel'] },
+    C: { unit: 'c_jet', needs: ['engine', 'fuel', 'aluminum'] },
+    A: { unit: 'a_stealth', needs: ['rubber', 'steel', 'copper'] },
+    N: { unit: 'n_hyper', needs: ['chip', 'steel', 'copper'] },
+    T: { unit: 't_marine', needs: ['tire', 'fuel', 'steel'] }
+  };
+  // 누가 무엇을 가지고 있나 (무역 안내에 씀). 앞의 나라일수록 많이 가짐
+  R.SOURCES = {
+    chip: ['K'], tire: ['J'], rare: ['C'], engine: ['A'], uranium: ['N'], rubber: ['T'],
+    fuel: ['N', 'A'], oil: ['N', 'A'], aluminum: ['N', 'A'], steel: ['C', 'K'], iron: ['C', 'K', 'A'], copper: ['C', 'T', 'J'],
+    gold: ['N', 'K', 'J'], jewelry: ['N', 'J'], cotton: ['C', 'A'], clothes: ['T', 'C'], spice: ['T'], wine: ['A'], food: ['A', 'C', 'T']
+  };
   R.SCOUT_MOVE = 5;
   R.WORKER_MOVE = 0;
   R.SCOUT_SIGHT = 2;
@@ -169,10 +197,12 @@
   R.INCOME = { capital: 20, city: 6, market: 12, harbor: 5, capitalFood: 3, cityFood: 1, workerFood: 1 };
   R.PRODUCTIVITY = { K: { market: 18, harbor: 8 }, J: { market: 18, harbor: 8 } };
 
+  // 행복도: 0에서 시작. 매 턴 처음부터 다시 계산해요 (계산 내역은 화면에 보여요)
+  //  + 사치품 종류마다 +10 (창고에 있으면 종류마다 1개씩 써요)  + 광장 +5  + 점령 환호(점령하면 +20, 매 턴 5씩 줄어요)
+  //  − 인구 증가: 턴마다 -5씩 커져요(최대 -40)  − 도시 관리: 수도 말고 도시마다 -3
   R.HAPPY = {
-    base: 55, perLuxType: 6, perPlaza: 6, glory: 10, gloryDecay: 5, perCity: -3, hunger: -8, tariffPer: 8,
-    crisis: { perCity: -2, fewLux: -8, fewLuxUnder: 2, armyNeedsSteel: 8, noSteel: -5, fuelCities: 4, noFuel: -6 },
-    golden: 70, unhappy: 40, unrest: 25, revolt: 15
+    base: 0, perLuxType: 10, perPlaza: 5, glory: 20, gloryDecay: 5, perCity: -3, pressurePerTurn: 5, pressureMax: 40, hunger: -10, tariffPer: 8,
+    golden: 30, unhappy: 0, unrest: -20, revolt: -40
   };
 
   // 나라 유형 (모둠 번호 → 유형은 관제실에서 정함). techs: 튜토리얼 도시국가를 차지하면 합류하는 핵심 기술

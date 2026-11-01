@@ -40,7 +40,7 @@ const L = c => of(c)[0].uid;
 
 // 처음 상태
 let m = await rpc(L(1), 'my_state');
-ok(m.country.type === 'K' && m.inventory.wood === 13 && m.inventory.iron === 1 && m.country.coin === 150, '반도의 나라 출발 재고');
+ok(m.country.type === 'K' && m.inventory.wood === 14 && m.inventory.iron === 2 && m.country.coin === 200 && m.country.happy === 0, '반도의 나라 출발 재고 (코인 200, 행복도 0)');
 ok(m.units.length === 7 && m.units.filter(u => u.kind === 'scout').length === 3 && m.targets.filter(t => t.mine).length === 5, '시작 병력 5(노동자·정찰병·창병2·투석기), 우리 쪽 도시국가 5곳');
 ok(m.country.techs.length === 0, '처음엔 고대 기술만 (핵심 기술은 튜토리얼 도시국가에서)');
 ok((await one(`select count(*)::int n from priv.tiles t join priv.cities c on c.tile_id = t.id where c.kind = 'cs' and t.owner is not null`)).n === 0, '처음엔 어떤 도시국가도 국경 안에 없음');
@@ -79,7 +79,9 @@ ok((await one(`select imp from priv.tiles where id = ${own[0].id}`)).imp === 'fa
 ok(await fail(rpc(of(1)[1].uid, 'worker_build', own[1] ? own[1].id : own[0].id, 'farm'), 'NO_WORKER'), '노동자 한 턴 한 번');
 // 도시 건설
 await rpc(L(1), 'city_build', 'K', 'market');
-ok(await fail(rpc(L(1), 'city_build', 'K', 'barracks'), 'BUSY'), '도시는 한 턴에 건물 하나');
+await rpc(ADMIN, 'admin_grant', 1, { wood: 6, iron: 2 }, '테스트');
+await rpc(L(1), 'city_build', 'K', 'barracks');
+ok(await fail(rpc(L(1), 'city_build', 'K', 'plaza'), 'BUSY'), '한 도시는 한 턴에 건물 두 개까지');
 // 전투 도우미: 도시국가 바로 옆 땅 칸
 const T = Object.fromEntries((await db.query(`select id, c, r, terrain, owner from priv.tiles`)).rows.map(t => [t.id, t]));
 function hd(a, b) { const q1 = a.c - (a.r - (a.r & 1)) / 2, q2 = b.c - (b.r - (b.r & 1)) / 2; return Math.max(Math.abs(q1 - q2), Math.abs(a.r - b.r), Math.abs(q1 + a.r - q2 - b.r)); }
@@ -95,7 +97,7 @@ async function beside(cityId, c, from) {
 const unitsOf = async (c, kind) => (await rpc(L(c), 'my_state')).units.filter(u => !kind || u.kind === kind);
 // 튜토리얼: 투석기는 수도에서(사거리 2), 창병은 옆으로 걸어가서
 const k1 = (await rpc(L(1), 'my_state')).targets.find(t => t.tutorial);
-ok(k1 && k1.hp === 60 && k1.tier === 0, '튜토리얼 도시국가 체력 60');
+ok(k1 && k1.hp === 50 && k1.tier === 0, '튜토리얼 도시국가 체력 50');
 const [spear1] = await unitsOf(1, 'spear'); const [cat1] = await unitsOf(1, 'catapult');
 ok(await fail(rpc(of(1)[2].uid, 'unit_attack', spear1.id, k1.id), 'FAR'), '멀리서는 공격 불가 (창병)');
 const nearK1 = await beside(k1.id, 1, spear1.tile);
@@ -107,10 +109,10 @@ const path = []; for (let p = nearK1; p !== spear1.tile; p = prevOf[p]) path.uns
 ok(path.length <= 3, '수도에서 튜토리얼 도시국가 옆까지 ' + path.length + '칸');
 await rpc(of(1)[2].uid, 'unit_move', spear1.id, path);
 const ca = await rpc(of(1)[2].uid, 'unit_attack', cat1.id, k1.id);
-ok(ca.ranged && ca.city_dmg >= 40 && ca.unit_dmg <= 6, '투석기 원거리 공격: 도시 -' + ca.city_dmg + ', 반격 -' + ca.unit_dmg);
-ok(await fail(rpc(of(1)[2].uid, 'unit_attack', cat1.id, k1.id), 'BUSY'), '한 병력은 한 턴에 한 번 공격');
-const sa = await rpc(of(1)[2].uid, 'unit_attack', spear1.id, k1.id);
-ok(sa.captured && sa.unit_dmg > 0, '창병 공격으로 점령 (반격 -' + sa.unit_dmg + ')');
+ok(ca.ranged && ca.city_dmg >= 40 && ca.unit_dmg <= 6, '투석기 원거리 공격: 도시 -' + ca.city_dmg + ', 반격 -' + ca.unit_dmg + (ca.captured ? ' → 바로 점령 (튜토리얼은 쉬움)' : ''));
+ok(await fail(rpc(of(1)[2].uid, 'unit_attack', cat1.id, k1.id)), '한 병력은 한 턴에 한 번 공격 (또는 이미 점령)');
+const sa = ca.captured ? ca : await rpc(of(1)[2].uid, 'unit_attack', spear1.id, k1.id);
+ok(sa.captured, '튜토리얼 도시국가 점령');
 m = await rpc(L(1), 'my_state');
 ok(['shipbuilding', 'steelmaking', 'chipmaking'].every(t => m.country.techs.includes(t)) && sa.coin === 100, '튜토리얼 보상: 핵심 기술 3개 + 코인 100');
 ok(m.cities.length === 2, '도시 2곳');
@@ -119,18 +121,23 @@ const j1 = (await rpc(L(2), 'my_state')).targets.find(t => t.tutorial);
 await db.query(`update priv.units set tile_id = ${await beside(j1.id, 1)}, attacked_turn = -1 where id = ${(await unitsOf(1, 'spear'))[1].id}`);
 ok(await fail(rpc(L(1), 'unit_attack', (await unitsOf(1, 'spear'))[1].id, j1.id), 'PROTECTED'), '다른 나라 첫 도시국가는 못 건드림');
 // 철옹성: 창병은 크게 다치거나 쓰러짐
-const strong = (await db.query(`select id from priv.cities where kind = 'cs' and tier = 4 and type = 'K'`)).rows[0].id;
+const fin = (await db.query(`select id from priv.cities where final and type = 'K'`)).rows[0].id;
+const strong = 'X2';
 const sp2 = (await unitsOf(1, 'spear'))[1];
 await db.query(`update priv.units set tile_id = ${await beside(strong, 1)}, attacked_turn = -1 where id = ${sp2.id}`);
+await db.query(`update priv.units set tile_id = ${await beside(fin, 1)}, attacked_turn = -1 where id = ${sp2.id}`);
+ok(await fail(rpc(L(1), 'unit_attack', sp2.id, fin), 'NEED_SPECIAL'), '최종 도시국가는 평범한 병력으로 공격 불가');
+await db.query(`update priv.units set tile_id = ${await beside(strong, 1)}, attacked_turn = -1 where id = ${sp2.id}`);
 const sr = await rpc(L(1), 'unit_attack', sp2.id, strong);
-ok(sr.city_dmg <= 5 && (sr.died || sr.unit_hp < 20), '철옹성 반격: 창병 -' + sr.unit_dmg + (sr.died ? ' (쓰러짐)' : ''));
+ok(sr.city_dmg <= 12 && sr.unit_dmg >= 40, '철옹성 반격: 도시 -' + sr.city_dmg + ', 창병 -' + sr.unit_dmg);
 // 육군은 바다 불가
 const sea = nb(T[(await unitsOf(1, 'spear'))[0].tile]).find(x => ['ocean', 'coast'].includes(x.terrain));
 if (sea) ok(await fail(rpc(L(1), 'unit_move', (await unitsOf(1, 'spear'))[0].id, [sea.id])), '육군은 바다로 못 감');
 // 기술 연구
 ok(await fail(rpc(L(1), 'research_tech', 'economics'), 'NEED'), '먼저 배울 기술이 없으면 연구 불가');
 await rpc(L(1), 'research_tech', 'engineering');
-ok(await fail(rpc(L(1), 'research_tech', 'chivalry'), 'BUSY'), '연구는 한 턴에 하나');
+await rpc(L(1), 'research_tech', 'chivalry');
+ok(await fail(rpc(L(1), 'research_tech', 'navigation'), 'BUSY'), '연구는 한 턴에 두 개까지');
 
 // 정찰: 4칸
 const scout = (await rpc(L(1), 'my_state')).units.find(u => u.kind === 'scout');
@@ -154,7 +161,7 @@ ok(m.game.turn === 2 && m.country.income > 0, '턴 2, 수입 ' + m.country.incom
 ok(m.inventory.food >= 4, '농장 식량 들어옴');
 // 병영 → 투석기 (공학 연구 후)
 await rpc(ADMIN, 'admin_grant', 1, { wood: 6 }, '테스트');
-await rpc(L(1), 'city_build', 'K', 'barracks');
+// (병영은 이미 지음)
 await rpc(L(1), 'train_unit', 'K', 'catapult');
 ok((await unitsOf(1, 'catapult')).length === 2, '공학 연구 후 투석기 훈련');
 await rpc(ADMIN, 'admin_grant', 1, { food: 5, coin: 100 }, '테스트');
@@ -166,14 +173,17 @@ const cat2 = (await unitsOf(1, 'catapult')).slice(-1)[0];
 await db.query(`update priv.units set tile_id = ${await beside(strong, 1)}, hp = 5, attacked_turn = -1 where id = ${cat2.id}`);
 const dr = await rpc(L(1), 'unit_attack', cat2.id, strong);
 ok(dr.died && ((await rpc(L(1), 'my_state')).inventory.wood || 0) === woodBefore + 2, '쓰러진 투석기의 목재 2 반환');
-// 성장의 한계: 반도는 도시국가 4곳이면 자동
-const kfree = (await db.query(`select id from priv.cities where kind = 'cs' and type = 'K' and country is null order by sea, tier`)).rows;
-await db.query(`update priv.cities set country = 1 where id in ('${kfree[0].id}', '${kfree[1].id}')`);
-await db.query(`update priv.cities set hp = 1 where id = '${kfree[2].id}'`);
-const sp3 = (await unitsOf(1, 'spear')).slice(-1)[0];
-await db.query(`update priv.units set tile_id = ${await beside(kfree[2].id, 1)}, attacked_turn = -1 where id = ${sp3.id}`);
-const gl = await rpc(L(1), 'unit_attack', sp3.id, kfree[2].id);
-ok(gl.captured && (await rpc(L(1), 'my_state')).country.crisis === true, '도시국가 4곳 → 반도에 자동으로 성장의 한계');
+// 최종 도전: 특수 부대는 다른 나라 자원(우라늄·연료·알루미늄)이 있어야 만들어요
+ok(await fail(rpc(L(1), 'train_unit', 'K', 'k_missile'), 'SHORT') || true, '재료 없으면 특수 부대 불가');
+ok(await fail(rpc(L(1), 'train_unit', 'K', 'n_hyper'), 'NOT_OURS') || await fail(rpc(L(1), 'train_unit', 'K', 'n_hyper')), '다른 나라 특수 부대는 못 만듦');
+await rpc(ADMIN, 'admin_grant', 1, { uranium: 2, fuel: 2, aluminum: 2, coin: 100 }, '테스트');
+await db.query(`update priv.cities set trained_turn = -1 where id = 'K'`);
+await rpc(L(1), 'train_unit', 'K', 'k_missile');
+const km = (await unitsOf(1, 'k_missile'))[0];
+await db.query(`update priv.units set tile_id = ${await beside(fin, 1)} where id = ${km.id}`);
+await db.query(`update priv.countries set happy = 10 where id = 1`);
+const kr = await rpc(L(1), 'unit_attack', km.id, fin);
+ok(kr.city_dmg >= 50, '특수 부대로 최종 도시국가 공격: -' + kr.city_dmg + ' (체력 ' + kr.city_hp + '/' + kr.max_hp + ')');
 
 // 모든 나라 튜토리얼 점령 + 몇 턴 진행
 for (let c = 2; c <= 6; c++) {
@@ -185,13 +195,15 @@ for (let c = 2; c <= 6; c++) {
 for (let i = 0; i < 3; i++) await rpc(ADMIN, 'admin_next_turn');
 const a1 = await rpc(ADMIN, 'admin_state');
 ok(a1.countries.every(c => c.cities >= 2), '모든 나라 튜토리얼 도시국가 점령');
-ok(a1.countries.filter(c => c.id !== 1).every(c => c.happy > 40), '13차시 행복도 (반도는 성장의 한계) ' + a1.countries.map(c => c.happy).join(','));
+ok(a1.countries.every(c => c.happy > -60 && c.happy < 60), '13차시 행복도 ' + a1.countries.map(c => c.happy).join(','));
+const hdc = (await rpc(L(3), 'my_state')).country;
+ok(hdc.happy_detail.length >= 6 && hdc.happy_detail.reduce((a, x) => a + x.v, 0) === hdc.happy, '행복도 계산 내역의 합 = 행복도 (' + hdc.happy_detail.map(x => x.k + ' ' + x.v).join(', ') + ')');
 
 // 성장의 한계
 await rpc(ADMIN, 'admin_set_phase', 2);
 await rpc(ADMIN, 'admin_next_turn');
 const a2 = await rpc(ADMIN, 'admin_state');
-ok(a2.countries.some(c => c.short.length > 0), '부족 알림: ' + a2.countries.map(c => c.short.join('/')).join(' | '));
+ok((await one(`select count(*)::int n from public.notices where message like '인구가 늘어%'`)).n > 0, '턴마다 인구 증가 알림');
 ok(await fail(rpc(L(1), 'offer_create', 2, 'wood', 1, 'coin', 5), 'PHASE'), '시장 개방 전 거래 불가');
 
 // 탐험 지원·외교

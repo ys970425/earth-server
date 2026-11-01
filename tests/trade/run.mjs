@@ -110,13 +110,14 @@ await cardBtn(A, '도시 시장', '짓기'); await wait(1000);
 ok((await one(`select buildings from priv.cities where id = 'K'`)).buildings.includes('market'), 'UI: 도시 시장 짓기');
 // 도시국가 공격: 투석기(사거리 2)는 수도에서, 창병은 옆으로 걸어가서
 const k1 = await one(`select id, tile_id from priv.cities where type = 'K' and tutorial`);
+await db.query(`update priv.cities set hp = 120, max_hp = 120 where id = '${k1.id}'`);   // 화면 흐름(투석기 → 창병)을 보려고 시험에서만 튼튼하게
 await clickTile(A, k1.tile_id);
 await shot(A, '09-citystate');
 await A.click('button:has-text("투석기로 공격")'); await wait(600);
 await shot(A, '09b-unit-window');
 await A.click('.bcard.atk button:has-text("공격")'); await wait(2600);
 await shot(A, '10-siege');
-ok((await one(`select hp from priv.cities where id = '${k1.id}'`)).hp < 60, 'UI: 투석기 공격으로 성벽 깎임');
+ok((await one(`select hp from priv.cities where id = '${k1.id}'`)).hp < 120, 'UI: 투석기 공격으로 성벽 깎임');
 await wait(600);
 ok(await A.$eval('#side .side-title', e => e.textContent.includes('창병')), 'UI: 공격 끝난 투석기 다음 병력(창병) 자동 선택');
 await shot(A, '10a-army-list');

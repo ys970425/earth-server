@@ -3,8 +3,8 @@
 export const W = 40, H = 28;
 
 export const COUNTRIES = {
-  K: { capital: [20, 11], capitalRes: [] },
-  J: { capital: [26, 11], capitalRes: [] },
+  K: { capital: [20, 11], capitalRes: ['gold'] },
+  J: { capital: [26, 11], capitalRes: ['gold'] },
   C: { capital: [10, 13], capitalRes: ['iron', 'cotton'] },
   A: { capital: [35, 13], capitalRes: ['oil', 'cotton'] },
   N: { capital: [16, 2], capitalRes: ['oil'] },
@@ -38,21 +38,21 @@ const TERRAIN = {
 // 나라별 도시국가 수, 등급(가까운 순), 이름, 자원, 합류 기술
 const ZONES = {
   K: { n: 5, tiers: [0, 1, 2, 3, 4], names: ['소나무골', '푸른나루', '솔바람재', '물새섬', '단풍고개', '매화마을', '은하포구'],
-       res: [[], [], ['iron'], [], ['copper']], tech: [null, null, 'navigation', 'economics', null] },
+       res: [[], ['iron'], ['iron'], [], []], tech: [null, null, 'navigation', 'economics', null] },
   J: { n: 5, tiers: [0, 1, 2, 3, 4], names: ['안개곶', '붉은항', '벚꽃마을', '등대섬', '파도곶', '달빛섬', '소금포구'],
-       res: [[], ['copper'], [], [], ['gold']], tech: [null, null, 'navigation', 'economics', null] },
+       res: [[], ['copper'], [], ['copper'], []], tech: [null, null, 'navigation', 'economics', null] },
   C: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 3, 4], names: ['황토성', '붉은강', '비단마을', '철산성', '모래성', '옥수마을', '대나무성', '황하나루', '서쪽관문', '만리관'],
-       res: [['iron'], ['copper'], ['cotton'], ['aluminum'], ['iron'], ['copper'], ['cotton'], ['aluminum', 'copper']], tech: [null, 'engineering', null, 'gunpowder', null, 'economics', null, 'chipmaking'] },
-  A: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 4, 4], names: ['들판마을', '큰강나루', '검은샘', '포도골', '바위성', '은빛고원', '독수리봉', '황금평원', '협곡성'],
-       res: [['wine'], ['oil'], ['aluminum'], ['wine', 'uranium'], ['iron'], ['aluminum', 'copper'], ['oil'], ['uranium']], tech: [null, 'engineering', null, 'chipmaking', null, 'combustion', null, null] },
-  N: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 4, 4], names: ['눈꽃마을', '얼음항', '금빛골', '자작나무골', '서리성', '북극성', '오로라성', '늑대고개', '백야마을'],
-       res: [['oil'], ['gold'], ['aluminum'], ['oil'], ['uranium'], ['gold', 'aluminum'], ['oil'], ['uranium']], tech: [null, 'chivalry', null, 'steelmaking', null, 'chipmaking', null, null] },
+       res: [['rare'], ['copper'], ['cotton'], ['iron'], ['rare'], ['copper'], ['iron'], []], tech: [null, 'engineering', null, 'gunpowder', null, 'economics', null, 'chipmaking'] },
+  A: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 3, 4], names: ['들판마을', '큰강나루', '검은샘', '포도골', '바위성', '은빛고원', '독수리봉', '황금평원', '협곡성'],
+       res: [['wine'], ['oil'], ['aluminum'], ['wine'], ['iron'], ['aluminum'], ['oil'], []], tech: [null, 'engineering', null, 'chipmaking', null, 'combustion', null, null] },
+  N: { n: 8, tiers: [0, 1, 1, 2, 2, 3, 3, 4], names: ['눈꽃마을', '얼음항', '금빛골', '자작나무골', '서리성', '북극성', '오로라성', '늑대고개', '백야마을'],
+       res: [['uranium'], ['gold'], ['aluminum'], ['oil'], ['uranium'], ['aluminum'], ['gold'], []], tech: [null, 'chivalry', null, 'steelmaking', null, 'chipmaking', null, null] },
   T: { n: 7, tiers: [0, 1, 1, 2, 2, 3, 4], names: ['야자마을', '고무나무골', '향기섬', '구리곶', '산호섬', '망고나루', '코코넛만', '맹그로브숲'],
-       res: [['rubber'], ['spice'], ['copper'], ['rubber'], ['cotton'], ['copper', 'spice'], ['gold']], tech: [null, 'navigation', null, 'economics', null, 'economics', null] }
+       res: [['rubber'], ['copper'], ['spice'], ['rubber'], ['copper'], ['rubber'], []], tech: [null, 'navigation', null, 'economics', null, 'economics', null] }
 };
 // 주인 없는 땅의 도시국가 (누구나 차지할 수 있고, 최종 보스는 여러 나라가 힘을 합쳐야 해요)
 const NEUTRAL = [
-  { id: 'X1', name: '잊힌 제국 아르카', at: [25, 23], tier: 5, res: ['gold', 'uranium', 'aluminum'], boss: true },
+  { id: 'X1', name: '잊힌 제국 아르카', at: [25, 23], tier: 5, res: ['gold', 'aluminum'], boss: true },
   { id: 'X2', name: '수호자의 탑', at: [27, 22], tier: 4, res: [] },
   { id: 'X3', name: '폭풍섬', at: [31, 3], tier: 3, res: ['aluminum'] },
   { id: 'X4', name: '천둥 요새', at: [33, 4], tier: 4, res: ['uranium'] },
@@ -106,7 +106,7 @@ export function buildMap(seed = 7) {
       const [x, y] = cand[Math.floor(rand() * cand.length)];
       T(x, y).res = res;
       if (res === 'oil' && T(x, y).terrain === 'mountain') T(x, y).terrain = 'plains';
-      if (['iron', 'copper', 'aluminum', 'gold', 'uranium'].includes(res) && ['plains', 'tundra', 'jungle', 'desert', 'snow'].includes(T(x, y).terrain)) T(x, y).terrain = 'hills';
+      if (['iron', 'copper', 'aluminum', 'gold', 'uranium', 'rare'].includes(res) && ['plains', 'tundra', 'jungle', 'desert', 'snow'].includes(T(x, y).terrain)) T(x, y).terrain = 'hills';
       if (['cotton', 'spice', 'wine', 'rubber'].includes(res) && ['mountain', 'snow'].includes(T(x, y).terrain)) T(x, y).terrain = 'plains';
     }
   };
@@ -149,7 +149,7 @@ export function buildMap(seed = 7) {
     const order = [picked[0], ...picked.slice(1).sort((a, b) => dist(a, cap) - dist(b, cap))];
     order.forEach((at, i) => {
       const sea = neighbors(...at).every(([x, y]) => !land(x, y) || T(x, y).zone !== id || dist([x, y], cap) > 20) && false;
-      cs.push({ id: id + (i + 1), name: Z.names[i], owner: id, at, tier: Z.tiers[i], res: Z.res[i] || [], tech: Z.tech[i] || null, tutorial: i === 0,
+      cs.push({ id: id + (i + 1), name: Z.names[i], owner: id, at, tier: Z.tiers[i], res: Z.res[i] || [], tech: Z.tech[i] || null, tutorial: i === 0, final: i === order.length - 1,
         island: !landPath(tiles, cap, at) });
     });
   }
