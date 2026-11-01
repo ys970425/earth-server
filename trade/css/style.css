@@ -874,3 +874,36 @@ button.nick-slot { --b-top: #3A4A2A; --b-bot: #1E2A14; --b-text: #FFE7A6; border
 .test-btn + .credit-nav { margin-left: 10px; }
 .bcard.special { box-shadow: 0 0 0 2px #E2B85C, 0 0 14px rgba(226,184,92,.45); }
 .bcard-body b .chip { margin-left: 6px; vertical-align: 2px; }
+
+/* ---------- v4: 행복도 내역·무역 안내 ---------- */
+.stat.happy { position: relative; cursor: pointer; }
+.stat.happy .happy-tip { display: none; position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; width: 340px; }
+.stat.happy:hover .happy-tip, .stat.happy:focus .happy-tip { display: block; }
+.happy-tip .hl { background: #FBF4E1; color: #2B2116; border: 2px solid #2A1C10; box-shadow: 0 0 0 2px #B88A3E, 0 10px 20px rgba(0,0,0,.5); padding: 10px 12px; border-radius: 4px; }
+.hl { display: flex; flex-direction: column; gap: 3px; font-family: var(--font-ui); }
+.hl > b { font-family: var(--font-display); font-size: 16px; color: #3A2716; }
+.hl-row { display: grid; grid-template-columns: 1fr 48px; gap: 2px 8px; align-items: baseline; padding: 3px 6px; border-radius: 3px; font-size: 14px; }
+.hl-row i { font-style: normal; font-family: var(--font-display); font-weight: 700; text-align: right; }
+.hl-row small { grid-column: 1 / -1; font-size: 11.5px; color: #7A6849; line-height: 1.3; }
+.hl-row.plus { background: #E6F4DC; } .hl-row.plus i { color: #1E7A43; }
+.hl-row.minus { background: #FBE3E0; } .hl-row.minus i { color: #A3202F; }
+.hl-sum { border-top: 2px solid #2A1C10; margin-top: 4px; padding-top: 4px; font-size: 15px; } .hl-sum b { font-family: var(--font-display); font-size: 18px; }
+.hl-rule { color: #7A6849; font-size: 11.5px; }
+.hmeter { position: relative; height: 18px; border: 2px solid #2A1C10; border-radius: 2px; background: linear-gradient(90deg, #C0303F 0%, #E8A33A 45%, #E8D07A 50%, #7CC66B 62%, #2E9E58 100%); margin-bottom: 10px; }
+.hmeter .zero { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: #2A1C10; }
+.hmeter b { position: absolute; top: -6px; width: 12px; height: 26px; margin-left: -6px; background: #FFF; border: 2px solid #2A1C10; box-shadow: 0 2px 0 #000; }
+.lux-adv { margin-top: 8px; background: #FFF1CC; border: 1px solid #C08A2A; border-radius: 3px; padding: 6px 10px; font-size: 13.5px; }
+.lux-adv span { display: inline-block; margin: 0 4px; font-weight: 700; }
+.panel.guide { margin-bottom: 14px; }
+.guide-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; }
+@media (max-width: 1000px) { .guide-grid { grid-template-columns: 1fr; } }
+.gcol { background: rgba(255,255,255,.45); border: 1px solid rgba(90,60,25,.3); border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+.gcol h4 { margin: 0; font-family: var(--font-display); font-size: 16px; color: #3A2716; }
+.gcol p { margin: 0 0 4px; font-size: 13px; line-height: 1.45; }
+.gcol.need { border-color: #A3202F; background: #FFF4F2; }
+.grow-row { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 13px; padding: 2px 0; border-bottom: 1px dashed rgba(90,60,25,.25); }
+.grow-row.ok { color: #1E7A43; }
+.grow-row b.only { color: #A3202F; }
+.guide-tip { margin-top: 10px; font-size: 14px; background: #2C3548; color: #FFE7A6; padding: 6px 12px; border-radius: 3px; }
+.warn-box.final { background: #3A1020; color: #FFE7A6; border-color: #000; }
+.big-joy { font-family: var(--font-display); font-size: 22px; color: #1E7A43; }

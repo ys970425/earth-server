@@ -189,6 +189,7 @@
   }
   window.__council = () => councilOnce(true);
   function noticeToast(n) {
+    if (n.kind === 'alert' && /불행해져서/.test(n.message)) { modal(h('div', { class: 'center' }, h('h2', { class: 'bad' }, '나라가 불행해요!'), h('p', {}, n.message), luxAdvice())); return; }
     const kind = ['crisis', 'alert', 'unrest', 'revolt', 'short'].includes(n.kind) ? 'alert' : '';
     if (n.kind === 'turn') return;
     toast(n.message, kind);
@@ -213,7 +214,8 @@
       stat('res', '식량', fmt(inv.food || 0), 'food'),
       stat('res', '목재', fmt(inv.wood || 0), 'wood'),
       S.obs ? null : stat('res', '철광석', fmt(inv.iron || 0), 'iron'),
-      h('span', { class: 'stat happy ' + happyClass(co.happy) }, h('span', { class: 'ico face' }), '행복도', h('b', {}, co.happy), h('small', {}, happyWord(co.happy))),
+      h('span', { class: 'stat happy ' + happyClass(co.happy), tabindex: 0, onclick: () => happyModal() }, h('span', { class: 'ico face' }), '행복도', h('b', {}, (co.happy > 0 ? '+' : '') + co.happy), h('small', {}, happyWord(co.happy)),
+        h('div', { class: 'happy-tip' }, happyList(co))),
       S.obs ? obsChip() : h('span', { class: 'me-chip' }, S.st.me.name, myRoles().length ? myRoles().map(r => h('span', { class: 'lead' + (r === R.ROLES[0] ? '' : ' role') }, r)) : h('span', { class: 'lead role nohold', onclick: () => go('nation') }, '역할 고르기 →')),
       readyBtn(),
       h('button', { class: 'small ghost snd', title: '효과음 켜기/끄기', onclick: e => { const on = Sound.toggle(); e.target.textContent = on ? '소리 켬' : '소리 끔'; } }, Sound.on ? '소리 켬' : '소리 끔'),
@@ -252,7 +254,20 @@
     const ico = kind === 'coin' ? h('span', { class: 'ico coin' }, 'C') : h('img', { class: 'ico img', src: itemImg(item), alt: '' });
     return h('span', { class: 'stat' }, ico, label, h('b', {}, val));
   }
-  const happyClass = v => v >= 70 ? 'golden' : v >= 40 ? 'ok' : v >= 25 ? 'bad1' : 'bad2';
+  // 행복도 계산 내역 (서버가 매 턴 계산한 그대로)
+  function happyList(co) {
+    const d = (co.happy_detail || []).filter(x => x.v !== 0);
+    return h('div', { class: 'hl' }, h('b', {}, '행복도는 왜 ' + co.happy + '일까?'),
+      d.length ? d.map(x => h('div', { class: 'hl-row ' + (x.v > 0 ? 'plus' : 'minus') }, h('span', {}, x.k), h('i', {}, (x.v > 0 ? '+' : '') + x.v), h('small', {}, x.tip)))
+        : h('small', {}, '턴이 끝나면 계산돼요.'),
+      h('div', { class: 'hl-sum' }, '합계 ', h('b', {}, (co.happy > 0 ? '+' : '') + co.happy), ' → ', happyWord(co.happy)),
+      h('small', { class: 'hl-rule' }, '30 이상 황금기(수입 +25%) · 0 아래 불만(병사 공격력 -30%) · -20 아래 불안(도시 생산 멈춤)'));
+  }
+  function happyModal() {
+    const co = S.st.country;
+    modal(h('div', {}, h('h2', {}, '우리 나라 행복도'), happyList(co), luxAdvice()));
+  }
+  const happyClass = v => v >= 30 ? 'golden' : v >= 0 ? 'ok' : v >= -20 ? 'bad1' : 'bad2';
   function tickClock() {
     const el = $('#clock'); if (!el || !S.st) return;
     const g = S.st.game, end = g.timer_end || g.turn_end;
@@ -441,7 +456,7 @@
       h('button', { class: 'small ' + (S.cityTab === k ? 'gold' : ''), onclick: () => { S.cityTab = k; renderSide(); } }, l)));
     side.append(tabs);
     if (S.cityTab === 'build') {
-      if (c.built) side.append(h('div', { class: 'hint' }, '이 도시는 이번 턴에 건물을 지었어요. 다음 턴에 또 지을 수 있어요.'));
+      side.append(h('div', { class: 'hint' }, c.built ? '이 도시는 이번 턴에 건물을 ' + R.BUILD_PER_TURN + '개 지었어요. 다음 턴에 또 지어요.' : '이번 턴 건설 ' + (c.built_n || 0) + ' / ' + R.BUILD_PER_TURN + '개'));
       side.append(h('div', { class: 'card-list' }, Object.entries(R.BUILDINGS).map(([k, b]) => {
         const has = c.buildings.includes(k);
         const why = has ? '' : roleWhy('기획부 장관') ? roleWhy('기획부 장관') : c.built ? '이번 턴 건설 끝' : b.tech && !st.country.techs.includes(b.tech) ? '「' + R.TECHS[b.tech] + '」 기술 필요'
@@ -461,10 +476,10 @@
       else if (c.trained) side.append(h('div', { class: 'hint' }, '이 도시는 이번 턴에 ' + R.TRAIN_PER_TURN + '부대를 다 훈련했어요.'));
       else side.append(h('small', { class: 'muted' }, '한 도시에서 한 턴에 ' + R.TRAIN_PER_TURN + '부대까지 (이번 턴 ' + (c.trained_n || 0) + '부대)'));
       const techs = st.country.techs;
-      side.append(h('div', { class: 'card-list' }, Object.entries(R.UNITS).filter(([, u]) => !u.tech || techs.includes(u.tech) || R.TECH_TREE[u.tech].era <= 2).map(([k, u]) => {
+      side.append(h('div', { class: 'card-list' }, Object.entries(R.UNITS).filter(([, u]) => (u.boss ? u.boss === st.country.type : (!u.tech || techs.includes(u.tech) || R.TECH_TREE[u.tech].era <= 2))).map(([k, u]) => {
         const need = u.sea ? 'harbor' : 'barracks';
         const why = roleWhy('국방부 장관') || (u.tech && !techs.includes(u.tech) ? '「' + R.TECHS[u.tech] + '」 기술 필요' : !c.buildings.includes(need) ? (u.sea ? '항구 필요' : '병영 필요') : c.trained ? '이번 턴 훈련 끝' : short(u.cost));
-        return h('div', { class: 'bcard' + (why && why.includes('기술') ? ' locked' : '') + off('국방부 장관') }, h('div', { class: 'bcard-img' }, h('img', { src: unitImg(k) })),
+        return h('div', { class: 'bcard' + (why && why.includes('기술') ? ' locked' : '') + (u.boss ? ' special' : '') + off('국방부 장관') }, h('div', { class: 'bcard-img' }, h('img', { src: unitImg(k) })),
           h('div', { class: 'bcard-body' }, h('b', {}, u.name), h('small', {}, '힘 ' + u.str + ' · 이동 ' + u.move + '칸' + (u.range ? ' · 사거리 ' + u.range : '') + (u.sea ? ' · 배' : '')),
             h('small', {}, '비용: ' + costText(u.cost)), why ? h('small', { class: 'bad' }, why) : null),
           h('button', { class: 'primary small', disabled: !!why || S.busy, onclick: () => act('train_unit', [c.id, k], () => map.floatText(c.tile, u.name + ' 훈련!')) }, '훈련'));
@@ -498,22 +513,26 @@
   // 이번 턴에 더 할 일이 없는 병력 (이동도 공격도 못 함)
   const unitDone = u => u.moves === 0 && (u.kind === 'scout' || u.attacked || !attackable(u).length);
   function passFor(u) {
-    const sea = isSea(u.kind), scout = u.kind === 'scout';
+    const sea = isSea(u.kind), scout = u.kind === 'scout', fly = !!(R.UNITS[u.kind] || {}).fly;
     const cityTiles = new Set(S.mv.cities.filter(c => c.country !== S.st.country.id).map(c => c.tile));
+    const blocked = new Set(S.mv.blocked || []);   // 안 보이는 다른 나라 국경 칸
     return id => {
+      if (blocked.has(id)) return false;
       const t = map.st.tiles.get(id);
-      if (!t) return scout;   // 안 본 칸은 정찰병만 (서버가 다시 검사)
+      if (!t) return scout || fly;   // 안 본 칸은 정찰병만 (서버가 다시 검사)
       const water = t.terrain === 'ocean' || t.terrain === 'coast';
       if (cityTiles.has(id)) return false;
-      if (!scout && sea !== water) return false;
+      if (!scout && !fly && sea !== water) return false;
       return water || !t.owner || t.owner === S.st.country.id;
     };
   }
   function attackable(u) {
     if (u.kind === 'scout' || u.kind === 'worker' || u.attacked) return [];
     const rng = (R.UNITS[u.kind] || {}).range || 1;
-    return S.mv.cities.filter(c => c.kind === 'cs' && !c.country && !(c.tutorial && !mineCs(c)) && HexMap.hexDist(u.tile, c.tile) <= rng);
+    return S.mv.cities.filter(c => c.kind === 'cs' && !c.country && !(c.tutorial && !mineCs(c)) && canHit(u, c) && HexMap.hexDist(u.tile, c.tile) <= rng);
   }
+  // 최종 도시국가는 그 나라 특수 부대만, 잊힌 제국은 어느 나라든 특수 부대만
+  const canHit = (u, c) => { const ud = R.UNITS[u.kind] || {}; return c.final ? !!(ud.boss && c.mine) : c.boss ? !!ud.boss : true; };
   const mineCs = c => (S.st.targets.find(t => t.id === c.id) || {}).mine;
   function showUnitHints(u) {
     const canAct = canRole(unitRole(u));
@@ -564,6 +583,7 @@
         u.kind !== 'scout' ? h('div', {}, '힘 ', h('b', {}, info.str), info.range ? ' · 사거리 ' + info.range + '칸' : '', info.sea ? ' · 배' : '') : null,
         h('div', { class: 'meter' }, h('i', { style: { width: u.hp + '%', background: u.hp > 60 ? '#4FD06A' : u.hp > 30 ? '#F2B530' : '#E8443C' } })),
         h('small', {}, '체력 ' + u.hp + ' / 100 · 남은 이동 ' + u.moves + ' / ' + u.max_moves + '칸' + (u.attacked ? ' · 공격 끝' : '')))));
+    if (S.st.country.happy < R.HAPPY.unhappy && u.kind !== 'scout') side.append(h('div', { class: 'warn-box' }, '나라가 불행해서 병사들의 공격력이 30% 약해졌어요. 사치품으로 행복도를 0 위로!'));
     if (!can) side.append(h('div', { class: 'role-note' }, '병력은 「' + role + '」이(가) 움직여요. 이 칸을 한 번 더 누르면 땅(타일) 창이 열려요.'));
     else side.append(h('ol', { class: 'how' },
       h('li', { class: u.moves ? 'now' : 'done' }, '노란 칸을 눌러 이동해요 (마우스를 올리면 길이 점선으로 보여요)'),
@@ -581,7 +601,7 @@
   }
   // 전투 미리보기 (서버와 같은 식)
   function preview(u, c) {
-    const C = R.COMBAT, str = (R.UNITS[u.kind] || {}).str || 1, ranged = !!(R.UNITS[u.kind] || {}).range && HexMap.hexDist(u.tile, c.tile) > 1;
+    const C = R.COMBAT, str = ((R.UNITS[u.kind] || {}).str || 1) * (S.st.country.happy < R.HAPPY.unhappy ? C.unhappyMult : 1), ranged = !!(R.UNITS[u.kind] || {}).range && HexMap.hexDist(u.tile, c.tile) > 1;
     const ratio = str * (0.5 + 0.5 * u.hp / 100) / Math.max(1, c.def);
     const dc = Math.max(C.min, Math.min(C.max, Math.round(C.base * ratio)));
     let du = Math.max(1, Math.min(150, Math.round(C.base * (C.counter || 1) / ratio))); if (ranged) du = Math.round(du * C.rangedCounter);
@@ -637,7 +657,7 @@
       if (res.captured) {
         Sound.play('win');
         unpick();
-        const kids = [h('img', { src: cityArt(city, 'capital'), class: 'capture-pic' }), h('h2', {}, res.name + ' 점령!'), h('p', {}, '시민들이 환호합니다! (행복도 +' + R.HAPPY.glory + ')')];
+        const kids = [h('img', { src: cityArt(city, 'capital'), class: 'capture-pic' }), h('h2', {}, res.name + ' 점령!'), h('p', { class: 'big-joy' }, '시민들이 환호해요! 행복도 +' + (city.final ? R.FINAL_CS.glory : R.HAPPY.glory)), h('small', { class: 'muted' }, '환호는 매 턴 ' + R.HAPPY.gloryDecay + '씩 줄어요. 도시가 늘면 관리할 일도 늘어요(도시마다 행복도 ' + R.HAPPY.perCity + ').')];
         if (res.coin) kids.push(h('p', {}, '보물 창고에서 코인 +' + res.coin));
         if (res.res && res.res.length) kids.push(h('p', {}, '새 자원: ', res.res.map(r => h('span', { class: 'res-chip' }, h('img', { src: itemImg(r) }), itemName(r)))));
         if (res.techs && res.techs.length) kids.push(h('p', {}, '기술자들이 합류했어요: ', res.techs.map(t => h('span', { class: 'chip tech' }, t))));
@@ -663,6 +683,8 @@
     gain.push(h('div', {}, '매 턴 코인 +' + R.INCOME.city + ', 주변 땅이 우리 영토로'));
     side.append(h('div', { class: 'gain' }, h('b', {}, '차지하면'), ...gain));
     if (city.tutorial && !tg.mine) side.append(h('div', { class: 'warn-box' }, '각 나라의 첫 도시국가는 그 나라만 차지할 수 있어요.'));
+    if (city.final) side.append(h('div', { class: 'warn-box final' }, tg.mine ? '최종 도전! 평범한 병력으로는 꿈쩍도 안 해요. 「' + R.UNITS[R.BOSS_UNIT[S.st.country.type].unit].name + '」을(를) 만들어야 해요. 재료는 「우리 나라」 탭의 무역 안내를 봐요.' : '다른 나라의 최종 도전이에요. 그 나라의 특수 부대만 무너뜨릴 수 있어요.'));
+    if (city.boss) side.append(h('div', { class: 'warn-box final' }, '잊힌 제국! 여러 나라의 특수 부대가 힘을 합쳐야 무너뜨릴 수 있어요.'));
     side.append(h('small', { class: 'muted' }, '병력을 골라 바로 옆 칸까지 움직인 뒤 공격해요. 도시는 반격하고, 한 턴마다 성벽이 ' + tier.heal + ' 회복돼요. 여러 병력으로 한 턴에 몰아쳐요!'));
     const near = st.units.filter(u => attackable(u).some(c => c.id === city.id));
     if (near.length) side.append(h('div', { class: 'row' }, near.map(u => h('button', { class: 'danger small', onclick: () => pickUnit(u) }, unitName(u.kind) + '로 공격'))));
@@ -689,15 +711,10 @@
     page.append(h('div', { class: 'grid2' },
       h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '창고', h('small', {}, '매 턴 생산하고, 사치품은 종류마다 1개씩 써요')),
         inv.length ? h('div', { class: 'inv-grid' }, inv.map(([k, v]) => h('div', { class: 'inv' + (R.LUX.includes(k) ? ' lux' : '') }, h('img', { src: itemImg(k) }), h('b', {}, v), h('small', {}, itemName(k))))) : h('p', { class: 'muted' }, '아직 비어 있어요.')),
-      h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '행복도 ' + co.happy, h('small', {}, happyWord(co.happy))),
-        h('div', { class: 'meter' }, h('i', { style: { width: co.happy + '%', background: co.happy >= 70 ? '#3DCB6C' : co.happy >= 40 ? '#F2B530' : '#E0465C' } })),
-        h('ul', { class: 'why' },
-          h('li', {}, '사치품 종류 ' + co.lux_types + '가지 (종류마다 +' + R.HAPPY.perLuxType + ')'),
-          h('li', {}, '점령 환호 +' + co.glory),
-          h('li', {}, '도시 ' + (st.cities.length - 1) + '곳 관리 (도시마다 ' + (R.HAPPY.perCity + (g.crisis ? R.HAPPY.crisis.perCity : 0)) + ')'),
-          g.crisis ? h('li', {}, '시민 요구: 사치품 2종류 이상, 병력 3부대 이상이면 강철 1, 도시 4곳 이상이면 연료 1') : null,
-          co.short.length ? h('li', { class: 'bad' }, '지난 턴 부족: ' + co.short.join(', ')) : null),
-        h('small', { class: 'muted' }, '70 이상 황금기(수입 +25%) · 40 아래 불만 · 25 아래 도시 불안'))));
+      h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '행복도 ' + (co.happy > 0 ? '+' : '') + co.happy, h('small', {}, happyWord(co.happy))),
+        h('div', { class: 'hmeter' }, h('i', { class: 'zero' }), h('b', { style: { left: (50 + Math.max(-50, Math.min(50, co.happy)) ) + '%' } })),
+        happyList(co), luxAdvice())));
+    page.append(tradeGuidePanel());
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '기술', h('small', {}, '도시국가를 차지하면 기술자가 합류하기도 해요')),
       h('div', { class: 'row' }, co.techs.map(t => h('span', { class: 'chip tech' }, R.TECHS[t])), h('button', { class: 'small gold', onclick: () => go('tech') }, '기술 계통도 보기 →'))));
     if (g.turn >= 1) page.append(industryPanel());
@@ -765,13 +782,55 @@
         (m.roles || []).map(r => h('span', { class: 'chip ' + (r === lead ? 'lead' : 'tech') }, r))))));
   }
 
+  // ================= 무역 안내 (사야 할 것 · 팔 것 · 누구에게) =================
+  const tname = t => { const c = S.st.countries.find(x => x.type === t); return c ? c.name : R.TYPES[t].name; };
+  const whoHas = (it, me) => (R.SOURCES[it] || []).filter(t => t !== me);
+  function guide() {
+    const st = S.st, me = st.country.type, inv = st.inventory, bu = R.BOSS_UNIT[me], unit = R.UNITS[bu.unit];
+    const fin = st.targets.find(t => t.final && t.mine) || {};
+    const needs = bu.needs.map(it => ({ it, qty: unit.cost[it], have: inv[it] || 0, from: whoHas(it, me) }));
+    const myLux = R.LUX.filter(l => (R.SOURCES[l] || []).includes(me));
+    const lux = R.LUX.filter(l => !myLux.includes(l)).map(l => ({ it: l, have: inv[l] || 0, from: whoHas(l, me) }));
+    // 우리가 팔 수 있는 것: 우리가 가진 것을 다른 나라가 특수 부대에 쓰거나 사치품으로 원함
+    const sell = Object.entries(R.SOURCES).filter(([it, ts]) => ts.includes(me)).map(([it, ts]) => ({
+      it, only: ts.length === 1, buyers: Object.entries(R.BOSS_UNIT).filter(([t, b]) => t !== me && b.needs.includes(it)).map(([t]) => t),
+      luxBuyers: R.LUX.includes(it) ? Object.keys(R.TYPES).filter(t => t !== me && !(R.SOURCES[it] || []).includes(t)) : [] }))
+      .filter(x => x.buyers.length || x.luxBuyers.length);
+    return { me, bu, unit, fin, needs, lux, sell };
+  }
+  const itemTag = (it, extra) => h('span', { class: 'res-chip' }, h('img', { src: itemImg(it), alt: '' }), itemName(it), extra || '');
+  function tradeGuidePanel() {
+    const gd = guide(), st = S.st;
+    const ready = gd.needs.every(n => n.have >= n.qty);
+    return h('div', { class: 'panel guide' }, h('div', { class: 'panel-title' }, '무역 안내', h('small', {}, '모둠 회의 때 이 표를 보고 누구와 무엇을 거래할지 정해요')),
+      h('div', { class: 'guide-grid' },
+        h('div', { class: 'gcol need' }, h('h4', {}, '① 최종 도전에 꼭 필요한 것'),
+          h('p', {}, '「' + (gd.fin.name || '최종 도시국가') + '」은(는) 평범한 병력으로는 꿈쩍도 안 해요. ', h('b', {}, gd.unit.name), '을(를) 만들어야 해요. 그런데 재료가 우리 나라에는 없어요!'),
+          gd.needs.map((n, i) => h('div', { class: 'grow-row' + (n.have >= n.qty ? ' ok' : '') }, itemTag(n.it, ' ' + n.qty + '개'),
+            h('span', {}, n.have >= n.qty ? '✓ 준비 완료' : (i === 0 ? h('b', { class: 'only' }, '딱 한 나라만 있어요 → ' + n.from.map(tname).join(', ')) : '← ' + n.from.map(tname).join(' 또는 ')), ' (지금 ' + n.have + '개)'))),
+          h('small', { class: 'muted' }, ready ? '재료가 다 모였어요! 국방부 장관이 병영에서 ' + gd.unit.name + '을(를) 훈련해요.' : '빨간 글씨 나라와는 꼭 거래해야 해요. 국가 대표끼리 만나 이야기해 봐요.')),
+        h('div', { class: 'gcol lux' }, h('h4', {}, '② 행복을 위한 사치품'),
+          h('p', {}, '사치품은 종류마다 행복도 +' + R.HAPPY.perLuxType + '. 우리 나라에 없는 사치품은 사 와야 해요.'),
+          gd.lux.map(l => h('div', { class: 'grow-row' + (l.have > 0 ? ' ok' : '') }, itemTag(l.it), h('span', {}, l.have > 0 ? '✓ ' + l.have + '개 있음' : '← ' + l.from.map(tname).join(', '))))),
+        h('div', { class: 'gcol sell' }, h('h4', {}, '③ 우리가 팔 수 있는 것'),
+          h('p', {}, '다른 나라가 꼭 필요한 물건이에요. 대신 우리가 필요한 것과 바꿔요!'),
+          gd.sell.map(x => h('div', { class: 'grow-row' }, itemTag(x.it, x.only ? ' (우리만!)' : ''),
+            h('span', {}, [...x.buyers.map(t => tname(t) + '(특수 부대)'), ...x.luxBuyers.slice(0, 3).map(t => tname(t))].join(', ') + ' 에게'))))),
+      h('div', { class: 'guide-tip' }, '거래 예시: "우리 ' + itemName((gd.sell[0] || {}).it || 'food') + ' 2개를 줄 테니, ' + itemName(gd.needs[0].it) + ' 2개를 주세요." → 「무역」 탭에서 제안을 보내요.'));
+  }
+  function luxAdvice() {
+    const gd = guide(), miss = gd.lux.filter(l => !l.have);
+    if (!miss.length) return null;
+    return h('div', { class: 'lux-adv' }, '행복도를 올리려면: ', miss.slice(0, 4).map(l => h('span', {}, itemName(l.it) + '(' + l.from.map(tname).join('·') + ')')), ' 을(를) 사 와요.');
+  }
+
   // ================= 기술 계통도 =================
   function techView(page) {
     const st = S.st, have = st.country.techs, TT = R.TECH_TREE;
     const can = k => TT[k].req.every(q => have.includes(q));
     const lead = roleWhy('과학기술부 장관');
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '기술 계통도', h('small', {}, '왼쪽 기술을 알아야 오른쪽 기술을 연구할 수 있어요 · 한 턴에 하나 · 도시국가를 차지하면 기술자가 합류하기도 해요')),
-      st.country.researched ? h('div', { class: 'hint' }, '이번 턴에는 이미 연구했어요. 「턴 끝내기」 뒤에 또 연구할 수 있어요.') : lead ? h('div', { class: 'hint' }, lead) : null,
+      st.country.researched ? h('div', { class: 'hint' }, '이번 턴에는 기술을 ' + R.RESEARCH_PER_TURN + '개 연구했어요. 「턴 끝내기」 뒤에 또 연구할 수 있어요.') : lead ? h('div', { class: 'hint' }, lead) : h('div', { class: 'hint' }, '이번 턴 연구 ' + (st.country.research_n || 0) + ' / ' + R.RESEARCH_PER_TURN + '개'),
       h('div', { class: 'tree-wrap' },
         svgEl(),
         h('div', { class: 'tree' },
@@ -898,6 +957,7 @@
   function tradeView(page) {
     const st = S.st, g = st.game, me = st.country.id;
     if (!g.market_open) { page.append(h('div', { class: 'panel center' }, h('h3', {}, '세계 시장이 아직 열리지 않았어요'), h('p', {}, '선생님이 세계 시장을 열면 다른 나라와 물건을 사고팔 수 있어요.'))); return; }
+    page.append(tradeGuidePanel());
     const known = st.countries.filter(c => c.id !== me && c.known);
     const items = ['coin', ...Object.keys(R.ITEMS)];
     const to = h('select', { id: 'o-to' }, known.map(c => h('option', { value: c.id }, c.name)));
