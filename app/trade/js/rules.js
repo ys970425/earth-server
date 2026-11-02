@@ -95,7 +95,7 @@
   // 나라마다 특산품 하나: 특산 공장은 싸게 짓고(코인 40·목재 2·식량 2), 원료 없이 매 턴 2개 만들어요 (가공비만 냄)
   R.SPECIALTY = {
     K: { factory: 'chipfab', why: '기술이 뛰어나 원료가 없어도 반도체를 만들어요 (실제 한국의 1위 수출품)' },
-    J: { factory: 'rubberplant', why: '자동차 부품 기술이 좋아 타이어를 만들어요 (실제 일본은 자동차·부품을 많이 수출)' },
+    J: { factory: 'rubberplant', input: true, why: '열대 해양국의 고무를 사 와서 타이어로 가공해요 (가공 무역! 실제 일본은 고무를 사서 타이어·자동차를 수출)' },
     C: { factory: 'steelworks', why: '큰 제철소가 많아 강철을 많이 만들어요 (실제 중국은 세계 1위 철강 생산국)' },
     A: { factory: 'aircraft', why: '과학 기술로 항공 엔진을 만들어요 (실제 미국은 비행기·엔진을 많이 수출)' },
     N: { factory: 'refinery', why: '석유가 많아 연료를 넉넉히 만들어요 (실제 러시아는 석유·가스를 많이 수출)' },
@@ -106,7 +106,7 @@
   R.FACTORY_FREE = {};
   for (const [t, sp] of Object.entries(R.SPECIALTY)) {
     (R.FACTORY_BUILD[sp.factory] = R.FACTORY_BUILD[sp.factory] || {})[t] = R.SPECIALTY_BUILD;
-    R.FACTORY_FREE[t] = { [sp.factory]: true };
+    if (!sp.input) R.FACTORY_FREE[t] = { [sp.factory]: true };
   }
   // 나라별 가공비 (코인/개). 없으면 못 만듦
   R.PROC_COST = {
@@ -148,7 +148,7 @@
     k_missile: { name: '장거리 미사일 부대', boss: 'K', era: 4, str: 140, move: 5, range: 3, fly: true, cost: { coin: 80, uranium: 2, fuel: 2, aluminum: 2 }, img: 'artillery' },
     j_patrol:  { name: '해상 초계기', boss: 'J', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, fuel: 2, steel: 2 }, img: 'cruiser' },
     c_jet:     { name: '대형 전투기 편대', boss: 'C', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, engine: 2, fuel: 2, aluminum: 2 }, img: 'tank' },
-    a_stealth: { name: '스텔스 폭격기', boss: 'A', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, rubber: 2, steel: 2, copper: 2 }, img: 'tank' },
+    a_stealth: { name: '스텔스 폭격기', boss: 'A', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, steel: 2, copper: 2 }, img: 'tank' },
     n_hyper:   { name: '극초음속 미사일', boss: 'N', era: 4, str: 140, move: 5, range: 3, fly: true, cost: { coin: 80, chip: 2, steel: 2, copper: 2 }, img: 'artillery' },
     t_marine:  { name: '상륙 기갑부대', boss: 'T', era: 4, str: 140, move: 5, range: 2, fly: true, cost: { coin: 80, tire: 2, fuel: 2, steel: 2 }, img: 'tank' },
     cruiser:   { name: '미사일 순양함', era: 4, str: 90, move: 6, range: 3, sea: true, tech: 'missile', cost: { coin: 160, steel: 2, fuel: 2, chip: 2 }, img: 'cruiser' }
@@ -179,7 +179,7 @@
     K: { unit: 'k_missile', needs: ['uranium', 'fuel', 'aluminum'] },
     J: { unit: 'j_patrol', needs: ['rare', 'fuel', 'steel'] },
     C: { unit: 'c_jet', needs: ['engine', 'fuel', 'aluminum'] },
-    A: { unit: 'a_stealth', needs: ['rubber', 'steel', 'copper'] },
+    A: { unit: 'a_stealth', needs: ['rare', 'steel', 'copper'] },
     N: { unit: 'n_hyper', needs: ['chip', 'steel', 'copper'] },
     T: { unit: 't_marine', needs: ['tire', 'fuel', 'steel'] }
   };

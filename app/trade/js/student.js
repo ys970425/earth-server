@@ -789,14 +789,18 @@
     const st = S.st, me = st.country.type, inv = st.inventory, bu = R.BOSS_UNIT[me], unit = R.UNITS[bu.unit];
     const fin = st.targets.find(t => t.final && t.mine) || {};
     const needs = bu.needs.map(it => ({ it, qty: unit.cost[it], have: inv[it] || 0, from: whoHas(it, me) }));
+    // 특산 공장에 원료가 필요한 나라 (섬나라: 고무 → 타이어)
+    const sp = R.SPECIALTY[me], spf = R.FACTORIES[sp.factory];
+    const spNeed = sp.input && !(R.SOURCES[spf.input] || []).includes(me) ? { it: spf.input, out: spf.output, have: inv[spf.input] || 0, from: whoHas(spf.input, me) } : null;
     const myLux = R.LUX.filter(l => (R.SOURCES[l] || []).includes(me));
     const lux = R.LUX.filter(l => !myLux.includes(l)).map(l => ({ it: l, have: inv[l] || 0, from: whoHas(l, me) }));
     // 우리가 팔 수 있는 것: 우리가 가진 것을 다른 나라가 특수 부대에 쓰거나 사치품으로 원함
     const sell = Object.entries(R.SOURCES).filter(([it, ts]) => ts.includes(me)).map(([it, ts]) => ({
-      it, only: ts.length === 1, buyers: Object.entries(R.BOSS_UNIT).filter(([t, b]) => t !== me && b.needs.includes(it)).map(([t]) => t),
+      it, only: ts.length === 1, buyers: [...Object.entries(R.BOSS_UNIT).filter(([t, b]) => t !== me && b.needs.includes(it)).map(([t]) => t),
+        ...Object.entries(R.SPECIALTY).filter(([t, x]) => t !== me && x.input && R.FACTORIES[x.factory].input === it).map(([t]) => t + ':원료')],
       luxBuyers: R.LUX.includes(it) ? Object.keys(R.TYPES).filter(t => t !== me && !(R.SOURCES[it] || []).includes(t)) : [] }))
       .filter(x => x.buyers.length || x.luxBuyers.length);
-    return { me, bu, unit, fin, needs, lux, sell };
+    return { me, bu, unit, fin, needs, lux, sell, spNeed };
   }
   const itemTag = (it, extra) => h('span', { class: 'res-chip' }, h('img', { src: itemImg(it), alt: '' }), itemName(it), extra || '');
   function tradeGuidePanel() {
@@ -808,6 +812,7 @@
           h('p', {}, '「' + (gd.fin.name || '최종 도시국가') + '」은(는) 평범한 병력으로는 꿈쩍도 안 해요. ', h('b', {}, gd.unit.name), '을(를) 만들어야 해요. 그런데 재료가 우리 나라에는 없어요!'),
           gd.needs.map((n, i) => h('div', { class: 'grow-row' + (n.have >= n.qty ? ' ok' : '') }, itemTag(n.it, ' ' + n.qty + '개'),
             h('span', {}, n.have >= n.qty ? '✓ 준비 완료' : (i === 0 ? h('b', { class: 'only' }, '딱 한 나라만 있어요 → ' + n.from.map(tname).join(', ')) : '← ' + n.from.map(tname).join(' 또는 ')), ' (지금 ' + n.have + '개)'))),
+          gd.spNeed ? h('div', { class: 'grow-row' + (gd.spNeed.have ? ' ok' : '') }, itemTag(gd.spNeed.it), h('span', {}, h('b', { class: 'only' }, '특산품 ' + itemName(gd.spNeed.out) + '의 원료 → ' + gd.spNeed.from.map(tname).join(', ')), ' (지금 ' + gd.spNeed.have + '개)')) : null,
           h('small', { class: 'muted' }, ready ? '재료가 다 모였어요! 국방부 장관이 병영에서 ' + gd.unit.name + '을(를) 훈련해요.' : '빨간 글씨 나라와는 꼭 거래해야 해요. 국가 대표끼리 만나 이야기해 봐요.')),
         h('div', { class: 'gcol lux' }, h('h4', {}, '② 행복을 위한 사치품'),
           h('p', {}, '사치품은 종류마다 행복도 +' + R.HAPPY.perLuxType + '. 우리 나라에 없는 사치품은 사 와야 해요.'),
@@ -815,7 +820,7 @@
         h('div', { class: 'gcol sell' }, h('h4', {}, '③ 우리가 팔 수 있는 것'),
           h('p', {}, '다른 나라가 꼭 필요한 물건이에요. 대신 우리가 필요한 것과 바꿔요!'),
           gd.sell.map(x => h('div', { class: 'grow-row' }, itemTag(x.it, x.only ? ' (우리만!)' : ''),
-            h('span', {}, [...x.buyers.map(t => tname(t) + '(특수 부대)'), ...x.luxBuyers.slice(0, 3).map(t => tname(t))].join(', ') + ' 에게'))))),
+            h('span', {}, [...x.buyers.map(t => t.endsWith(':원료') ? tname(t.slice(0, 1)) + '(특산품 원료)' : tname(t) + '(특수 부대)'), ...x.luxBuyers.slice(0, 3).map(t => tname(t))].join(', ') + ' 에게'))))),
       h('div', { class: 'guide-tip' }, '거래 예시: "우리 ' + itemName((gd.sell[0] || {}).it || 'food') + ' 2개를 줄 테니, ' + itemName(gd.needs[0].it) + ' 2개를 주세요." → 「무역」 탭에서 제안을 보내요.'));
   }
   function luxAdvice() {
