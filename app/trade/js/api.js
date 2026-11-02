@@ -38,7 +38,7 @@
     admin_grant: ['p_country', 'p_items', 'p_reason'], admin_relief: ['p_country'], admin_turn_help: ['p_country'], admin_explore_help: ['p_country'],
     admin_broker_trade: ['p_country', 'p_item', 'p_qty', 'p_coin'], admin_notice: ['p_message'], admin_reset_game: ['p_confirm'],
     admin_event: ['p_kind', 'p_args'], admin_preview_event: ['p_kind', 'p_args'],
-    admin_merchant: ['p_country', 'p_items'], admin_boss_help: ['p_country']
+    admin_merchant: ['p_country', 'p_items'], admin_boss_help: ['p_country'], expert_submit: ['p_role', 'p_body'], admin_normalize: [], admin_video: []
   };
   async function rpc(fn, ...vals) {
     let args = {};
@@ -110,10 +110,12 @@
   function toast(msg, kind) {
     let box = $('#toasts');
     if (!box) { box = h('div', { id: 'toasts' }); document.body.appendChild(box); }
-    const t = h('div', { class: 'toast ' + (kind || '') }, msg);
+    const t = h('div', { class: 'toast ' + (kind || ''), title: '누르면 닫혀요', onclick: () => t.remove() }, msg);
     box.appendChild(t);
-    setTimeout(() => t.classList.add('out'), 4200);
-    setTimeout(() => t.remove(), 4800);
+    // 활동 안내 같은 긴 알림은 오래 (누르면 닫혀요)
+    const ms = /long/.test(kind || '') || String(msg).length > 45 ? 15000 : 4200;
+    setTimeout(() => t.classList.add('out'), ms);
+    setTimeout(() => t.remove(), ms + 600);
   }
 
   function modal(content, opts) {

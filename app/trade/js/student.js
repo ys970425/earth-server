@@ -158,13 +158,14 @@
       let st, mv;
       if (S.obs && !S.ctl) { const r = await rpc('admin_observe', S.obs); st = r.state; mv = r.map; S.world = r.world; }
       else [st, mv] = await Promise.all([rpc('my_state'), rpc('map_view')]);
-      const prevPhase = S.st && S.st.game.phase, prevTurn = S.st && S.st.game.turn, prev = S.st && S.st.game.turn === st.game.turn ? { happy: S.st.country.happy, detail: S.st.country.happy_detail || [] } : null;
+      const prevNorm = S.st && S.st.game.normalized, prevPhase = S.st && S.st.game.phase, prevTurn = S.st && S.st.game.turn, prev = S.st && S.st.game.turn === st.game.turn ? { happy: S.st.country.happy, detail: S.st.country.happy_detail || [] } : null;
       S.st = st; S.mv = mv;
       if (prevTurn !== undefined && st.game.turn > prevTurn) Sound.play('turn');
       if (prev && prevTurn === st.game.turn && st.country.happy > prev.happy && !S.obs) cheer(prev, st.country);
       if (st.game.market_open && !S.obs) missionCheck();
       if (!S.obs) grantCheck(!prevTurn && prevTurn !== 0);
       if (prevPhase !== undefined && prevPhase !== st.game.phase && !S.obs) phaseShow(st.game.phase);
+      if (prevNorm === false && st.game.normalized && !S.obs) normalPop();
       if (st.now) S.offset = new Date(st.now).getTime() - Date.now();
       if (first || !$('.topbar')) shell(); else { renderTop(); renderNav(); }
       updateMap();
@@ -195,7 +196,7 @@
   window.__refresh = () => refresh(false);
   function noticeToast(n) {
     if (n.kind === 'alert' && /불행해져서/.test(n.message)) { modal(h('div', { class: 'center' }, h('h2', { class: 'bad' }, '나라가 불행해요!'), h('p', {}, n.message), luxAdvice())); return; }
-    const kind = ['crisis', 'alert', 'unrest', 'revolt', 'short'].includes(n.kind) ? 'alert' : '';
+    const kind = (['crisis', 'alert', 'unrest', 'revolt', 'short'].includes(n.kind) ? 'alert' : '') + (['phase', 'teacher', 'market', 'world', 'alert', 'crisis'].includes(n.kind) ? ' long' : '');
     if (n.kind === 'turn' || (n.kind === 'grant' && n.data) || (n.kind === 'crisis' && n.data)) return;   // 지원·위기는 큰 창으로
     toast(n.message, kind);
   }
@@ -205,6 +206,7 @@
     root.innerHTML = '';
     root.appendChild(h('div', { class: 'topbar', id: 'top' }));
     root.appendChild(h('div', { class: 'nav', id: 'nav' }));
+    root.appendChild(h('div', { id: 'actbar' }));
     root.appendChild(h('div', { class: 'page', id: 'page' }));
     renderTop(); renderNav();
   }
@@ -289,9 +291,26 @@
       k === 'trade' && pendingIn() ? h('span', { class: 'badge' }, pendingIn()) : null,
       k === 'mission' && S.st.game.market_open && missionNow() ? h('span', { class: 'badge gold' }, '!') : null,
       k === 'diplo' && g.diplomacy_open ? null : null)),
+      (renderActBar(), null),
       S.st.game.test_mode && (!S.obs || S.ctl) ? h('button', { class: 'small danger test-btn', title: '테스트용: 모든 나라가 연구·개발을 끝낸 상태로', onclick: testEndgame }, '최종 성장 모드 (테스트)') : null,
       h('span', { class: 'credit-nav' }, '제작 · 조영산'),
       S.obs ? h('a', { href: 'admin.html', class: 'leave' }, h('button', { class: 'ghost small' }, '관제실로')) : h('button', { class: 'ghost small leave', onclick: leave }, '나가기')].filter(Boolean));
+  }
+  // 17차시 활동 안내 띠 (사라지지 않아요)
+  function renderActBar() {
+    const bar = $('#actbar'); if (!bar) return;
+    const g = S.st.game, ph = g.phase;
+    const T = {
+      4: ['활동 1', '잊힌 제국 등장! 우리 나라에 어떤 일이 생겼는지 살펴봐요. (빼앗긴 도시 · 떨어진 행복도)'],
+      5: ['활동 1', '무역이 엉망이 됐어요! 직접 거래해 보고, 무엇이 문제인지 학습지에 적어요.'],
+      6: g.meet_step === 3 ? ['활동 3 · 모둠 회의', '우리 모둠으로 돌아와 전문가 문장을 나눠요. 대표를 중심으로 두 문장을 골라 하나로 합쳐 우리 나라 무역 조항을 등록해요.']
+                           : ['활동 2 · 전문가 회의', '같은 역할끼리 모여 「올바른 무역을 위해 중요한 것」을 한 문장으로 만들어요.'],
+      7: g.normalized ? ['국가 정상화 성공!', '전자칠판 영상을 함께 봐요. 현실에서 무역 약속이 깨지면 어떤 일이 생길까요?'] : ['무역 동맹', '잊힌 제국의 영향력이 크게 줄었어요. 우리 반란 도시를 되찾아요!'],
+      8: ['정리', '무역을 할 때 필요한 노력을 학습지에 적고 발표해요.']
+    }[ph];
+    bar.className = T ? 'act-bar' : '';
+    bar.innerHTML = '';
+    if (T) bar.append(...[h('b', {}, T[0]), h('span', {}, T[1]), ph >= 6 && S.view !== 'meeting' ? h('button', { class: 'small gold', onclick: () => go('meeting') }, '회의 화면') : null].filter(Boolean));
   }
   async function testEndgame() {
     if (!confirm('[테스트] 모든 나라가 기술을 다 연구하고, 가장 강한 도시국가 하나만 남기고 모두 차지하고, 땅·건물·공장을 모두 지은 상태가 돼요. 세계 시장도 열려요. 되돌릴 수 없어요(관제실 초기화로만). 할까요?')) return;
@@ -468,17 +487,26 @@
   // ---------- 도시 창 ----------
   function cityWindow(side, c) {
     const st = S.st, cap = c.kind === 'capital';
-    side.append(sideHead(cap ? st.country.name + ' 수도' : c.name, (cap ? '수도' : '도시') + (c.unrest ? ' · 불안 (생산 멈춤)' : ''), back));
+    side.append(sideHead(cap ? st.country.name + ' 수도' : c.name, (cap ? '수도' : '도시') + (c.unrest ? ' · 행정 마비' : ''), back));
     side.append(h('div', { class: 'city-pic' }, h('img', { src: cityArt(c, cap ? 'capital' : 'port') }),
       h('div', { class: 'city-blds' }, c.buildings.map(b => h('span', { class: 'bld-mini', title: R.BUILDINGS[b].name }, bldImg(b, R.BUILDINGS[b].name), h('small', {}, R.BUILDINGS[b].name))))));
-    const tabs = h('div', { class: 'subtabs' }, [['build', '건설'], ['train', '병력 훈련'], ['info', '도시 정보']].map(([k, l]) =>
+    const nCs = st.cities.filter(x => x.kind === 'cs').length, expOpen = nCs >= R.EXPAND_CS;
+    if (!cap && S.cityTab === 'expand') S.cityTab = 'build';
+    const tabs = h('div', { class: 'subtabs' }, [['build', cap ? '기본 건설' : '건설'], cap ? ['expand', '확장 건설' + (expOpen ? '' : ' (잠김)')] : null, ['train', '병력 훈련'], ['info', '도시 정보']].filter(Boolean).map(([k, l]) =>
       h('button', { class: 'small ' + (S.cityTab === k ? 'gold' : ''), onclick: () => { S.cityTab = k; renderSide(); } }, l)));
     side.append(tabs);
+    const para = st.country.happy < R.HAPPY.paralysis;
+    if (para) side.append(h('div', { class: 'warn-box para' }, h('b', {}, '행정 마비! '), '행복도가 ' + R.HAPPY.paralysis + '보다 낮아 병력 훈련과 건물 짓기가 멈췄어요. 사치품으로 행복도를 올리면 풀려요.'));
+    if (S.cityTab === 'expand') {
+      if (!expOpen) side.append(h('div', { class: 'locked-box' }, h('b', {}, '확장 건설은 아직 잠겨 있어요'), h('p', {}, '도시국가를 ' + R.EXPAND_CS + '곳 이상 차지하면 공장과 발전 건물을 지을 수 있어요. (지금 ' + nCs + '곳)')));
+      else side.append(expandCards(false));
+      return;
+    }
     if (S.cityTab === 'build') {
       side.append(h('div', { class: 'hint' }, c.built ? '이 도시는 이번 턴에 건물을 ' + R.BUILD_PER_TURN + '개 지었어요. 다음 턴에 또 지어요.' : '이번 턴 건설 ' + (c.built_n || 0) + ' / ' + R.BUILD_PER_TURN + '개'));
       side.append(h('div', { class: 'card-list' }, Object.entries(R.BUILDINGS).map(([k, b]) => {
         const has = c.buildings.includes(k);
-        const why = has ? '' : roleWhy('기획부 장관') ? roleWhy('기획부 장관') : c.built ? '이번 턴 건설 끝' : b.tech && !st.country.techs.includes(b.tech) ? '「' + R.TECHS[b.tech] + '」 기술 필요'
+        const why = has ? '' : roleWhy('기획부 장관') ? roleWhy('기획부 장관') : para ? '행정 마비' : c.built ? '이번 턴 건설 끝' : b.tech && !st.country.techs.includes(b.tech) ? '「' + R.TECHS[b.tech] + '」 기술 필요'
           : b.coastal && !c.coastal ? '바닷가 도시만' : short(b.cost);
         const eff = k === 'market' && R.PRODUCTIVITY[st.country.type] ? '매 턴 코인 +' + R.PRODUCTIVITY[st.country.type].market + ' (우리 도시 안의 시장)' : b.effect;
         return h('div', { class: 'bcard' + (has ? ' have' : '') + (!has && b.coastal && !c.coastal ? ' locked' : '') + (has ? '' : off('기획부 장관')) }, h('div', { class: 'bcard-img' }, bldImg(k)),
@@ -486,6 +514,7 @@
             !has && why ? h('small', { class: 'bad' }, why) : null),
           has ? null : h('button', { class: 'primary small', disabled: !!why || S.busy, onclick: () => act('city_build', [c.id, k], () => map.floatText(c.tile, b.name + '!')) }, '짓기'));
       })));
+      if (cap) side.append(expandCards(true));
       side.append(h('div', { class: 'bcard' + off('국토부 장관') }, h('div', { class: 'bcard-img' }, h('img', { src: 'img/unit/worker.png' })),
         h('div', { class: 'bcard-body' }, h('b', {}, '노동자 고용'), h('small', {}, '비용: ' + costText(R.HIRE_WORKER)), h('small', {}, '땅을 개발할 일꾼이 늘어나요. 매 턴 식량 1을 먹어요.'),
           (roleWhy('국토부 장관') || short(R.HIRE_WORKER)) ? h('small', { class: 'bad' }, roleWhy('국토부 장관') || short(R.HIRE_WORKER)) : null),
@@ -497,7 +526,7 @@
       const techs = st.country.techs;
       side.append(h('div', { class: 'card-list' }, Object.entries(R.UNITS).filter(([, u]) => (u.boss ? u.boss === st.country.type : (!u.tech || techs.includes(u.tech) || R.TECH_TREE[u.tech].era <= 2))).map(([k, u]) => {
         const need = u.sea ? 'harbor' : 'barracks';
-        const why = roleWhy('국방부 장관') || (u.tech && !techs.includes(u.tech) ? '「' + R.TECHS[u.tech] + '」 기술 필요' : !c.buildings.includes(need) ? (u.sea ? '항구 필요' : '병영 필요') : c.trained ? '이번 턴 훈련 끝' : short(u.cost));
+        const why = roleWhy('국방부 장관') || (para ? '행정 마비' : '') || (u.tech && !techs.includes(u.tech) ? '「' + R.TECHS[u.tech] + '」 기술 필요' : !c.buildings.includes(need) ? (u.sea ? '항구 필요' : '병영 필요') : c.trained ? '이번 턴 훈련 끝' : short(u.cost));
         return h('div', { class: 'bcard' + (why && why.includes('기술') ? ' locked' : '') + (u.boss ? ' special' : '') + off('국방부 장관') }, h('div', { class: 'bcard-img' }, h('img', { src: unitImg(k) })),
           h('div', { class: 'bcard-body' }, h('b', {}, u.name), h('small', {}, '힘 ' + u.str + ' · 이동 ' + u.move + '칸' + (u.range ? ' · 사거리 ' + u.range : '') + (u.sea ? ' · 배' : '')),
             h('small', {}, '비용: ' + costText(u.cost)), why ? h('small', { class: 'bad' }, why) : null),
@@ -737,36 +766,40 @@
       h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '행복도 ' + (co.happy > 0 ? '+' : '') + co.happy, h('small', {}, happyWord(co.happy))),
         h('div', { class: 'hmeter' }, h('i', { class: 'zero' }), h('b', { style: { left: (50 + Math.max(-50, Math.min(50, co.happy)) ) + '%' } })),
         happyList(co), luxAdvice())));
-    page.append(tradeGuidePanel());
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '기술', h('small', {}, '도시국가를 차지하면 기술자가 합류하기도 해요')),
       h('div', { class: 'row' }, co.techs.map(t => h('span', { class: 'chip tech' }, R.TECHS[t])), h('button', { class: 'small gold', onclick: () => go('tech') }, '기술 계통도 보기 →'))));
-    if (g.turn >= 1) page.append(industryPanel());
+    if (g.turn >= 1) page.append(h('div', { class: 'hint' }, '공장과 발전 건물은 지도에서 우리 수도를 눌러 「확장 건설」에서 지어요.'));
     if (rolesFirst) page.append(setupPanel()); else page.append(membersPanel(), setupPanel());
   }
-  function industryPanel() {
-    const st = S.st, tp = st.country.type;
-    const facts = Object.entries(R.FACTORIES).filter(([, f]) => st.country.techs.includes(f.tech) && R.PROC_COST[tp][f.output] !== undefined);
+  // 공장·발전 건물 카드. onlySpecialty면 우리 특산 공장만 (기본 건설), 아니면 나머지 공장 + 발전 건물 (확장 건설)
+  function expandCards(onlySpecialty) {
+    const st = S.st, tp = st.country.type, para = st.country.happy < R.HAPPY.paralysis;
+    const spk = R.SPECIALTY[tp].factory;
+    const facts = Object.entries(R.FACTORIES).filter(([k, f]) => (onlySpecialty ? k === spk : k !== spk) && st.country.techs.includes(f.tech) && R.PROC_COST[tp][f.output] !== undefined);
     const bcost = k => ((R.FACTORY_BUILD[k] || {})[tp]) || R.FACTORIES[k].build;
     const free = k => !!(R.FACTORY_FREE[tp] || {})[k];
-    return h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '공장과 발전 건물', h('small', {}, '원료 1개 + 가공비 → 제품 1개 (매 턴 2개까지) · 특산 공장은 원료 없이')),
-      h('div', { class: 'card-list wide' },
-        facts.length ? facts.map(([k, f]) => {
-          const has = st.factories.includes(k);
-          const noIn = has && !free(k) && !(st.inventory[f.input] > 0);
-          return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) + (free(k) ? ' special' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
-            h('div', { class: 'bcard-body' }, h('b', {}, f.name, free(k) ? h('span', { class: 'chip lead' }, '우리 특산') : null), free(k) || R.SPECIALTY[tp].factory === k ? h('small', { class: 'good' }, R.SPECIALTY[tp].why + (free(k) ? ' (기본 원료는 나라 안에서 구한다고 생각해요)' : '')) : null,
-              h('small', {}, (free(k) ? '원료 없이 매 턴 ' + itemName(f.output) + ' ' + f.perTurn + '개' : itemName(f.input) + ' → ' + itemName(f.output)) + ' · 가공비 ' + R.PROC_COST[tp][f.output] + '코인/개'),
-              has ? h('small', { class: noIn ? 'bad' : 'good' }, noIn ? '원료(' + itemName(f.input) + ')가 없어 쉬는 중 — 무역으로 구해요' : '가동 중') : h('small', {}, '짓는 비용: ' + costText(bcost(k))),
-              !has && short(bcost(k)) ? h('small', { class: 'bad' }, short(bcost(k))) : null),
-            has ? null : h('button', { class: 'primary small', disabled: !!short(bcost(k)) || !canRole('기획부 장관') || S.busy, title: roleWhy('기획부 장관'), onclick: () => act('factory_build', [k]) }, '짓기'));
-        }) : h('p', { class: 'muted' }, '우리 나라 기술로 지을 수 있는 공장이 없어요. 제품은 다른 나라에서 사 와야 해요.'),
-        Object.entries(R.ADVANCED).filter(([, a]) => !a.tech || st.country.techs.includes(a.tech)).map(([k, a]) => {
-          const has = st.advanced.includes(k);
-          return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) }, h('div', { class: 'bcard-img' }, bldImg(k, a.name)),
-            h('div', { class: 'bcard-body' }, h('b', {}, a.name), h('small', {}, (a.econ ? '경제력 +' + a.econ : '') + (a.culture ? '문화력 +' + a.culture : '') + (a.coinPerTurn ? ', 매 턴 코인 +' + a.coinPerTurn : '') + (a.happy ? ', 행복도 +' + a.happy : '') + (a.unlock ? '대포 훈련 가능' : '')),
-              has ? h('small', { class: 'good' }, '지었어요') : h('small', {}, '비용: ' + costText(a.cost)), !has && short(a.cost) ? h('small', { class: 'bad' }, short(a.cost)) : null),
-            has ? null : h('button', { class: 'primary small', disabled: !!short(a.cost) || !canRole('기획부 장관') || S.busy, title: roleWhy('기획부 장관'), onclick: () => act('advanced_build', [k]) }, '짓기'));
-        })));
+    const fcards = facts.map(([k, f]) => {
+      const has = st.factories.includes(k);
+      const noIn = has && !free(k) && !(st.inventory[f.input] > 0);
+      const why = roleWhy('기획부 장관') || (para ? '행정 마비' : '') || short(bcost(k));
+      return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) + (free(k) ? ' special' : '') }, h('div', { class: 'bcard-img' }, bldImg(k, f.name)),
+        h('div', { class: 'bcard-body' }, h('b', {}, f.name, free(k) ? h('span', { class: 'chip lead' }, '우리 특산') : null), free(k) ? h('small', { class: 'good' }, R.SPECIALTY[tp].why + ' (기본 원료는 나라 안에서 구한다고 생각해요)') : null,
+          h('small', {}, (free(k) ? '원료 없이 매 턴 ' + itemName(f.output) + ' ' + f.perTurn + '개' : itemName(f.input) + ' → ' + itemName(f.output)) + ' · 가공비 ' + R.PROC_COST[tp][f.output] + '코인/개'),
+          has ? h('small', { class: noIn ? 'bad' : 'good' }, noIn ? '원료(' + itemName(f.input) + ')가 없어 쉬는 중' : '가동 중') : h('small', {}, '짓는 비용: ' + costText(bcost(k))),
+          !has && why ? h('small', { class: 'bad' }, why) : null),
+        has ? null : h('button', { class: 'primary small', disabled: !!why || S.busy, onclick: () => act('factory_build', [k]) }, '짓기'));
+    });
+    if (onlySpecialty) return h('div', { class: 'card-list' }, fcards.length ? fcards
+      : h('small', { class: 'muted' }, spk ? '「' + R.TECHS[R.FACTORIES[spk].tech] + '」 기술을 연구하면 우리 특산 공장을 지을 수 있어요.' : R.SPECIALTY[tp].why));
+    const acards = Object.entries(R.ADVANCED).filter(([, a]) => !a.tech || st.country.techs.includes(a.tech)).map(([k, a]) => {
+      const has = st.advanced.includes(k);
+      const why = roleWhy('기획부 장관') || (para ? '행정 마비' : '') || short(a.cost);
+      return h('div', { class: 'bcard' + (has ? ' have' : off('기획부 장관')) }, h('div', { class: 'bcard-img' }, bldImg(k, a.name)),
+        h('div', { class: 'bcard-body' }, h('b', {}, a.name), h('small', {}, [a.econ ? '경제력 +' + a.econ : '', a.culture ? '문화력 +' + a.culture : '', a.coinPerTurn ? '매 턴 코인 +' + a.coinPerTurn : '', a.happy ? '행복도 +' + a.happy : '', a.unlock ? '대포 훈련 가능' : ''].filter(Boolean).join(', ')),
+          has ? h('small', { class: 'good' }, '지었어요') : h('small', {}, '비용: ' + costText(a.cost)), !has && why ? h('small', { class: 'bad' }, why) : null),
+        has ? null : h('button', { class: 'primary small', disabled: !!why || S.busy, onclick: () => act('advanced_build', [k]) }, '짓기'));
+    });
+    return h('div', { class: 'card-list' }, h('div', { class: 'hint' }, '공장: 원료 1개 + 가공비 → 제품 1개 (매 턴 2개까지). 발전 건물: 나라 전체에 효과'), fcards, acards);
   }
   function setupPanel() {
     const st = S.st, co = st.country, lead = st.me.is_leader;
@@ -811,45 +844,35 @@
   function guide() {
     const st = S.st, me = st.country.type, inv = st.inventory, bu = R.BOSS_UNIT[me], unit = R.UNITS[bu.unit];
     const fin = st.targets.find(t => t.final && t.mine) || {};
-    const needs = bu.needs.map(it => ({ it, qty: unit.cost[it], have: inv[it] || 0, from: whoHas(it, me) }));
-    // 특산 공장에 원료가 필요한 나라 (섬나라: 고무 → 타이어)
-    const sp = R.SPECIALTY[me], spf = R.FACTORIES[sp.factory];
-    const spNeed = sp.input && !(R.SOURCES[spf.input] || []).includes(me) ? { it: spf.input, out: spf.output, have: inv[spf.input] || 0, from: whoHas(spf.input, me) } : null;
-    const myLux = R.LUX.filter(l => (R.SOURCES[l] || []).includes(me));
-    const lux = R.LUX.filter(l => !myLux.includes(l)).map(l => ({ it: l, have: inv[l] || 0, from: whoHas(l, me) }));
-    // 우리가 팔 수 있는 것: 우리가 가진 것을 다른 나라가 특수 부대에 쓰거나 사치품으로 원함
-    const sell = Object.entries(R.SOURCES).filter(([it, ts]) => ts.includes(me)).map(([it, ts]) => ({
-      it, only: ts.length === 1, buyers: [...Object.entries(R.BOSS_UNIT).filter(([t, b]) => t !== me && b.needs.includes(it)).map(([t]) => t),
-        ...Object.entries(R.SPECIALTY).filter(([t, x]) => t !== me && x.input && R.FACTORIES[x.factory].input === it).map(([t]) => t + ':원료')],
-      luxBuyers: R.LUX.includes(it) ? Object.keys(R.TYPES).filter(t => t !== me && !(R.SOURCES[it] || []).includes(t)) : [] }))
-      .filter(x => x.buyers.length || x.luxBuyers.length);
-    return { me, bu, unit, fin, needs, lux, sell, spNeed };
+    const partner = R.PARTNER[me], myStrat = R.STRAT_OF[me], myLux = R.LUX_OF[me];
+    const needs = bu.needs.map(it => ({ it, qty: unit.cost[it] || 2, have: inv[it] || 0, from: [partner], give: myStrat }));
+    const lux = R.LUX_TEAM[me].map(t => ({ it: R.LUX_OF[t], have: inv[R.LUX_OF[t]] || 0, from: [t], give: myLux }));
+    return { me, bu, unit, fin, needs, lux, partner, myStrat, myLux };
   }
   const itemTag = (it, extra) => h('span', { class: 'res-chip' }, h('img', { src: itemImg(it), alt: '' }), itemName(it), extra || '');
   function tradeGuidePanel() {
-    const gd = guide(), st = S.st;
-    const ready = gd.needs.every(n => n.have >= n.qty);
-    return h('div', { class: 'panel guide' }, h('div', { class: 'panel-title' }, '무역 안내', h('small', {}, '모둠 회의 때 이 표를 보고 누구와 무엇을 거래할지 정해요')),
+    const gd = guide(), n = gd.needs[0];
+    const imp = R.HAPPY.importLux;
+    return h('div', { class: 'panel guide' }, h('div', { class: 'panel-title' }, '무역 안내', h('small', {}, '우리 나라의 무역 짝은 딱 정해져 있어요')),
       h('div', { class: 'guide-grid' },
-        h('div', { class: 'gcol need' }, h('h4', {}, '① 최종 도전에 꼭 필요한 것'),
-          h('p', {}, '「' + (gd.fin.name || '최종 도시국가') + '」은(는) 평범한 병력으로는 꿈쩍도 안 해요. ', h('b', {}, gd.unit.name), '을(를) 만들어야 해요. 그런데 재료가 우리 나라에는 없어요!'),
-          gd.needs.map((n, i) => h('div', { class: 'grow-row' + (n.have >= n.qty ? ' ok' : '') }, itemTag(n.it, ' ' + n.qty + '개'),
-            h('span', {}, n.have >= n.qty ? '✓ 준비 완료' : (i === 0 ? h('b', { class: 'only' }, '딱 한 나라만 있어요 → ' + n.from.map(tname).join(', ')) : '← ' + n.from.map(tname).join(' 또는 ')), ' (지금 ' + n.have + '개)'))),
-          gd.spNeed ? h('div', { class: 'grow-row' + (gd.spNeed.have ? ' ok' : '') }, itemTag(gd.spNeed.it), h('span', {}, h('b', { class: 'only' }, '특산품 ' + itemName(gd.spNeed.out) + '의 원료 → ' + gd.spNeed.from.map(tname).join(', ')), ' (지금 ' + gd.spNeed.have + '개)')) : null,
-          h('small', { class: 'muted' }, ready ? '재료가 다 모였어요! 국방부 장관이 병영에서 ' + gd.unit.name + '을(를) 훈련해요.' : '빨간 글씨 나라와는 꼭 거래해야 해요. 국가 대표끼리 만나 이야기해 봐요.')),
-        h('div', { class: 'gcol lux' }, h('h4', {}, '② 행복을 위한 사치품'),
-          h('p', {}, '사치품은 종류마다 행복도 +' + R.HAPPY.perLuxType + '. 우리 나라에 없는 사치품은 사 와야 해요.'),
-          gd.lux.map(l => h('div', { class: 'grow-row' + (l.have > 0 ? ' ok' : '') }, itemTag(l.it), h('span', {}, l.have > 0 ? '✓ ' + l.have + '개 있음' : '← ' + l.from.map(tname).join(', '))))),
-        h('div', { class: 'gcol sell' }, h('h4', {}, '③ 우리가 팔 수 있는 것'),
-          h('p', {}, '다른 나라가 꼭 필요한 물건이에요. 대신 우리가 필요한 것과 바꿔요!'),
-          gd.sell.map(x => h('div', { class: 'grow-row' }, itemTag(x.it, x.only ? ' (우리만!)' : ''),
-            h('span', {}, [...x.buyers.map(t => t.endsWith(':원료') ? tname(t.slice(0, 1)) + '(특산품 원료)' : tname(t) + '(특수 부대)'), ...x.luxBuyers.slice(0, 3).map(t => tname(t))].join(', ') + ' 에게'))))),
-      h('div', { class: 'guide-tip' }, '거래 예시: "우리 ' + itemName((gd.sell[0] || {}).it || 'food') + ' 2개를 줄 테니, ' + itemName(gd.needs[0].it) + ' 2개를 주세요." → 「무역」 탭에서 제안을 보내요.'));
+        h('div', { class: 'gcol need' }, h('h4', {}, '① 전략 자원 짝꿍 (1:1)'),
+          h('p', {}, h('b', {}, tname(gd.partner)), '와(과) 서로 꼭 필요한 것을 바꿔요. ', gd.unit.name + ' 재료예요.'),
+          h('div', { class: 'swap' }, itemTag(gd.myStrat, ' 2'), h('span', {}, '↔'), itemTag(n.it, ' 2')),
+          h('small', { class: n.have >= n.qty ? 'good' : 'muted' }, n.have >= n.qty ? '✓ 준비 완료!' : '지금 ' + itemName(n.it) + ' ' + n.have + '개')),
+        h('div', { class: 'gcol lux' }, h('h4', {}, '② 사치품 팀 (1:1:1)'),
+          h('p', {}, '우리 ' + itemName(gd.myLux) + '은(는) 수도에서 매 턴 ' + R.LUX_PER_TURN + '개씩 생겨요. 팀 친구 나라와 하나씩 바꿔요.'),
+          gd.lux.map(l => h('div', { class: 'swap' + (l.have > 0 ? ' ok' : '') }, h('span', { class: 'm-c', style: { '--gc': typeColor(R.TYPES[l.from[0]].color) } }, tname(l.from[0])),
+            itemTag(gd.myLux, ' 2'), h('span', {}, '↔'), itemTag(l.it, ' 2'), l.have > 0 ? h('small', { class: 'good' }, '✓') : null))),
+        h('div', { class: 'gcol sell' }, h('h4', {}, '③ 수입 사치품과 행복도'),
+          h('div', { class: 'joy-table' }, h('div', {}, h('span', {}, '우리 사치품'), h('b', {}, '+' + R.HAPPY.ownLux)),
+            h('div', {}, h('span', {}, '수입 1종'), h('b', {}, '+' + imp[1])), h('div', {}, h('span', {}, '수입 2종'), h('b', {}, '+' + imp[2])), h('div', {}, h('span', {}, '수입 3종'), h('b', {}, '+' + imp[3]))),
+          h('small', { class: 'muted' }, '여러 나라에서 수입할수록 행복도가 크게 올라요. 사치품은 2턴에 1개씩 써서 오래가요.'))),
+      h('div', { class: 'guide-tip' }, '거래 예시: "우리 ' + itemName(gd.myStrat) + ' 2개를 줄 테니, ' + itemName(n.it) + ' 2개를 주세요." → 「무역 미션」에서 「제안 쓰기」를 누르면 쉬워요.'));
   }
   function luxAdvice() {
-    const gd = guide(), miss = gd.lux.filter(l => !l.have);
+    const miss = guide().lux.filter(l => !l.have);
     if (!miss.length) return null;
-    return h('div', { class: 'lux-adv' }, '행복도를 올리려면: ', miss.slice(0, 4).map(l => h('span', {}, itemName(l.it) + '(' + l.from.map(tname).join('·') + ')')), ' 을(를) 사 와요.');
+    return h('div', { class: 'lux-adv' }, '행복도를 올리려면: ', miss.map(l => h('span', {}, itemName(l.it) + '(' + tname(l.from[0]) + ')')), ' 을(를) 사 와요. 수입 1종 +' + R.HAPPY.importLux[1] + ', 2종 +' + R.HAPPY.importLux[2] + '!');
   }
 
   // ================= 무역 미션 (순서대로 하나씩) =================
@@ -858,47 +881,41 @@
   const countryOf = t => S.st.countries.find(c => c.type === t);
   // 그 나라가 원하는 우리 물건 (바꿀 거리)
   function wantsFrom(seller) {
-    const gd = guide();
-    const myBan = (S.st.game.banned || {})[S.st.country.id] || [];   // 우리가 수출을 막은 물건은 빼요
-    return gd.sell.filter(x => !myBan.includes(x.it) && (x.buyers.some(b => b.slice(0, 1) === seller) || x.luxBuyers.includes(seller))).map(x => x.it)
-      .concat(['coin']).slice(0, 3);
+    const gd = guide(), myBan = (S.st.game.banned || {})[S.st.country.id] || [];
+    return [gd.myStrat, gd.myLux].filter(it => !myBan.includes(it)).concat(['coin']);
   }
+
   function missions() {
-    const st = S.st, gd = guide(), inv = st.inventory, me = gd.me;
-    const luxOrder = gd.lux.slice().sort((a, b) => b.from.length - a.from.length);
-    const lux1 = luxOrder[0], lux2 = luxOrder.find(l => l !== lux1 && (lux1 ? l.it !== lux1.it : true));
+    const st = S.st, gd = guide(), inv = st.inventory;
     const hasBoss = st.units.some(u => u.kind === gd.bu.unit), finDone = gd.fin.owner === st.country.id;
-    const L = [];
-    if (lux1) L.push({ k: 'lux1', kind: 'lux', it: lux1.it, qty: 2, from: lux1.from, title: '급해요! 사치품 「' + itemName(lux1.it) + '」 2개 사 오기',
-      why: '인구가 늘어 행복도가 계속 떨어지고 있어요. 사치품은 종류마다 행복도 +' + R.HAPPY.perLuxType + '! 받는 순간 바로 올라요. (사치품은 한 턴에 1개씩 써요. 2개면 두 턴 동안 행복해요)',
-      after: '행복도 +' + R.HAPPY.perLuxType + '! 행복도가 0 위면 병사들도 다시 힘을 내요.', done: (inv[lux1.it] || 0) >= 2 || imported(lux1.it) >= 2 });
-    gd.needs.forEach((n, i) => L.push({ k: 'need' + i, kind: 'need', it: n.it, qty: n.qty, from: n.from, only: i === 0,
-      title: (i === 0 ? '꼭 필요해요! ' : '특수 부대 재료 ') + '「' + itemName(n.it) + '」 ' + n.qty + '개 사 오기',
-      why: i === 0 ? itemName(n.it) + '은(는) 세계에서 ' + n.from.map(tname).join(', ') + '만 가지고 있어요. 이 나라와 꼭 거래해야 ' + gd.unit.name + '을(를) 만들 수 있어요.'
-                   : gd.unit.name + '에 ' + itemName(n.it) + ' ' + n.qty + '개가 들어가요. ' + n.from.map(tname).join(' 또는 ') + ' 중 조건이 좋은 나라를 골라요.',
-      after: '재료 하나 완성! 다음 재료를 모아요.', done: hasBoss || finDone || (inv[n.it] || 0) >= n.qty }));
-    if (false && gd.spNeed) L.splice(1, 0, {   // 섬나라는 고무 4개로 시작 → 필수 미션에서 뺐어요 (17차시 위기에서 다시 등장) k: 'sp', kind: 'need', it: gd.spNeed.it, qty: 2, from: gd.spNeed.from, only: true, title: '특산품 원료 「' + itemName(gd.spNeed.it) + '」 2개 사 오기',
-      why: '우리 특산품 ' + itemName(gd.spNeed.out) + '은(는) ' + itemName(gd.spNeed.it) + '을(를) 사 와서 만들어요 (가공 무역). 만든 ' + itemName(gd.spNeed.out) + '은(는) 다른 나라에 비싸게 팔 수 있어요!',
-      after: '특산 공장이 돌아가요! 다음 턴부터 ' + itemName(gd.spNeed.out) + '이(가) 생겨요.', done: (inv[gd.spNeed.it] || 0) >= 2 || imported(gd.spNeed.it) >= 2 });
-    L.push({ k: 'boss', kind: 'act', title: gd.unit.name + ' 만들고 「' + (gd.fin.name || '최종 도전') + '」 공격!',
-      why: '재료가 다 모였어요! 국방부 장관이 병영에서 ' + gd.unit.name + '을(를) 훈련하고, 지도에서 「' + (gd.fin.name || '') + '」 근처로 움직여 공격해요.',
-      after: '최종 도전 성공! 행복도 +' + R.FINAL_CS.glory + ', 코인 +' + R.FINAL_CS.coin + '.', done: finDone, go: 'map' });
-    if (lux2) L.push({ k: 'lux2', kind: 'lux', it: lux2.it, qty: 2, from: lux2.from, title: '여유가 있으면: 사치품 「' + itemName(lux2.it) + '」도 2개 사 오기',
-      why: '사치품 종류가 늘수록 행복도가 더 올라요. 행복도 ' + R.HAPPY.golden + ' 이상이면 황금기(수입 +25%)!', after: '행복도 +' + R.HAPPY.perLuxType + '!', done: (inv[lux2.it] || 0) >= 2 || imported(lux2.it) >= 2 });
-    // 17차시: 잊힌 제국이 나타나면 → ① 사치품으로 행복도 지키기 (무역이 막히는 걸 겪어요) → ② 반란 도시 되찾기
+    const n = gd.needs[0], [l1, l2] = gd.lux, imp = R.HAPPY.importLux;
+    // 17차시: 잊힌 제국이 나타나면 → ① 행복도 지키기 (무역이 막히는 걸 겪어요) → ② 반란 도시 되찾기
     const rep = st.report;
     if (st.game.phase >= 4 && rep) {
-      const lx = luxOrder.find(l => (inv[l.it] || 0) < 2) || luxOrder[0], rebel = rep.rebel, ally = st.alliance;
-      const C = [];
-      if (lx) C.push({ k: 'c_lux', kind: 'lux', it: lx.it, qty: 2, from: lx.from, title: '행복도를 지켜요! 사치품 「' + itemName(lx.it) + '」 2개 사 오기',
-        why: '잊힌 제국의 테러와 사치품 싫증으로 행복도가 뚝 떨어졌어요. 행복도가 0 밑이면 병사들이 약해져요.' + (st.game.banned && Object.keys(st.game.banned).length ? ' 그런데… 지금 사치품을 살 수 있을까요? 제안을 보내 봐요.' : ''),
-        after: '행복도 +' + R.HAPPY.perLuxType + '!', done: (inv[lx.it] || 0) >= 2 || ally });
-      C.push({ k: 'rebel', kind: 'act', go: 'map', title: '잊힌 제국에게 빼앗긴 「' + (rebel ? rebel.name : '첫 도시') + '」 되찾기',
-        why: !rebel ? '' : ally ? '무역 동맹 덕분에 잊힌 제국이 약해졌어요 (체력 ' + rebel.hp + '/' + rebel.max_hp + ', 회복 없음). 특수 부대로 공격해요!'
-          : '지금은 잊힌 제국이 너무 강해요 (체력 ' + rebel.hp + ', 매 턴 모두 회복). 여섯 나라가 힘을 모아 「무역 동맹」을 맺으면 약해져요!',
-        after: '잊힌 제국 격퇴! 테러가 사라지고 행복도 +' + R.REBEL.glory + '!', done: !rebel });
-      return C;
+      const rebel = rep.rebel, ally = st.alliance, lx = gd.lux.find(l => !(inv[l.it] > 0)) || l1;
+      return [
+        { k: 'c_lux', kind: 'lux', it: lx.it, qty: 2, from: lx.from, give: gd.myLux, title: '행복도를 지켜요! 행복도 ' + R.HAPPY.rebelOpen + ' 위로 올리기',
+          why: '잊힌 제국의 테러와 사치품 싫증으로 행복도가 뚝 떨어졌어요. 사치품 「' + itemName(lx.it) + '」을(를) 사 오면 올라요.' + (Object.keys(st.game.banned || {}).length ? ' 그런데… 지금 거래가 될까요? 제안을 보내 봐요.' : ''),
+          after: '행복도를 지켰어요!', done: st.country.happy >= R.HAPPY.rebelOpen || ally || !rebel },
+        { k: 'rebel', kind: 'act', go: 'map', title: '잊힌 제국에게 빼앗긴 「' + (rebel ? rebel.name : '첫 도시') + '」 되찾기',
+          why: !rebel ? '' : ally ? '무역 동맹 덕분에 잊힌 제국이 약해졌어요 (체력 ' + rebel.hp + '/' + rebel.max_hp + ', 회복 없음). 특수 부대로 공격해요!'
+            : '지금은 잊힌 제국이 너무 강해요 (체력 ' + rebel.hp + ', 매 턴 모두 회복). 여섯 나라가 무역 조항을 모두 등록해 「무역 동맹」을 맺으면 약해져요!',
+          after: '잊힌 제국 격퇴! 테러가 사라지고 행복도 +' + R.REBEL.glory + '!', done: !rebel }
+      ];
     }
+    const L = [];
+    if (l1) L.push({ k: 'lux1', kind: 'lux', it: l1.it, qty: 2, from: l1.from, give: gd.myLux, title: '사치품 교환: ' + tname(l1.from[0]) + '와(과) 「' + itemName(gd.myLux) + '」 2개 ↔ 「' + itemName(l1.it) + '」 2개',
+      why: '인구가 늘어 행복도가 계속 떨어져요. 다른 나라 사치품을 수입하면 1종 +' + imp[1] + ', 2종 +' + imp[2] + '! 받는 순간 바로 올라요.',
+      after: '수입 사치품 1종! 행복도 +' + imp[1] + '!', done: (inv[l1.it] || 0) >= 2 || imported(l1.it) >= 2 });
+    L.push({ k: 'need0', kind: 'need', it: n.it, qty: n.qty, from: n.from, give: n.give, only: true,
+      title: '꼭 필요해요! ' + tname(gd.partner) + '와(과) 「' + itemName(n.give) + '」 2개 ↔ 「' + itemName(n.it) + '」 ' + n.qty + '개',
+      why: gd.unit.name + '을(를) 만들려면 ' + itemName(n.it) + ' ' + n.qty + '개가 꼭 필요해요. 세계에서 ' + tname(gd.partner) + '만 가지고 있어요. ' + tname(gd.partner) + '도 우리 ' + itemName(n.give) + '이(가) 꼭 필요해요!',
+      after: '특수 부대 재료 완성! 병영에서 ' + gd.unit.name + '을(를) 훈련해요.', done: hasBoss || finDone || (inv[n.it] || 0) >= n.qty });
+    L.push({ k: 'boss', kind: 'act', title: gd.unit.name + ' 만들고 「' + (gd.fin.name || '최종 도전') + '」 공격!',
+      why: '재료가 다 모였어요! 국방부 장관이 수도 병영에서 ' + gd.unit.name + '을(를) 훈련하고, 지도에서 「' + (gd.fin.name || '') + '」 근처로 움직여 공격해요.',
+      after: '최종 도전 성공! 행복도 +' + R.FINAL_CS.glory + ', 코인 +' + R.FINAL_CS.coin + '.', done: finDone, go: 'map' });
+    if (l2) L.push({ k: 'lux2', kind: 'lux', it: l2.it, qty: 2, from: l2.from, give: gd.myLux, title: '사치품 교환: ' + tname(l2.from[0]) + '와(과) 「' + itemName(gd.myLux) + '」 2개 ↔ 「' + itemName(l2.it) + '」 2개',
+      why: '수입 사치품이 2종이 되면 행복도 +' + imp[2] + '! 황금기(행복도 ' + R.HAPPY.golden + ' 이상)에는 수입도 +25%예요.', after: '수입 사치품 2종! 행복도 +' + imp[2] + '!', done: (inv[l2.it] || 0) >= 2 || imported(l2.it) >= 2 });
     return L;
   }
   const missionNow = () => missions().find(m => !m.done);
@@ -916,12 +933,12 @@
         const sellers = m.from.map(countryOf).filter(Boolean);
         card.querySelector('.m-body').append(
           h('div', { class: 'm-who' }, h('span', {}, '누구에게: '), sellers.map(c => h('span', { class: 'm-c', style: { '--gc': typeColor(c.type) } }, c.name, c.known ? '' : ' (아직 못 만남)'))),
-          h('div', { class: 'm-who' }, h('span', {}, '바꿀 거리: '), (sellers[0] ? wantsFrom(sellers[0].type) : ['coin']).map(it => it === 'coin' ? h('span', { class: 'res-chip' }, '코인') : itemTag(it))),
-          h('div', { class: 'm-say' }, '이렇게 말해 봐요: "우리 ' + itemName((sellers[0] ? wantsFrom(sellers[0].type) : ['coin'])[0]) + '을(를) 줄 테니, ' + itemName(m.it) + ' ' + m.qty + '개를 주세요!"'),
-          h('div', { class: 'row' }, sellers.filter(c => c.known).map(c => h('button', { class: 'primary small', disabled: !g.market_open || g.locked, onclick: () => { S.prefill = { to: c.id, get: m.it, qty: m.qty, give: wantsFrom(c.type)[0], giveQty: m.qty }; go('trade'); } }, c.name + '에게 제안 쓰기'))));
+          h('div', { class: 'm-who' }, h('span', {}, '바꿀 거리: '), itemTag(m.give || 'coin', ' ' + m.qty + '개'), h('span', {}, '↔'), itemTag(m.it, ' ' + m.qty + '개')),
+          h('div', { class: 'm-say' }, '이렇게 말해 봐요: "우리 ' + itemName(m.give || 'coin') + ' ' + m.qty + '개를 줄 테니, ' + itemName(m.it) + ' ' + m.qty + '개를 주세요!"'),
+          h('div', { class: 'row' }, sellers.filter(c => c.known).map(c => h('button', { class: 'primary small', disabled: !g.market_open || g.locked, onclick: () => { S.prefill = { to: c.id, get: m.it, qty: m.qty, give: m.give || wantsFrom(c.type)[0], giveQty: m.qty }; go('trade'); } }, c.name + '에게 제안 쓰기'))));
       }
       if (state === 'now' && m.go && !(m.k === 'rebel' && !st.alliance)) card.querySelector('.m-body').append(h('button', { class: 'danger small', onclick: () => go(m.go) }, '지도로 가기'));
-      if (state === 'now' && m.k === 'rebel' && !st.alliance) card.querySelector('.m-body').append(h('div', { class: 'hint' }, '선생님 신호에 맞춰 「세계 무역 회의」를 열어요. 6나라가 무역 규칙을 다 올리면 무역 동맹!'));
+      if (state === 'now' && m.k === 'rebel' && !st.alliance) card.querySelector('.m-body').append(h('div', { class: 'hint' }, '선생님 신호에 맞춰 「세계 무역 회의」를 열어요. 6나라가 무역 조항을 모두 등록하면 무역 동맹!'));
       if (m.done) card.querySelector('.m-body').append(h('small', { class: 'good' }, m.after));
       return card;
     })));
@@ -984,6 +1001,20 @@
       h('p', { class: 'muted' }, boss ? '지도에서 특수 부대를 눌러 최종 도시국가를 공격해요!' : merchant ? '나라끼리 거래가 막혔을 때만 오는 비싼 상인이에요.' : '창고에 바로 들어갔어요.'),
       h('button', { class: 'primary big', onclick: () => { const b = $$('.modal-back'); b.length && b[b.length - 1].remove(); if (boss) go('map'); } }, boss ? '지도로 가기' : '좋아요!')));
   }
+  // 국가 정상화: 무역이 돌아오면 무엇이 회복되는지 → 3초 뒤 전자칠판 영상 안내
+  function normalPop() {
+    const co = S.st.country;
+    Sound.play('win');
+    const later = h('div', { class: 'q-box', style: { visibility: 'hidden' } }, '이제 전자칠판을 봐요! 현실에서 나라들이 무역 약속을 지키지 않으면 어떤 일이 생길까요?');
+    modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('h2', {}, '국가 정상화에 성공했습니다!'), h('p', { class: 'big-joy' }, '축하합니다! 잊힌 제국의 영향력이 사라지고 무역이 정상으로 돌아왔어요.'),
+      h('div', { class: 'recover' }, h('b', {}, '무역이 다시 이어지자…'),
+        h('div', {}, '사치품을 다시 수입 → 행복도 회복 (지금 ' + co.happy + ', ' + happyWord(co.happy) + ')'),
+        h('div', {}, '관세 폭탄이 사라짐 → 물건값이 다시 정상'),
+        h('div', {}, '전략 자원을 다시 거래 → 군대와 공장이 다시 움직여요'),
+        h('div', {}, '행정 마비가 풀림 → 건물과 병력을 다시 만들 수 있어요')),
+      later));
+    setTimeout(() => { later.style.visibility = 'visible'; }, 3000);
+  }
   // 17차시 단계가 바뀔 때: 긴급속보
   function phaseShow(ph) {
     const st = S.st, rep = st.report || {};
@@ -1002,18 +1033,18 @@
       Sound.play('hit');
       const tars = Object.keys(st.game.tariffs || {}).length;
       modal(h('div', { class: 'blocked-pop news-flash' }, h('div', { class: 'stamp' }, '긴급속보'), h('h2', {}, '세계 무역 협정 만료!'),
-        h('p', {}, '잊힌 제국이 무역 약속을 깨뜨렸어요. 무역선과 수송기를 공격하고, 관세 폭탄을 퍼부어요!'),
+        h('p', {}, '잊힌 제국이 여섯 나라를 협박했어요: "관세를 말도 안 되게 올려라! 그렇지 않으면 무역선과 수송기를 공격하겠다!" 겁먹은 나라들이 관세를 크게 올렸어요.'),
         h('div', { class: 'report-grid' },
-          h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '거래 불가'), '사치품'), h('small', {}, R.LUX.map(itemName).join(' · ') + ' — 실어 나를 수 없어요')),
-          h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '관세 폭탄'), '나머지 ' + tars + '가지 물건'), h('small', {}, '사 올 때 기준가만큼 코인을 더 내요 (+100%)'))),
-        h('div', { class: 'q-box' }, '무역 약속이 깨지면 어떤 일이 생길까요? 직접 거래해 보며 확인해요!'),
+          h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '거래 불가'), '사치품 · 핵심 전략 자원'), h('small', {}, R.LUX.concat(R.BANNED_STRAT).map(itemName).join(' · ') + ' — 실어 나를 수 없어요')),
+          h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '관세 폭탄'), '나머지 ' + tars + '가지 물건'), h('small', {}, '사 올 때 1개마다 ' + R.CRISIS.tariffPerUnit + '코인을 더 내요'))),
+        h('div', { class: 'q-box' }, '활동 1: 직접 거래해 보며, 무역이 엉망이 되면 무엇이 문제인지 학습지에 적어요!'),
         h('button', { class: 'primary big', onclick: () => { close(); go('trade'); } }, '무역해 보기')));
-    } else if (ph === 6) { close(); go('meeting'); }
+    } else if (ph === 6 || ph === 8) { close(); go('meeting'); }
     else if (ph === 7) {
       Sound.play('win');
       modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('h2', {}, '무역 동맹 체결!'),
-        h('p', { class: 'big-joy' }, '무역로가 다시 열리고 관세 폭탄이 사라졌어요.'),
-        h('p', {}, '여섯 나라의 약속 앞에 잊힌 제국이 크게 약해졌어요 (체력 ' + R.REBEL.weakHp + ', 회복 없음). 우리 반란 도시를 되찾아요!'),
+        h('p', { class: 'big-joy' }, '여섯 나라가 함께 약속하자 잊힌 제국의 협박이 더는 통하지 않아요!'),
+        h('p', {}, '무역 동맹으로 잊힌 제국의 영향력이 크게 줄었어요 (반란 도시 체력 ' + R.REBEL.weakHp + ', 회복 없음). 무역로가 다시 열렸어요. 우리 반란 도시를 되찾아요!'),
         h('button', { class: 'danger big', onclick: () => { close(); go('map'); } }, '반란 도시 되찾으러 가기')));
     }
   }
@@ -1165,7 +1196,7 @@
       if (gi !== 'coin' && ti === 'coin') msg = itemName(gi) + ' 기준가 ' + R.ITEMS[gi].ref + '코인 → ' + gq + '개는 최대 ' + R.ITEMS[gi].ref * R.FAIR_CAP * gq + '코인';
       if (gi === 'coin' && ti !== 'coin') msg = itemName(ti) + ' 기준가 ' + R.ITEMS[ti].ref + '코인 → ' + tq + '개는 최대 ' + R.ITEMS[ti].ref * R.FAIR_CAP * tq + '코인';
       help.textContent = g.fair_cap ? (msg ? '지구 서버 공정 거래 규칙: ' + msg : '물건끼리 바꾸기도 할 수 있어요.') : '공정 거래 규칙이 없어졌어요.';
-      const tu = it => g.tariffs && g.tariffs[it] ? Math.ceil(R.ITEMS[it].ref * g.tariffs[it]) : 0;
+      const tu = it => g.tariffs && g.tariffs[it] ? +g.tariffs[it] : 0;   // 1개마다 붙는 관세 (코인)
       if (ti !== 'coin' && tu(ti)) help.textContent += ' · 관세 폭탄: ' + itemName(ti) + '을(를) 사 오면 1개마다 ' + tu(ti) + '코인을 더 내요 (' + tq + '개면 ' + tu(ti) * tq + '코인).';
       const bans = [...new Set(Object.values(g.banned || {}).flat())];
       if (bans.length) help.textContent += ' · 잊힌 제국의 무역로 공격으로 거래 불가: ' + bans.map(itemName).join(', ');
@@ -1221,54 +1252,73 @@
   }
 
   // ================= 조약 회의 (17차시) =================
-  // ================= 세계 무역 회의 (17차시): ① 역할끼리 → ② 모둠 규칙 1개 → ③ 대표 모여 헌장 =================
+  // ================= 세계 무역 회의 (17차시): 활동 2 전문가 회의 → 활동 3 모둠 회의 → 6나라 등록 = 무역 동맹 =================
   function meetingView(page) {
-    const st = S.st, tr = st.treaty || {}, lead = st.me.is_leader || S.ctl, rep = st.report || { fails: [] }, me = st.country.id;
-    const roles = (st.me.is_leader ? ['국가 대표'] : []).concat(myRoles().filter(r => r !== '국가 대표'));
-    const list = st.treaties || [];
-    const cn = id => (st.countries.find(c => c.id === id) || {}).name || '';
+    const st = S.st, g = st.game, step = g.meet_step === 3 ? 3 : 2, tr = st.treaty || {}, lead = st.me.is_leader || S.ctl, rep = st.report || { fails: [] }, me = st.country.id;
+    const myR = (st.me.is_leader ? ['국가 대표'] : []).concat(myRoles().filter(r => r !== '국가 대표'));
+    const roles = myR.length ? myR : (S.ctl ? R.ROLES : []);
+    const list = st.treaties || [], ex = st.experts || [], mine = ex.find(e => e.me);
+    if (g.phase >= 8) page.append(wrapPanel());
     // 우리 나라가 겪은 일 (실제 기록)
     const myF = rep.fails.filter(f => f.buyer === me);
     const told = [rep.rebel ? '잊힌 제국에게 「' + rep.rebel.name + '」을(를) 빼앗겼어요' : null,
       myF.length ? '거래가 ' + myF.length + '번 막혔어요 (' + [...new Set(myF.map(f => itemName(f.item)))].join(', ') + ')' : null,
-      rep.tariff_paid ? '관세 폭탄으로 ' + rep.tariff_paid + '코인을 더 냈어요' : null,
-      '지금 행복도 ' + st.country.happy + ' (' + happyWord(st.country.happy) + ')'].filter(Boolean);
-    page.append(h('div', { class: 'panel meet-head' }, h('div', { class: 'panel-title' }, '세계 무역 회의', h('small', {}, '잊힌 제국을 물리칠 약속을 만들어요')),
+      rep.tariff_paid ? '관세로 ' + rep.tariff_paid + '코인을 더 냈어요' : null, '지금 행복도 ' + st.country.happy].filter(Boolean);
+    page.append(h('div', { class: 'panel meet-head' }, h('div', { class: 'panel-title' }, '세계 무역 회의', h('small', {}, '잊힌 제국을 물리칠 무역 조항을 만들어요')),
       h('div', { class: 'meet-steps' },
-        h('div', { class: 'ms' }, h('b', {}, '①'), h('span', {}, '같은 역할끼리 모여 이야기해요')),
-        h('div', { class: 'ms' }, h('b', {}, '②'), h('span', {}, '우리 모둠으로 돌아와 무역 규칙 1개 고르기')),
-        h('div', { class: 'ms' }, h('b', {}, '③'), h('span', {}, '대표들이 모여 세계 무역 헌장 → 국가 대표가 입력')),
-        h('div', { class: 'ms gold' }, h('b', {}, '6/6'), h('span', {}, '여섯 나라가 다 올리면 무역 동맹!'))),
+        h('div', { class: 'ms' + (step === 2 ? ' gold' : '') }, h('b', {}, '활동 2'), h('span', {}, '전문가 회의: 같은 역할끼리 한 문장')),
+        h('div', { class: 'ms' + (step === 3 ? ' gold' : '') }, h('b', {}, '활동 3'), h('span', {}, '모둠 회의: 두 문장을 합쳐 우리 나라 조항')),
+        h('div', { class: 'ms' }, h('b', {}, list.length + '/6'), h('span', {}, '여섯 나라가 다 등록하면 무역 동맹!'))),
       h('div', { class: 'told' }, h('b', {}, '우리 나라가 겪은 일: '), told.join(' · '))));
-    // ① 역할 카드
-    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '① 같은 역할끼리 모여요', h('small', {}, '다른 모둠의 같은 역할 친구들과 이 질문으로 이야기해요')),
-      h('div', { class: 'role-talks' }, (roles.length ? roles : R.ROLES).map(r => { const t = R.ROLE_TALK[r]; if (!t) return null;
-        return h('div', { class: 'rtalk' }, h('div', { class: 'rt-head' }, h('img', { src: roleImg(r), alt: '' }), h('b', {}, r + ' 모임')), h('p', { class: 'rt-q' }, t.q),
-          h('div', { class: 'rt-hints' }, h('small', {}, '이런 생각도 있어요'), t.hints.map(x => h('span', {}, x)))); }))));
-    // ② 모둠 규칙
-    let pick = tr.focus || null;
-    const sentence = h('input', { type: 'text', id: 't-rule', value: tr.promise || '', placeholder: '위에서 카드를 고르면 채워져요. 우리 말로 고쳐 써도 돼요.', disabled: !lead });
-    const why = h('input', { type: 'text', id: 't-why', value: tr.reason || '', placeholder: '왜냐하면 ___ 때문이에요. (우리 나라가 겪은 일을 넣어요)', disabled: !lead });
-    const cards = h('div', { class: 'treaty-cards' });
-    const draw = () => { cards.innerHTML = ''; cards.append(...R.RULE_CARDS.map(c => h('button', { class: 'tcard' + (pick === c.k ? ' on' : ''), disabled: !lead,
-      onclick: () => { pick = c.k; sentence.value = c.text; draw(); } }, h('b', {}, c.name), h('small', {}, c.text))),
-      h('button', { class: 'tcard' + (pick === 'X' ? ' on' : ''), disabled: !lead, onclick: () => { pick = 'X'; sentence.value = ''; sentence.focus(); draw(); } }, h('b', {}, '직접 만들기'), h('small', {}, '우리 모둠만의 규칙을 써요'))); };
-    draw();
-    page.append(h('div', { class: 'panel treaty' }, h('div', { class: 'panel-title' }, '② 우리 모둠의 무역 규칙 1개', h('small', {}, '역할 모임에서 들은 이야기를 나누고 하나를 골라요')),
-      cards, h('label', {}, '우리 규칙 (한 문장)', sentence), h('label', {}, '이 규칙이 필요한 까닭', why),
-      lead ? h('button', { class: 'primary big', disabled: st.game.phase !== 6 && !tr.promise, onclick: () => {
-        if (!sentence.value.trim()) return toast('규칙을 한 문장으로 써 주세요.', 'error');
-        act('treaty_submit', [pick || 'X', '', sentence.value, why.value], r => { Sound.play('win'); toast(r.alliance ? '무역 동맹 체결!' : '세계 무역 헌장에 올렸어요! (' + r.count + '/6)'); });
-      } }, tr.promise ? '규칙 고쳐 올리기' : '③ 세계 무역 헌장에 올리기') : h('p', { class: 'muted' }, '대표들이 모여 정한 뒤, 국가 대표가 올려요.')));
-    // ③ 헌장
-    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '③ 세계 무역 헌장', h('small', {}, list.length + '/6 나라')),
+    // 활동 2: 전문가 회의
+    if (!S.expertRole || !roles.includes(S.expertRole)) S.expertRole = roles[0];
+    const role = S.expertRole, talk = R.ROLE_TALK[role];
+    const exIn = h('input', { type: 'text', id: 'ex-body', value: mine && mine.role === role ? mine.body : '', placeholder: '「틀 넣기」를 누르고 괄호 안에 직접 써요' });
+    page.append(h('div', { class: 'panel' + (step === 2 ? ' now-step' : ' dim-step') }, h('div', { class: 'panel-title' }, '활동 2 · 전문가 회의', h('small', {}, '다른 모둠의 같은 역할 친구들과 모여 한 문장을 만들어요')),
+      roles.length > 1 ? h('div', { class: 'row' }, h('small', {}, '역할을 여러 개 맡았다면 한 모임에만 가요: '), roles.map(r => h('button', { class: 'small ' + (r === role ? 'gold' : ''), onclick: () => { S.expertRole = r; renderPage(); } }, r))) : null,
+      talk ? h('div', { class: 'rtalk big' }, h('div', { class: 'rt-head' }, h('img', { src: roleImg(role), alt: '' }), h('b', {}, role + ' 모임')), h('p', { class: 'rt-q' }, talk.q),
+        h('div', { class: 'rt-hints' }, h('small', {}, '예시 문장 (읽고 참고만 해요. 우리 모임의 생각은 직접 써요)'), talk.ex.map(x => h('span', {}, x)))) : h('p', { class: 'muted' }, '역할을 먼저 정해 주세요.'),
+      talk ? h('div', { class: 'row' }, h('button', { class: 'small', onclick: () => { exIn.value = R.EXPERT_FRAME; exIn.focus(); exIn.setSelectionRange(exIn.value.indexOf('(') + 1, exIn.value.indexOf(')')); } }, '틀 넣기'), exIn,
+        h('button', { class: 'primary', onclick: () => act('expert_submit', [role, exIn.value], () => toast('전문가 문장을 저장했어요. 활동 3에서 모둠 친구들에게 보여요.')) }, '저장')) : null,
+      mine ? h('small', { class: 'good' }, '저장한 문장: ' + mine.body) : null));
+    // 활동 3: 모둠 회의
+    let picks = (tr.reason || '').split(' / ').filter(Boolean);
+    const clause = h('textarea', { id: 't-clause', rows: 2, placeholder: '「틀 넣기」를 누르고 괄호 안에 두 문장을 합친 내용을 직접 써요', disabled: !lead }, tr.promise || '');
+    const exList = h('div', { class: 'ex-list' });
+    const drawEx = () => { exList.innerHTML = ''; exList.append(...(ex.length ? ex.map(e => { const on = picks.includes(e.body);
+      const toggle = () => { if (!lead) return; picks = on ? picks.filter(x => x !== e.body) : picks.concat(e.body).slice(-2); drawEx(); };
+      return h('div', { class: 'ex-it' + (on ? ' on' : ''), onclick: toggle }, h('span', { class: 'ex-check' }, on ? '✓' : ''),
+        h('b', {}, e.role), h('span', {}, e.body), h('small', {}, e.nick)); }) : [h('p', { class: 'muted' }, '아직 저장된 전문가 문장이 없어요. 활동 2에서 각자 저장해요.')])); };
+    drawEx();
+    page.append(h('div', { class: 'panel treaty' + (step === 3 ? ' now-step' : ' dim-step') }, h('div', { class: 'panel-title' }, '활동 3 · 모둠 회의', h('small', {}, '전문가 문장을 나누고, 대표를 중심으로 가장 중요한 두 문장을 골라 하나로 합쳐요')),
+      h('b', {}, '① 우리 모둠의 전문가 문장'), exList,
+      h('b', {}, '② 두 문장을 하나로 합친 우리 나라 무역 조항'),
+      h('div', { class: 'row' }, lead ? h('button', { class: 'small', onclick: () => { clause.value = R.CLAUSE_FRAME; clause.focus(); clause.setSelectionRange(clause.value.indexOf('(') + 1, clause.value.indexOf(')')); } }, '틀 넣기') : null, clause),
+      lead ? h('button', { class: 'primary big', disabled: g.phase !== 6 && !tr.promise, onclick: () => {
+        if (picks.length < 2 && ex.length >= 2) return toast('전문가 문장 두 개를 골라 주세요.', 'error');
+        act('treaty_submit', [step === 3 ? 'merge' : 'X', '', clause.value, picks.join(' / ')], r => { Sound.play('win'); toast(r.alliance ? '무역 동맹 체결!' : '무역 조항을 등록했어요! (' + r.count + '/6)', 'long'); });
+      } }, tr.promise ? '조항 고쳐 등록하기' : '우리 나라 무역 조항 등록') : h('p', { class: 'muted' }, '등록은 국가 대표가 해요. 모두 함께 문장을 정해요.')));
+    // 여섯 나라의 무역 조항
+    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '여섯 나라의 무역 조항', h('small', {}, list.length + '/6 나라')),
       h('div', { class: 'ally-bar' }, h('i', { style: { width: (list.length / 6 * 100) + '%' } }), h('span', {}, list.length >= 6 ? '무역 동맹 체결!' : '무역 동맹까지 ' + (6 - list.length) + '나라')),
       list.length ? h('div', { class: 'charter-list' }, list.map(t => { const c = st.countries.find(x => x.id === t.country) || {};
-        return h('div', { class: 'charter-it', style: { '--gc': typeColor(c.type) } }, h('b', {}, c.name + ' '), t.promise || '', t.reason ? h('div', { class: 'muted' }, t.reason) : null); }))
-        : h('p', { class: 'muted' }, '아직 올린 나라가 없어요.')));
+        return h('div', { class: 'charter-it', style: { '--gc': typeColor(c.type) } }, h('b', {}, c.name + ' '), t.promise || ''); }))
+        : h('p', { class: 'muted' }, '아직 등록한 나라가 없어요.')));
+    if (g.phase < 8) page.append(reflectPanel());
+  }
+  function reflectPanel() {
     const mine = h('input', { type: 'text', id: 'refl', placeholder: '나라 사이의 무역에서는 ___해야 합니다. 왜냐하면 ___ 때문입니다.' });
-    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '정리: 나의 한 문장'),
-      h('div', { class: 'row' }, mine, h('button', { class: 'primary', onclick: () => act('reflection_submit', [mine.value], () => toast('저장했어요.')) }, '저장'))));
+    return h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '정리: 나의 한 문장'),
+      h('div', { class: 'row' }, mine, h('button', { class: 'primary', onclick: () => act('reflection_submit', [mine.value], () => toast('저장했어요.')) }, '저장')));
+  }
+  // 정리 단계: 무역을 할 때 필요한 노력 + 우리 나라 결과
+  function wrapPanel() {
+    const st = S.st, co = st.country, mil = st.units.filter(u => MIL.includes(u.kind)).length;
+    return h('div', { class: 'panel wrap-panel' }, h('div', { class: 'panel-title' }, '정리', h('small', {}, '학습지에 적고, 모둠별로 가볍게 발표해요')),
+      h('h2', { class: 'wrap-q' }, '무역을 할 때 필요한 노력을 적어 봅시다'),
+      h('div', { class: 'wrap-stats' }, h('div', {}, h('small', {}, '행복도'), h('b', {}, co.happy)), h('div', {}, h('small', {}, '코인'), h('b', {}, fmt(co.coin))), h('div', {}, h('small', {}, '병력'), h('b', {}, mil + '부대')),
+        h('div', {}, h('small', {}, '우리 나라 무역 조항'), h('span', {}, (st.treaty || {}).promise || '-'))),
+      reflectPanel());
   }
 
   start();

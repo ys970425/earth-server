@@ -3,10 +3,10 @@
 export const W = 40, H = 28;
 
 export const COUNTRIES = {
-  K: { capital: [20, 11], capitalRes: ['gold'] },
-  J: { capital: [26, 11], capitalRes: ['gold'] },
+  K: { capital: [20, 11], capitalRes: ['iron'] },
+  J: { capital: [26, 11], capitalRes: ['copper'] },
   C: { capital: [10, 13], capitalRes: ['iron', 'cotton'] },
-  A: { capital: [35, 13], capitalRes: ['oil', 'cotton'] },
+  A: { capital: [35, 13], capitalRes: ['oil'] },
   N: { capital: [16, 2], capitalRes: ['oil'] },
   T: { capital: [14, 22], capitalRes: ['spice'] }
 };
@@ -52,11 +52,11 @@ const ZONES = {
 };
 // 주인 없는 땅의 도시국가 (누구나 차지할 수 있고, 최종 보스는 여러 나라가 힘을 합쳐야 해요)
 const NEUTRAL = [
-  { id: 'X1', name: '고대 성채 아르카', at: [25, 23], tier: 4, res: ['gold', 'aluminum'] },   // 잊힌 제국은 섬이 아니라 각 나라의 반란 도시로 등장 (17차시)
+  { id: 'X1', name: '고대 성채 아르카', at: [25, 23], tier: 4, res: ['aluminum'] },   // 잊힌 제국은 섬이 아니라 각 나라의 반란 도시로 등장 (17차시)
   { id: 'X2', name: '수호자의 탑', at: [27, 22], tier: 4, res: [] },
   { id: 'X3', name: '폭풍섬', at: [31, 3], tier: 3, res: ['aluminum'] },
-  { id: 'X4', name: '천둥 요새', at: [33, 4], tier: 4, res: ['uranium'] },
-  { id: 'X5', name: '해적만', at: [2, 24], tier: 3, res: ['gold'] }
+  { id: 'X4', name: '천둥 요새', at: [33, 4], tier: 4, res: ['aluminum'] },
+  { id: 'X5', name: '해적만', at: [2, 24], tier: 3, res: ['iron'] }
 ];
 
 function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }

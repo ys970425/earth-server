@@ -251,6 +251,14 @@ do $$ begin
     update priv.trade_fails set phase = case when phase between 4 and 7 then 3 when phase >= 8 then phase - 4 else phase end;
   end if;
 end $$;
+-- v9: 활동 2·3, 국가 정상화, 영상, 정리
+alter table public.game add column if not exists meet_step int not null default 2;
+alter table public.game add column if not exists video_url text;
+alter table public.game add column if not exists video_seq int not null default 0;
+alter table public.game add column if not exists normalized boolean not null default false;
+create table if not exists priv.expert_notes (
+  student_id int primary key, country int not null, role text not null, body text not null, updated_at timestamptz not null default now()
+);
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 
