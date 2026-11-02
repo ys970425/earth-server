@@ -212,6 +212,7 @@
           const im = IMG['c:' + city.art] || IMG[big ? 'b:capital' : (t.terrain === 'coast' || city.sea ? 'b:port' : 'b:capital')];
           ctx.save();
           if (!city.country) ctx.filter = 'saturate(.55) brightness(.95)';
+          else if (city.unrest) ctx.filter = 'sepia(1) saturate(4) hue-rotate(-40deg) brightness(.85)';   // 행정 마비: 붉게
           if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, city.boss ? 230 : city.rebel ? 200 : city.art === 'final' ? 190 : big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
           else drawImgBottom(im, x, y + HALF_H * 0.75, big ? 132 : 104);
           ctx.restore();
@@ -226,13 +227,17 @@
             ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(label, x, ly + th / 2 + 1); ctx.fillText(label, x, ly + th / 2 + 1);
           }
           if (!far && !city.country && city.def != null) {
-            const bw = city.boss ? 110 : 76;
+            const bw = city.boss || city.rebel ? 120 : 76;
             plate(x - bw / 2, y - 112, bw, 24, city.boss ? '#4A0E5C' : city.tier >= 4 ? '#5A0F18' : '#8E1F2F', city.tier >= 4);
             ctx.fillStyle = '#FFE9C2'; ctx.font = '700 14px Galmuri11, Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText((city.boss ? '최종 보스 · ' : '') + '방어 ' + city.def, x, y - 99);
+            ctx.fillText((city.boss ? '최종 보스 · ' : city.rebel ? '잊힌 제국 · ' : '') + '방어 ' + city.def, x, y - 99);
             if (city.max_hp) hpBar(x - bw / 2, y - 86, bw, 7, city.hp / city.max_hp);
           }
-          if (city.unrest) { ctx.fillStyle = '#FF5D73'; ctx.font = '700 18px Galmuri11, Jua, sans-serif'; ctx.fillText('불안!', x, y - 128); }
+          if (city.unrest && !far) {   // 행정 마비 표시
+            ctx.font = '700 16px Galmuri11, Jua, sans-serif'; const tw = ctx.measureText('행정 마비').width + 18;
+            plate(x - tw / 2, y - 92, tw, 24, '#B8263A', true);
+            ctx.fillStyle = '#FFF0E0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('행정 마비', x, y - 79);
+          }
         } else {
           if (t.imp) {
             const k = { farm: 'b:farm', lumber: 'b:lumber', mine: 'b:mine', quarry: 'b:mine' }[t.imp];

@@ -5,7 +5,7 @@
   R.W = 40; R.H = 28;
   R.START = { coin: 200, food: 6, wood: 6, iron: 2 };
   // 나라별 시작 보너스 (반도·섬은 숲이 적어서 목재를 더 줌)
-  R.START_BONUS = { K: { wood: 8 }, J: { wood: 4, rubber: 4 } };   // 섬나라는 고무 4개로 시작 → 무역 전에도 타이어를 만들 수 있어요
+  R.START_BONUS = { K: { wood: 8 }, J: { wood: 4 } };
 
   R.ITEMS = {
     food: { name: '식량', kind: 'basic', ref: 5 },
@@ -96,33 +96,34 @@
   // 나라마다 특산품 하나: 특산 공장은 싸게 짓고(코인 40·목재 2·식량 2), 원료 없이 매 턴 2개 만들어요 (가공비만 냄)
   R.SPECIALTY = {
     K: { factory: 'chipfab', why: '기술이 뛰어나 원료가 없어도 반도체를 만들어요 (실제 한국의 1위 수출품)' },
-    J: { factory: 'rubberplant', input: true, why: '열대 해양국의 고무를 사 와서 타이어로 가공해요 (가공 무역! 실제 일본은 고무를 사서 타이어·자동차를 수출)' },
+    J: { factory: 'rubberplant', why: '기술이 좋아 튼튼한 타이어를 만들어요 (실제 일본은 타이어·자동차를 많이 수출)' },
     C: { factory: 'steelworks', why: '큰 제철소가 많아 강철을 많이 만들어요 (실제 중국은 세계 1위 철강 생산국)' },
     A: { factory: 'aircraft', why: '과학 기술로 항공 엔진을 만들어요 (실제 미국은 비행기·엔진을 많이 수출)' },
     N: { factory: 'refinery', why: '석유가 많아 연료를 넉넉히 만들어요 (실제 러시아는 석유·가스를 많이 수출)' },
-    T: { factory: 'textilemill', why: '일손이 많아 옷을 많이 만들어요 (실제 베트남은 옷을 많이 수출)' }
+    T: { factory: null, res: 'rubber', why: '정글에 고무나무가 많아 고무 농원에서 고무가 많이 나요 (실제 동남아시아는 천연고무를 많이 수출)' }
   };
   R.SPECIALTY_BUILD = { coin: 40, wood: 2, food: 2 };
   R.FACTORY_BUILD = { chipfab: { J: { coin: 90, aluminum: 2, copper: 2 } } };
   R.FACTORY_FREE = {};
   for (const [t, sp] of Object.entries(R.SPECIALTY)) {
+    if (!sp.factory) continue;
     (R.FACTORY_BUILD[sp.factory] = R.FACTORY_BUILD[sp.factory] || {})[t] = R.SPECIALTY_BUILD;
     if (!sp.input) R.FACTORY_FREE[t] = { [sp.factory]: true };
   }
   // 나라별 가공비 (코인/개). 없으면 못 만듦
   R.PROC_COST = {
     K: { chip: 5, steel: 4 },
-    J: { tire: 4, jewelry: 5 },
-    C: { steel: 4, clothes: 5 },
+    J: { tire: 4 },
+    C: { steel: 4 },
     A: { engine: 6, fuel: 6 },
-    N: { fuel: 3, jewelry: 8 },
-    T: { clothes: 4 }
+    N: { fuel: 3 },
+    T: {}
   };
 
   R.ADVANCED = {
     industrial: { name: '공장 지대', cost: { coin: 40, steel: 2, tire: 1 }, econ: 12, coinPerTurn: 15 },
     electronics: { name: '전자 상가', tech: 'chipmaking', cost: { coin: 40, chip: 2 }, econ: 12, coinPerTurn: 15 },
-    theater: { name: '극장', cost: { coin: 30, clothes: 2 }, culture: 10, happy: 6 },
+    theater: { name: '극장', cost: { coin: 30, wood: 2 }, culture: 10, happy: 6 },
     netcenter: { name: '인터넷 센터', tech: 'radar', cost: { coin: 40, chip: 2 }, culture: 15 },
     satcenter: { name: '인공위성 센터', tech: 'radar', cost: { coin: 60, aluminum: 2, chip: 2 }, culture: 20 },
     arsenal: { name: '군수 공장', tech: 'steelmaking', cost: { coin: 60, steel: 2 }, unlock: 'tank' },
@@ -146,12 +147,12 @@
     trireme:   { name: '삼단노선', era: 1, str: 10, move: 4, sea: true, tech: 'shipbuilding', cost: { coin: 30, wood: 3 }, img: 'trireme' },
     frigate:   { name: '프리깃', era: 2, str: 24, move: 5, range: 2, sea: true, tech: 'navigation', cost: { coin: 60, wood: 3, iron: 1 }, img: 'frigate' },
     battleship:{ name: '전함', era: 3, str: 55, move: 5, range: 2, sea: true, tech: 'warship', cost: { coin: 110, steel: 3, fuel: 1 }, img: 'warship' },
-    k_missile: { name: '장거리 미사일 부대', boss: 'K', era: 4, str: 300, move: 5, range: 3, fly: true, cost: { coin: 80, uranium: 2, fuel: 2, aluminum: 2 }, img: 'boss_K' },
-    j_patrol:  { name: '해상 초계기', boss: 'J', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, fuel: 2, steel: 2 }, img: 'boss_J' },
-    c_jet:     { name: '대형 전투기 편대', boss: 'C', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, engine: 2, fuel: 2, aluminum: 2 }, img: 'boss_C' },
-    a_stealth: { name: '스텔스 폭격기', boss: 'A', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, steel: 2, copper: 2 }, img: 'boss_A' },
-    n_hyper:   { name: '극초음속 미사일', boss: 'N', era: 4, str: 300, move: 5, range: 3, fly: true, cost: { coin: 80, chip: 2, steel: 2, copper: 2 }, img: 'boss_N' },
-    t_marine:  { name: '상륙 기갑부대', boss: 'T', era: 4, str: 300, move: 5, range: 2, fly: true, cost: { coin: 80, tire: 2, fuel: 2, steel: 2 }, img: 'boss_T' },
+    k_missile: { name: '장거리 미사일 부대', boss: 'K', era: 4, str: 300, move: 5, range: 3, fly: true, cost: { coin: 80, uranium: 2 }, img: 'boss_K' },
+    j_patrol:  { name: '해상 초계기', boss: 'J', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, rubber: 2 }, img: 'boss_J' },
+    c_jet:     { name: '대형 전투기 편대', boss: 'C', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, engine: 2 }, img: 'boss_C' },
+    a_stealth: { name: '스텔스 폭격기', boss: 'A', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2 }, img: 'boss_A' },
+    n_hyper:   { name: '극초음속 미사일', boss: 'N', era: 4, str: 300, move: 5, range: 3, fly: true, cost: { coin: 80, chip: 2 }, img: 'boss_N' },
+    t_marine:  { name: '상륙 기갑부대', boss: 'T', era: 4, str: 300, move: 5, range: 2, fly: true, cost: { coin: 80, tire: 2 }, img: 'boss_T' },
     cruiser:   { name: '미사일 순양함', era: 4, str: 90, move: 6, range: 3, sea: true, tech: 'missile', cost: { coin: 160, steel: 2, fuel: 2, chip: 2 }, img: 'cruiser' }
   };
   R.UNIT_UPKEEP = 1;
@@ -176,25 +177,35 @@
   // 나라마다 하나: 최종 도시국가. 그 나라의 특수 부대로만 무너뜨릴 수 있어요 (다른 병력은 꿈쩍도 안 함)
   // 체력 100·회복 없음: 특수 부대(힘 300)가 한 번 공격하면 무너져요 (행복도가 0 밑이면 힘이 줄어 2번) → 17차시 도입 6분 안에 정복
   R.FINAL_CS = { name: '최종 도전', def: 70, hp: 100, coin: 300, heal: 0, glory: 40 };
-  // 특수 부대: 우리 나라에 없는 자원 3가지가 필요해요. 첫째는 딱 한 나라만 가지고 있어요!
+  // 무역 짝 (단순하게!)
+  // ① 전략 자원은 두 나라씩 1:1 교환 (3팀): 특수 부대 재료는 짝꿍 나라 물건 2개
+  R.STRAT_OF = { K: 'chip', N: 'uranium', J: 'tire', T: 'rubber', C: 'rare', A: 'engine' };
+  R.PARTNER = { K: 'N', N: 'K', J: 'T', T: 'J', C: 'A', A: 'C' };
+  // ② 사치품은 세 나라씩 1:1:1 교환 (2팀): 나라마다 사치품 하나, 수도에서 매 턴 2개씩 저절로 생겨요
+  R.LUX_OF = { K: 'clothes', J: 'jewelry', A: 'wine', N: 'gold', T: 'spice', C: 'cotton' };
+  R.LUX_TEAM = { K: ['J', 'A'], J: ['K', 'A'], A: ['K', 'J'], N: ['T', 'C'], T: ['N', 'C'], C: ['N', 'T'] };
+  R.LUX_PER_TURN = 2;
   R.BOSS_UNIT = {
-    K: { unit: 'k_missile', needs: ['uranium', 'fuel', 'aluminum'] },
-    J: { unit: 'j_patrol', needs: ['rare', 'fuel', 'steel'] },
-    C: { unit: 'c_jet', needs: ['engine', 'fuel', 'aluminum'] },
-    A: { unit: 'a_stealth', needs: ['rare', 'steel', 'copper'] },
-    N: { unit: 'n_hyper', needs: ['chip', 'steel', 'copper'] },
-    T: { unit: 't_marine', needs: ['tire', 'fuel', 'steel'] }
+    K: { unit: 'k_missile', needs: ['uranium'] },
+    J: { unit: 'j_patrol', needs: ['rubber'] },
+    C: { unit: 'c_jet', needs: ['engine'] },
+    A: { unit: 'a_stealth', needs: ['rare'] },
+    N: { unit: 'n_hyper', needs: ['chip'] },
+    T: { unit: 't_marine', needs: ['tire'] }
   };
-  // 누가 무엇을 가지고 있나 (무역 안내에 씀). 앞의 나라일수록 많이 가짐
+  // 누가 무엇을 가지고 있나 (무역 안내에 씀)
   R.SOURCES = {
-    chip: ['K'], tire: ['J'], rare: ['C'], engine: ['A'], uranium: ['N'], rubber: ['T'],
-    fuel: ['N', 'A'], oil: ['N', 'A'], aluminum: ['N', 'A'], steel: ['C', 'K'], iron: ['C', 'K', 'A'], copper: ['C', 'T', 'J'],
-    gold: ['N', 'K', 'J'], jewelry: ['N', 'J'], cotton: ['C', 'A'], clothes: ['T', 'C'], spice: ['T'], wine: ['A'], food: ['A', 'C', 'T']
+    chip: ['K'], uranium: ['N'], tire: ['J'], rubber: ['T'], rare: ['C'], engine: ['A'],
+    clothes: ['K'], jewelry: ['J'], wine: ['A'], gold: ['N'], spice: ['T'], cotton: ['C'],
+    fuel: ['N', 'A'], oil: ['N', 'A'], aluminum: ['N', 'A'], steel: ['C', 'K'], iron: ['C', 'K', 'A'], copper: ['C', 'T', 'J'], food: ['A', 'C', 'T']
   };
+  // 확장 건설(공장·발전 건물)은 도시국가를 이만큼 차지하면 열려요
+  R.EXPAND_CS = 3;
   // 17차시: 공공의 적 「잊힌 제국」
   // ① 등장: 각 나라가 처음 차지한 도시(튜토리얼 도시국가)를 빼앗아 반란 도시로 → 테러·사치품 싫증으로 행복도 하락
   // ② 협정 만료: 무역선·수송기 공격 → 사치품 거래 불가, 나머지 물건 관세 폭탄
   // ③ 세계 무역 회의 → 6나라가 규칙을 다 입력하면 「무역 동맹」 → 무역 회복, 반란 도시 크게 약해짐
+  R.BANNED_STRAT = ['chip', 'uranium', 'tire', 'rubber', 'rare', 'engine'];   // 협정 만료 때 사치품과 함께 거래 불가
   R.REBEL = {
     def: 200, hp: 1000,           // 동맹 전: 매 턴 체력을 모두 회복 (사실상 못 깸)
     weakDef: 40, weakHp: 150,     // 무역 동맹 뒤: 회복 없음 → 특수 부대 2번이면 격퇴
@@ -203,26 +214,24 @@
     glory: 40, coin: 200          // 되찾으면
   };
   R.CRISIS = {
-    tariffRate: 1.0,              // 관세 폭탄: 사 올 때 기준가만큼(100%) 코인을 더 내요 (1개당)
+    tariffPerUnit: 30,            // 관세 폭탄: 사 올 때 1개마다 30코인을 더 내요
     merchantMult: 2               // 긴급 중립 상인: 기준가의 2배
   };
-  // 세계 무역 회의: 역할별 모임 질문 (같은 역할끼리 모여 이야기해요)
+  // 활동 2 전문가 회의: 같은 역할끼리 모여 「올바른 무역을 위해 중요한 것」 한 문장 (예시는 읽기만, 핵심은 직접 써요)
+  R.EXPERT_FRAME = '올바른 무역을 위해 (                    ).';
+  R.CLAUSE_FRAME = '우리가 제안한 조약은 (                    )입니다.';
   R.ROLE_TALK = {
-    '국가 대표': { q: '다른 나라를 믿고 거래하려면 무엇이 필요할까요?', hints: ['한 번 정한 약속은 꼭 지켜요', '조건을 바꿀 때는 미리 알려요', '문제가 생기면 먼저 대화해요'] },
-    '국방부 장관': { q: '잊힌 제국이 무역선과 수송기를 공격하면 어떤 일이 생길까요? 어떻게 막을까요?', hints: ['특수 부대 재료를 못 받아요', '무역로를 여러 나라가 함께 지켜요', '무역을 방해하는 세력에 함께 맞서요'] },
-    '국토부 장관': { q: '꼭 필요한 자원을 다른 나라에서 못 받으면 우리 나라는 어떻게 될까요?', hints: ['사치품이 없어 행복도가 떨어져요', '서로 꼭 필요한 자원은 끊지 않아요', '한 나라에만 기대지 않고 여러 나라와 거래해요'] },
-    '기획부 장관': { q: '관세가 갑자기 두 배가 되면 무엇이 힘들어질까요?', hints: ['물건값이 너무 비싸져요', '코인이 모자라 건물·공장을 못 지어요', '관세를 함께 낮추기로 약속해요'] },
-    '과학기술부 장관': { q: '거래 조건이 갑자기 바뀌면 왜 문제일까요?', hints: ['미리 계획을 세울 수 없어요', '조건을 바꿀 때는 미리 알려요', '가격과 거래 정보를 서로 공개해요'] }
+    '국가 대표': { q: '여러 나라가 서로 믿고 거래하려면 무엇이 가장 중요할까요?',
+      ex: ['한 번 맺은 거래 약속은 어려운 상황에서도 지켜야 한다', '거래 조건을 바꿀 때는 미리 알리고 함께 의논해야 한다'] },
+    '국방부 장관': { q: '잊힌 제국처럼 무역을 방해하는 세력이 나타나면 어떻게 해야 할까요?',
+      ex: ['무역로가 공격받으면 여러 나라가 함께 지켜야 한다', '다른 나라를 협박해 무역을 망치는 행동에 함께 맞서야 한다'] },
+    '국토부 장관': { q: '꼭 필요한 자원을 한 나라만 가지고 있을 때 어떤 약속이 필요할까요?',
+      ex: ['전략 자원의 올바른 거래를 위해 한 나라가 자원을 독점해서는 안 된다', '서로에게 꼭 필요한 자원은 갑자기 끊지 않아야 한다'] },
+    '기획부 장관': { q: '관세나 물건값이 갑자기 크게 오르면 어떤 문제가 생길까요? 어떻게 막을까요?',
+      ex: ['관세를 한꺼번에 크게 올려서는 안 된다', '물건값은 서로 공평하게 정해야 한다'] },
+    '과학기술부 장관': { q: '거래 정보가 감춰지거나 갑자기 바뀌면 왜 문제일까요?',
+      ex: ['가격과 거래 조건을 모든 나라가 알 수 있게 공개해야 한다', '기술과 정보를 나누면 함께 발전할 수 있다'] }
   };
-  // 무역 규칙 카드 (모둠이 하나 고르거나 직접 써요)
-  R.RULE_CARDS = [
-    { k: '1', name: '약속 지키기', text: '한 번 정한 거래 약속은 꼭 지켜요.' },
-    { k: '2', name: '미리 알리기', text: '거래 조건을 바꿀 때는 미리 알려요.' },
-    { k: '3', name: '관세 낮추기', text: '서로 관세를 낮춰서 거래를 쉽게 해요.' },
-    { k: '4', name: '공평한 값', text: '너무 비싸게 팔지 않고 공평한 값으로 거래해요.' },
-    { k: '5', name: '무역로 함께 지키기', text: '무역을 방해하는 세력이 있으면 여러 나라가 함께 막아요.' },
-    { k: '6', name: '대화로 해결', text: '문제가 생기면 거래를 끊기 전에 먼저 대화해요.' }
-  ];
   // 관리자 지원 창 물건 분류
   R.SUPPORT_GROUPS = [
     { k: 'basic', name: '기본 자원', items: ['coin', 'food', 'wood', 'iron'] },
@@ -241,7 +250,7 @@
   //  + 사치품 종류마다 +10 (창고에 있으면 종류마다 1개씩 써요)  + 광장 +5  + 점령 환호(점령하면 +20, 매 턴 5씩 줄어요)
   //  − 인구 증가: 턴마다 -5씩 커져요(최대 -40)  − 도시 관리: 수도 말고 도시마다 -3
   R.HAPPY = {
-    base: 0, perLuxType: 10, perPlaza: 5, glory: 20, gloryDecay: 5, perCity: -3, pressurePerTurn: 5, pressureMax: 30, hunger: -10, tariffPer: 8,
+    base: 0, perLuxType: 10, ownLux: 10, importLux: [0, 20, 50, 80], paralysis: -20, rebelOpen: -15, perPlaza: 5, glory: 20, gloryDecay: 5, perCity: -3, pressurePerTurn: 5, pressureMax: 30, hunger: -10, tariffPer: 8,
     golden: 30, unhappy: 0, unrest: -20, revolt: -40
   };
 
@@ -285,9 +294,10 @@
     { n: 2, name: '성장의 한계', desc: '시민들이 더 다양한 물건을 원해요.' },
     { n: 3, name: '세계 시장 개방', desc: '다른 나라와 거래해서 특수 부대 재료와 사치품을 모아요.' },
     { n: 4, name: '잊힌 제국 등장', desc: '잊힌 제국이 우리 도시를 빼앗고 테러를 벌여요. 행복도가 떨어져요.' },
-    { n: 5, name: '무역 파괴', desc: '협정 만료! 잊힌 제국이 무역로를 공격해요. 사치품은 거래 불가, 나머지는 관세 폭탄.' },
-    { n: 6, name: '세계 무역 회의', desc: '역할끼리 모여 이야기하고, 모둠 규칙을 정하고, 세계 무역 헌장을 만들어요.' },
-    { n: 7, name: '무역 동맹', desc: '무역 동맹 체결! 잊힌 제국이 약해졌어요. 우리 반란 도시를 되찾아요.' }
+    { n: 5, name: '무역 파괴', desc: '잊힌 제국의 협박으로 관세가 치솟고, 사치품과 핵심 전략 자원은 거래할 수 없어요.' },
+    { n: 6, name: '세계 무역 회의', desc: '활동 2 전문가 회의 → 활동 3 모둠 회의: 우리 나라 무역 조항을 만들어요.' },
+    { n: 7, name: '무역 동맹', desc: '무역 동맹 체결! 잊힌 제국의 영향력이 크게 줄었어요. 우리 반란 도시를 되찾아요.' },
+    { n: 8, name: '정리', desc: '무역을 할 때 필요한 노력을 적어 봅시다.' }
   ];
 
   if (typeof module !== 'undefined' && module.exports) module.exports = R;
