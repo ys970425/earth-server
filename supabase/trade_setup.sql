@@ -229,6 +229,15 @@ alter table priv.cities add column if not exists built_count int not null defaul
 alter table priv.countries add column if not exists research_count int not null default 0;
 alter table priv.countries add column if not exists happy_detail jsonb not null default '[]';
 alter table priv.countries add column if not exists lux_used text[] not null default '{}';
+-- v6: 17차시 무역 위기(관세·수출 제한·재건), 관리자 지원 팝업
+alter table public.game add column if not exists tariffs jsonb not null default '{}'::jsonb;
+alter table priv.countries add column if not exists rebuilt boolean not null default false;
+alter table public.notices add column if not exists data jsonb;
+create table if not exists priv.trade_fails (
+  id serial primary key, turn int, phase int, buyer int, seller int, item text, qty int,
+  reason text,                 -- ban(수출 제한) | tariff(관세 낼 코인 부족)
+  created_at timestamptz not null default now()
+);
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 
@@ -260,7 +269,7 @@ end $$;
 
 -- ---------------------------------------------------------------------
 
-insert into priv.config(id, data) values (1, $cfg${"W":40,"H":28,"START":{"coin":200,"food":6,"wood":6,"iron":2},"START_BONUS":{"K":{"wood":8},"J":{"wood":4}},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"rare":{"name":"희토류","kind":"ore","ref":15},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25},"engine":{"name":"항공 엔진","kind":"product","ref":30}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"ERAS":["고대","중세","르네상스","산업","현대"],"ANCIENT":["농업","목축","채광","도기","궁술","청동기","기초 항해","역법","문자","바퀴"],"TECH_TREE":{"engineering":{"name":"공학","era":1,"row":0,"req":[],"cost":{"coin":30,"food":2},"unlock":"투석기 · 곡물 창고"},"chivalry":{"name":"기사도","era":1,"row":1,"req":[],"cost":{"coin":30,"food":2},"unlock":"기사 (빠른 기병)"},"shipbuilding":{"name":"조선","era":1,"row":2,"req":[],"cost":{"coin":35,"wood":2},"unlock":"항구 · 삼단노선"},"economics":{"name":"경제학","era":2,"row":0,"req":["engineering"],"cost":{"coin":60,"food":3},"unlock":"시장 코인 +6 · 섬유 공장 · 금 세공소 · 고무 공장 · 정글 개발비 절반"},"gunpowder":{"name":"화약","era":2,"row":1,"req":["engineering","chivalry"],"cost":{"coin":60,"iron":1},"unlock":"대포 · 머스킷 보병"},"navigation":{"name":"항해술","era":2,"row":2,"req":["shipbuilding"],"cost":{"coin":60,"wood":3},"unlock":"프리깃 · 정찰병 바다 이동 +2"},"refining":{"name":"석유","era":3,"row":0,"req":["economics"],"cost":{"coin":90,"wood":3},"unlock":"유정 · 정유소"},"steelmaking":{"name":"제철","era":3,"row":1,"req":["gunpowder"],"cost":{"coin":90,"iron":2},"unlock":"제철소 · 보병 · 포병 · 군수 공장"},"warship":{"name":"강철 군함","era":3,"row":2,"req":["navigation","steelmaking"],"cost":{"coin":110,"steel":1},"unlock":"전함"},"combustion":{"name":"내연 기관","era":4,"row":0,"req":["refining","steelmaking"],"cost":{"coin":150,"fuel":1},"unlock":"탱크"},"chipmaking":{"name":"전자공학","era":4,"row":1,"req":["steelmaking"],"cost":{"coin":150,"copper":2},"unlock":"반도체 공장 · 전자 상가 · 원자력 발전소"},"radar":{"name":"레이더·통신","era":4,"row":2,"req":["chipmaking"],"cost":{"coin":170,"aluminum":1},"unlock":"통신탑 · 방송국 · 인터넷 센터 · 인공위성 센터 (근미래)"},"missile":{"name":"유도 미사일","era":4,"row":3,"req":["radar","warship"],"cost":{"coin":200,"chip":1},"unlock":"미사일 순양함"}},"TECH_ALIAS":{"textile":"economics","metalcraft":"economics","rubberwork":"economics","woodwork":"economics","jungle":"economics","oil_drill":"refining","munitions":"steelmaking","electricity":"chipmaking","internet":"radar","satellite":"radar","nuclear":"chipmaking"},"TECHS":{"engineering":"공학","chivalry":"기사도","shipbuilding":"조선","economics":"경제학","gunpowder":"화약","navigation":"항해술","refining":"석유","steelmaking":"제철","warship":"강철 군함","combustion":"내연 기관","chipmaking":"전자공학","radar":"레이더·통신","missile":"유도 미사일"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra","desert"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium","rare"],"cost":{"coin":15,"wood":1},"yield":2},"quarry":{"name":"채석장","on":["hills"],"noRes":true,"cost":{"coin":15,"wood":1},"coin":10,"yield":0},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"refining","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"DEMOLISH_COST":{"coin":15},"QUARRY_COIN":10,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"tech":"engineering","effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"배 만들기, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":150,"aluminum":4,"copper":3},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"economics","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"economics","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"economics","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2},"aircraft":{"name":"항공기 공장","tech":"engineering","input":"aluminum","output":"engine","build":{"coin":150,"steel":3},"perTurn":2}},"SPECIALTY":{"K":{"factory":"chipfab","why":"기술이 뛰어나 원료가 없어도 반도체를 만들어요 (실제 한국의 1위 수출품)"},"J":{"factory":"rubberplant","input":true,"why":"열대 해양국의 고무를 사 와서 타이어로 가공해요 (가공 무역! 실제 일본은 고무를 사서 타이어·자동차를 수출)"},"C":{"factory":"steelworks","why":"큰 제철소가 많아 강철을 많이 만들어요 (실제 중국은 세계 1위 철강 생산국)"},"A":{"factory":"aircraft","why":"과학 기술로 항공 엔진을 만들어요 (실제 미국은 비행기·엔진을 많이 수출)"},"N":{"factory":"refinery","why":"석유가 많아 연료를 넉넉히 만들어요 (실제 러시아는 석유·가스를 많이 수출)"},"T":{"factory":"textilemill","why":"일손이 많아 옷을 많이 만들어요 (실제 베트남은 옷을 많이 수출)"}},"SPECIALTY_BUILD":{"coin":40,"wood":2,"food":2},"FACTORY_BUILD":{"chipfab":{"J":{"coin":90,"aluminum":2,"copper":2},"K":{"coin":40,"wood":2,"food":2}},"rubberplant":{"J":{"coin":40,"wood":2,"food":2}},"steelworks":{"C":{"coin":40,"wood":2,"food":2}},"aircraft":{"A":{"coin":40,"wood":2,"food":2}},"refinery":{"N":{"coin":40,"wood":2,"food":2}},"textilemill":{"T":{"coin":40,"wood":2,"food":2}}},"FACTORY_FREE":{"K":{"chipfab":true},"C":{"steelworks":true},"A":{"aircraft":true},"N":{"refinery":true},"T":{"textilemill":true}},"PROC_COST":{"K":{"chip":5,"steel":4},"J":{"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5},"A":{"engine":6,"fuel":6},"N":{"fuel":3,"jewelry":8},"T":{"clothes":4}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","tech":"chipmaking","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"radar","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"radar","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"steelmaking","cost":{"coin":60,"steel":2},"unlock":"tank"},"commtower":{"name":"통신탑","tech":"radar","cost":{"coin":80,"aluminum":2,"copper":2},"happy":14,"culture":10},"broadcast":{"name":"방송국","tech":"radar","cost":{"coin":90,"chip":2,"aluminum":1},"happy":18,"culture":15},"nuclearplant":{"name":"원자력 발전소","tech":"chipmaking","cost":{"coin":100,"uranium":2,"steel":2},"econ":15,"coinPerTurn":25}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","era":0,"str":14,"move":3,"cost":{"coin":20,"food":1},"img":"spear"},"catapult":{"name":"투석기","era":1,"str":16,"move":2,"range":2,"tech":"engineering","cost":{"coin":30,"wood":2},"img":"catapult"},"knight":{"name":"기사","era":1,"str":20,"move":4,"tech":"chivalry","cost":{"coin":40,"food":2,"iron":1},"img":"knight"},"musket":{"name":"머스킷 보병","era":2,"str":26,"move":3,"tech":"gunpowder","cost":{"coin":50,"iron":1},"img":"swordsman"},"cannon":{"name":"대포","era":2,"str":32,"move":2,"range":2,"tech":"gunpowder","cost":{"coin":60,"iron":2,"wood":2},"img":"cannon"},"infantry":{"name":"보병","era":3,"str":36,"move":3,"tech":"steelmaking","cost":{"coin":70,"steel":1,"food":2},"img":"infantry"},"artillery":{"name":"포병","era":3,"str":48,"move":2,"range":3,"tech":"steelmaking","cost":{"coin":90,"steel":2},"img":"artillery"},"tank":{"name":"탱크","era":4,"str":75,"move":5,"tech":"combustion","cost":{"coin":130,"steel":2,"fuel":2,"tire":1},"img":"tank"},"trireme":{"name":"삼단노선","era":1,"str":10,"move":4,"sea":true,"tech":"shipbuilding","cost":{"coin":30,"wood":3},"img":"trireme"},"frigate":{"name":"프리깃","era":2,"str":24,"move":5,"range":2,"sea":true,"tech":"navigation","cost":{"coin":60,"wood":3,"iron":1},"img":"frigate"},"battleship":{"name":"전함","era":3,"str":55,"move":5,"range":2,"sea":true,"tech":"warship","cost":{"coin":110,"steel":3,"fuel":1},"img":"warship"},"k_missile":{"name":"장거리 미사일 부대","boss":"K","era":4,"str":140,"move":5,"range":3,"fly":true,"cost":{"coin":80,"uranium":2,"fuel":2,"aluminum":2},"img":"artillery"},"j_patrol":{"name":"해상 초계기","boss":"J","era":4,"str":140,"move":6,"range":3,"fly":true,"cost":{"coin":80,"rare":2,"fuel":2,"steel":2},"img":"cruiser"},"c_jet":{"name":"대형 전투기 편대","boss":"C","era":4,"str":140,"move":6,"range":3,"fly":true,"cost":{"coin":80,"engine":2,"fuel":2,"aluminum":2},"img":"tank"},"a_stealth":{"name":"스텔스 폭격기","boss":"A","era":4,"str":140,"move":6,"range":3,"fly":true,"cost":{"coin":80,"rare":2,"steel":2,"copper":2},"img":"tank"},"n_hyper":{"name":"극초음속 미사일","boss":"N","era":4,"str":140,"move":5,"range":3,"fly":true,"cost":{"coin":80,"chip":2,"steel":2,"copper":2},"img":"artillery"},"t_marine":{"name":"상륙 기갑부대","boss":"T","era":4,"str":140,"move":5,"range":2,"fly":true,"cost":{"coin":80,"tire":2,"fuel":2,"steel":2},"img":"tank"},"cruiser":{"name":"미사일 순양함","era":4,"str":90,"move":6,"range":3,"sea":true,"tech":"missile","cost":{"coin":160,"steel":2,"fuel":2,"chip":2},"img":"cruiser"}},"UNIT_UPKEEP":1,"TECH_ICON":{"engineering":"engineering","economics":"economics","gunpowder":"gunpowder","navigation":"astronomy","shipbuilding":"shipbuilding","steelmaking":"steelmaking","refining":"oil","chipmaking":"chipmaking","radar":"radar","missile":"missile","combustion":"steam","warship":"munitions","chivalry":"chivalry"},"START_UNITS":["worker","scout","scout","scout","spear","spear","catapult"],"COMBAT":{"base":30,"counter":0.6,"min":3,"max":100,"rangedCounter":0.25,"healField":15,"healHome":25,"unhappyMult":0.7},"BUILD_PER_TURN":2,"RESEARCH_PER_TURN":2,"TRAIN_PER_TURN":3,"CS_TIERS":[{"name":"마을","def":5,"hp":50,"coin":100,"heal":5},{"name":"도시","def":8,"hp":80,"coin":50,"heal":8},{"name":"성곽 도시","def":13,"hp":110,"coin":70,"heal":12},{"name":"요새","def":20,"hp":150,"coin":90,"heal":16},{"name":"철옹성","def":40,"hp":220,"coin":150,"heal":25},{"name":"잊힌 제국","def":110,"hp":1200,"coin":500,"heal":80}],"FINAL_CS":{"name":"최종 도전","def":70,"hp":300,"coin":300,"heal":40,"glory":40},"BOSS_UNIT":{"K":{"unit":"k_missile","needs":["uranium","fuel","aluminum"]},"J":{"unit":"j_patrol","needs":["rare","fuel","steel"]},"C":{"unit":"c_jet","needs":["engine","fuel","aluminum"]},"A":{"unit":"a_stealth","needs":["rare","steel","copper"]},"N":{"unit":"n_hyper","needs":["chip","steel","copper"]},"T":{"unit":"t_marine","needs":["tire","fuel","steel"]}},"SOURCES":{"chip":["K"],"tire":["J"],"rare":["C"],"engine":["A"],"uranium":["N"],"rubber":["T"],"fuel":["N","A"],"oil":["N","A"],"aluminum":["N","A"],"steel":["C","K"],"iron":["C","K","A"],"copper":["C","T","J"],"gold":["N","K","J"],"jewelry":["N","J"],"cotton":["C","A"],"clothes":["T","C"],"spice":["T"],"wine":["A"],"food":["A","C","T"]},"SCOUT_MOVE":5,"WORKER_MOVE":0,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":0,"perLuxType":10,"perPlaza":5,"glory":20,"gloryDecay":5,"perCity":-3,"pressurePerTurn":5,"pressureMax":40,"hunger":-10,"tariffPer":8,"golden":30,"unhappy":0,"unrest":-20,"revolt":-40},"TYPES":{"K":{"name":"반도의 용","color":"#2F6FE0","techs":["shipbuilding","steelmaking","chipmaking"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"파도의 섬왕국","color":"#E0463C","techs":["shipbuilding","navigation","economics"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 제국","color":"#F29A2E","techs":["engineering","economics","steelmaking"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["engineering","refining","radar"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["chivalry","refining","economics"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["shipbuilding","economics","navigation"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"CITY_ART":{"K":"capital_peninsula","J":"capital_island","C":"capital_continental","A":"capital_newworld","N":"capital_northern","T":"capital_tropical","village":"neutral_village","fortress":"neutral_fortress","harbor":"neutral_harbor","boss":"boss"},"CITY_ANCHOR":0.83,"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","국방부 장관","기획부 장관","국토부 장관","과학기술부 장관"],"ROLE_INFO":{"국가 대표":{"icon":"leader","now":"모든 장관의 일 + 나라 이름·국기, 모둠 회의, 「턴 끝내기」","later":"무역 제안 최종 승인, 조약 서명"},"국방부 장관":{"icon":"spear","now":"병력 훈련·이동, 도시국가 공격","later":"무역 사절: 다른 나라에 거래 제안 보내기"},"기획부 장관":{"icon":"market","now":"도시 건물·공장·근미래 건물 짓기","later":"공장 가동, 무엇을 만들어 팔지 정하기"},"국토부 장관":{"icon":"worker","now":"노동자로 땅 개발(농장·광산·채석장…), 노동자 고용","later":"창고 관리, 모자란 자원 찾아 수입 요청"},"과학기술부 장관":{"icon":"scout","now":"기술 연구, 정찰병으로 세계 탐험","later":"시장 조사: 기준가·생산비 비교"}},"ROLE_KEY":{"leader":"국가 대표","army":"국방부 장관","build":"기획부 장관","land":"국토부 장관","explore":"과학기술부 장관"},"GROWTH_LIMIT":{"K":4,"J":4,"C":5,"A":5,"N":5,"T":5},"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요."},{"n":9,"name":"무역 갈등","desc":"거래 조건이 갑자기 바뀌었어요."},{"n":10,"name":"조약 회의","desc":"피해를 살펴보고 약속을 만들어요."},{"n":11,"name":"무역 헌장","desc":"함께 만든 약속으로 세계를 되살려요."}]}$cfg$::jsonb)
+insert into priv.config(id, data) values (1, $cfg${"W":40,"H":28,"START":{"coin":200,"food":6,"wood":6,"iron":2},"START_BONUS":{"K":{"wood":8},"J":{"wood":4,"rubber":4}},"ITEMS":{"food":{"name":"식량","kind":"basic","ref":5},"wood":{"name":"목재","kind":"basic","ref":4},"iron":{"name":"철광석","kind":"ore","ref":8},"copper":{"name":"구리","kind":"ore","ref":8},"aluminum":{"name":"알루미늄","kind":"ore","ref":12},"uranium":{"name":"우라늄","kind":"ore","ref":15},"rare":{"name":"희토류","kind":"ore","ref":15,"desc":"강한 자석과 정밀 장치에 쓰이는 광물 — 첨단 항공기의 정밀 장치를 만드는 데 필요해요"},"gold":{"name":"금","kind":"lux","ref":12},"oil":{"name":"석유","kind":"oil","ref":10},"cotton":{"name":"목화","kind":"lux","ref":6},"rubber":{"name":"고무","kind":"plant","ref":8},"spice":{"name":"향신료","kind":"lux","ref":10},"wine":{"name":"와인","kind":"lux","ref":10},"steel":{"name":"강철","kind":"product","ref":15},"fuel":{"name":"연료","kind":"product","ref":15},"chip":{"name":"반도체","kind":"product","ref":25},"clothes":{"name":"옷","kind":"lux","ref":15},"tire":{"name":"타이어","kind":"product","ref":15},"jewelry":{"name":"장신구","kind":"lux","ref":25},"engine":{"name":"항공 엔진","kind":"product","ref":30}},"LUX":["gold","cotton","spice","wine","clothes","jewelry"],"FAIR_CAP":2,"ERAS":["고대","중세","르네상스","산업","현대"],"ANCIENT":["농업","목축","채광","도기","궁술","청동기","기초 항해","역법","문자","바퀴"],"TECH_TREE":{"engineering":{"name":"공학","era":1,"row":0,"req":[],"cost":{"coin":30,"food":2},"unlock":"투석기 · 곡물 창고"},"chivalry":{"name":"기사도","era":1,"row":1,"req":[],"cost":{"coin":30,"food":2},"unlock":"기사 (빠른 기병)"},"shipbuilding":{"name":"조선","era":1,"row":2,"req":[],"cost":{"coin":35,"wood":2},"unlock":"항구 · 삼단노선"},"economics":{"name":"경제학","era":2,"row":0,"req":["engineering"],"cost":{"coin":60,"food":3},"unlock":"시장 코인 +6 · 섬유 공장 · 금 세공소 · 고무 공장 · 정글 개발비 절반"},"gunpowder":{"name":"화약","era":2,"row":1,"req":["engineering","chivalry"],"cost":{"coin":60,"iron":1},"unlock":"대포 · 머스킷 보병"},"navigation":{"name":"항해술","era":2,"row":2,"req":["shipbuilding"],"cost":{"coin":60,"wood":3},"unlock":"프리깃 · 정찰병 바다 이동 +2"},"refining":{"name":"석유","era":3,"row":0,"req":["economics"],"cost":{"coin":90,"wood":3},"unlock":"유정 · 정유소"},"steelmaking":{"name":"제철","era":3,"row":1,"req":["gunpowder"],"cost":{"coin":90,"iron":2},"unlock":"제철소 · 보병 · 포병 · 군수 공장"},"warship":{"name":"강철 군함","era":3,"row":2,"req":["navigation","steelmaking"],"cost":{"coin":110,"steel":1},"unlock":"전함"},"combustion":{"name":"내연 기관","era":4,"row":0,"req":["refining","steelmaking"],"cost":{"coin":150,"fuel":1},"unlock":"탱크"},"chipmaking":{"name":"전자공학","era":4,"row":1,"req":["steelmaking"],"cost":{"coin":150,"copper":2},"unlock":"반도체 공장 · 전자 상가 · 원자력 발전소"},"radar":{"name":"레이더·통신","era":4,"row":2,"req":["chipmaking"],"cost":{"coin":170,"aluminum":1},"unlock":"통신탑 · 방송국 · 인터넷 센터 · 인공위성 센터 (근미래)"},"missile":{"name":"유도 미사일","era":4,"row":3,"req":["radar","warship"],"cost":{"coin":200,"chip":1},"unlock":"미사일 순양함"}},"TECH_ALIAS":{"textile":"economics","metalcraft":"economics","rubberwork":"economics","woodwork":"economics","jungle":"economics","oil_drill":"refining","munitions":"steelmaking","electricity":"chipmaking","internet":"radar","satellite":"radar","nuclear":"chipmaking"},"TECHS":{"engineering":"공학","chivalry":"기사도","shipbuilding":"조선","economics":"경제학","gunpowder":"화약","navigation":"항해술","refining":"석유","steelmaking":"제철","warship":"강철 군함","combustion":"내연 기관","chipmaking":"전자공학","radar":"레이더·통신","missile":"유도 미사일"},"TERRAIN":{"plains":"평원","hills":"언덕","mountain":"산","forest":"숲","jungle":"정글","tundra":"툰드라","snow":"설원","desert":"사막","coast":"해안","ocean":"바다"},"IMPROVE":{"farm":{"name":"농장","on":["plains","tundra","desert"],"cost":{"coin":10,"wood":1},"item":"food","yield":2},"lumber":{"name":"벌목장","on":["forest","jungle"],"cost":{"coin":10},"item":"wood","yield":2},"mine":{"name":"광산","res":["iron","copper","aluminum","gold","uranium","rare"],"cost":{"coin":15,"wood":1},"yield":2},"quarry":{"name":"채석장","on":["hills"],"noRes":true,"cost":{"coin":15,"wood":1},"coin":10,"yield":0},"plantation":{"name":"농원","res":["cotton","spice","wine","rubber"],"cost":{"coin":15,"wood":1},"yield":2},"oilwell":{"name":"유정","res":["oil"],"tech":"refining","cost":{"coin":20,"wood":1},"yield":2}},"JUNGLE_MULT":2,"DEMOLISH_COST":{"coin":15},"QUARRY_COIN":10,"TUNDRA_FOOD":1,"BUILDINGS":{"market":{"name":"도시 시장","cost":{"coin":40,"wood":3},"effect":"매 턴 코인 +12 (우리 도시 안의 시장)"},"barracks":{"name":"병영","cost":{"coin":30,"wood":2,"iron":1},"effect":"이 도시에서 병력 훈련 (한 턴에 1부대)"},"granary":{"name":"곡물 창고","cost":{"coin":25,"wood":2},"tech":"engineering","effect":"매 턴 식량 +2"},"plaza":{"name":"광장","cost":{"coin":30,"wood":2},"effect":"행복도 +6"},"harbor":{"name":"항구","cost":{"coin":50,"wood":4},"tech":"shipbuilding","coastal":true,"effect":"배 만들기, 매 턴 코인 +5"}},"FACTORIES":{"steelworks":{"name":"제철소","tech":"steelmaking","input":"iron","output":"steel","build":{"coin":50,"wood":2},"perTurn":2},"refinery":{"name":"정유소","tech":"refining","input":"oil","output":"fuel","build":{"coin":50,"wood":2},"perTurn":2},"chipfab":{"name":"반도체 공장","tech":"chipmaking","input":"copper","output":"chip","build":{"coin":150,"aluminum":4,"copper":3},"perTurn":2},"textilemill":{"name":"섬유 공장","tech":"economics","input":"cotton","output":"clothes","build":{"coin":50,"wood":2},"perTurn":2},"rubberplant":{"name":"고무 공장","tech":"economics","input":"rubber","output":"tire","build":{"coin":50,"wood":2},"perTurn":2},"workshop":{"name":"금 세공소","tech":"economics","input":"gold","output":"jewelry","build":{"coin":50,"wood":2},"perTurn":2},"aircraft":{"name":"항공기 공장","tech":"engineering","input":"aluminum","output":"engine","build":{"coin":150,"steel":3},"perTurn":2}},"SPECIALTY":{"K":{"factory":"chipfab","why":"기술이 뛰어나 원료가 없어도 반도체를 만들어요 (실제 한국의 1위 수출품)"},"J":{"factory":"rubberplant","input":true,"why":"열대 해양국의 고무를 사 와서 타이어로 가공해요 (가공 무역! 실제 일본은 고무를 사서 타이어·자동차를 수출)"},"C":{"factory":"steelworks","why":"큰 제철소가 많아 강철을 많이 만들어요 (실제 중국은 세계 1위 철강 생산국)"},"A":{"factory":"aircraft","why":"과학 기술로 항공 엔진을 만들어요 (실제 미국은 비행기·엔진을 많이 수출)"},"N":{"factory":"refinery","why":"석유가 많아 연료를 넉넉히 만들어요 (실제 러시아는 석유·가스를 많이 수출)"},"T":{"factory":"textilemill","why":"일손이 많아 옷을 많이 만들어요 (실제 베트남은 옷을 많이 수출)"}},"SPECIALTY_BUILD":{"coin":40,"wood":2,"food":2},"FACTORY_BUILD":{"chipfab":{"J":{"coin":90,"aluminum":2,"copper":2},"K":{"coin":40,"wood":2,"food":2}},"rubberplant":{"J":{"coin":40,"wood":2,"food":2}},"steelworks":{"C":{"coin":40,"wood":2,"food":2}},"aircraft":{"A":{"coin":40,"wood":2,"food":2}},"refinery":{"N":{"coin":40,"wood":2,"food":2}},"textilemill":{"T":{"coin":40,"wood":2,"food":2}}},"FACTORY_FREE":{"K":{"chipfab":true},"C":{"steelworks":true},"A":{"aircraft":true},"N":{"refinery":true},"T":{"textilemill":true}},"PROC_COST":{"K":{"chip":5,"steel":4},"J":{"tire":4,"jewelry":5},"C":{"steel":4,"clothes":5},"A":{"engine":6,"fuel":6},"N":{"fuel":3,"jewelry":8},"T":{"clothes":4}},"ADVANCED":{"industrial":{"name":"공장 지대","cost":{"coin":40,"steel":2,"tire":1},"econ":12,"coinPerTurn":15},"electronics":{"name":"전자 상가","tech":"chipmaking","cost":{"coin":40,"chip":2},"econ":12,"coinPerTurn":15},"theater":{"name":"극장","cost":{"coin":30,"clothes":2},"culture":10,"happy":6},"netcenter":{"name":"인터넷 센터","tech":"radar","cost":{"coin":40,"chip":2},"culture":15},"satcenter":{"name":"인공위성 센터","tech":"radar","cost":{"coin":60,"aluminum":2,"chip":2},"culture":20},"arsenal":{"name":"군수 공장","tech":"steelmaking","cost":{"coin":60,"steel":2},"unlock":"tank"},"commtower":{"name":"통신탑","tech":"radar","cost":{"coin":80,"aluminum":2,"copper":2},"happy":14,"culture":10},"broadcast":{"name":"방송국","tech":"radar","cost":{"coin":90,"chip":2,"aluminum":1},"happy":18,"culture":15},"nuclearplant":{"name":"원자력 발전소","tech":"chipmaking","cost":{"coin":100,"uranium":2,"steel":2},"econ":15,"coinPerTurn":25}},"HIRE_WORKER":{"coin":25,"food":2},"UNITS":{"spear":{"name":"창병","era":0,"str":14,"move":3,"cost":{"coin":20,"food":1},"img":"spear"},"catapult":{"name":"투석기","era":1,"str":16,"move":2,"range":2,"tech":"engineering","cost":{"coin":30,"wood":2},"img":"catapult"},"knight":{"name":"기사","era":1,"str":20,"move":4,"tech":"chivalry","cost":{"coin":40,"food":2,"iron":1},"img":"knight"},"musket":{"name":"머스킷 보병","era":2,"str":26,"move":3,"tech":"gunpowder","cost":{"coin":50,"iron":1},"img":"swordsman"},"cannon":{"name":"대포","era":2,"str":32,"move":2,"range":2,"tech":"gunpowder","cost":{"coin":60,"iron":2,"wood":2},"img":"cannon"},"infantry":{"name":"보병","era":3,"str":36,"move":3,"tech":"steelmaking","cost":{"coin":70,"steel":1,"food":2},"img":"infantry"},"artillery":{"name":"포병","era":3,"str":48,"move":2,"range":3,"tech":"steelmaking","cost":{"coin":90,"steel":2},"img":"artillery"},"tank":{"name":"탱크","era":4,"str":75,"move":5,"tech":"combustion","cost":{"coin":130,"steel":2,"fuel":2,"tire":1},"img":"tank"},"trireme":{"name":"삼단노선","era":1,"str":10,"move":4,"sea":true,"tech":"shipbuilding","cost":{"coin":30,"wood":3},"img":"trireme"},"frigate":{"name":"프리깃","era":2,"str":24,"move":5,"range":2,"sea":true,"tech":"navigation","cost":{"coin":60,"wood":3,"iron":1},"img":"frigate"},"battleship":{"name":"전함","era":3,"str":55,"move":5,"range":2,"sea":true,"tech":"warship","cost":{"coin":110,"steel":3,"fuel":1},"img":"warship"},"k_missile":{"name":"장거리 미사일 부대","boss":"K","era":4,"str":140,"move":5,"range":3,"fly":true,"cost":{"coin":80,"uranium":2,"fuel":2,"aluminum":2},"img":"boss_K"},"j_patrol":{"name":"해상 초계기","boss":"J","era":4,"str":140,"move":6,"range":3,"fly":true,"cost":{"coin":80,"rare":2,"fuel":2,"steel":2},"img":"boss_J"},"c_jet":{"name":"대형 전투기 편대","boss":"C","era":4,"str":140,"move":6,"range":3,"fly":true,"cost":{"coin":80,"engine":2,"fuel":2,"aluminum":2},"img":"boss_C"},"a_stealth":{"name":"스텔스 폭격기","boss":"A","era":4,"str":140,"move":6,"range":3,"fly":true,"cost":{"coin":80,"rare":2,"steel":2,"copper":2},"img":"boss_A"},"n_hyper":{"name":"극초음속 미사일","boss":"N","era":4,"str":140,"move":5,"range":3,"fly":true,"cost":{"coin":80,"chip":2,"steel":2,"copper":2},"img":"boss_N"},"t_marine":{"name":"상륙 기갑부대","boss":"T","era":4,"str":140,"move":5,"range":2,"fly":true,"cost":{"coin":80,"tire":2,"fuel":2,"steel":2},"img":"boss_T"},"cruiser":{"name":"미사일 순양함","era":4,"str":90,"move":6,"range":3,"sea":true,"tech":"missile","cost":{"coin":160,"steel":2,"fuel":2,"chip":2},"img":"cruiser"}},"UNIT_UPKEEP":1,"TECH_ICON":{"engineering":"engineering","economics":"economics","gunpowder":"gunpowder","navigation":"astronomy","shipbuilding":"shipbuilding","steelmaking":"steelmaking","refining":"oil","chipmaking":"chipmaking","radar":"radar","missile":"missile","combustion":"steam","warship":"munitions","chivalry":"chivalry"},"START_UNITS":["worker","scout","scout","scout","spear","spear","catapult"],"COMBAT":{"base":30,"counter":0.6,"min":3,"max":100,"rangedCounter":0.25,"healField":15,"healHome":25,"unhappyMult":0.7},"BUILD_PER_TURN":2,"RESEARCH_PER_TURN":2,"TRAIN_PER_TURN":3,"CS_TIERS":[{"name":"마을","def":5,"hp":50,"coin":100,"heal":5},{"name":"도시","def":8,"hp":80,"coin":50,"heal":8},{"name":"성곽 도시","def":13,"hp":110,"coin":70,"heal":12},{"name":"요새","def":20,"hp":150,"coin":90,"heal":16},{"name":"철옹성","def":40,"hp":220,"coin":150,"heal":25},{"name":"잊힌 제국","def":110,"hp":1200,"coin":500,"heal":80}],"FINAL_CS":{"name":"최종 도전","def":70,"hp":100,"coin":300,"heal":0,"glory":40},"BOSS_UNIT":{"K":{"unit":"k_missile","needs":["uranium","fuel","aluminum"]},"J":{"unit":"j_patrol","needs":["rare","fuel","steel"]},"C":{"unit":"c_jet","needs":["engine","fuel","aluminum"]},"A":{"unit":"a_stealth","needs":["rare","steel","copper"]},"N":{"unit":"n_hyper","needs":["chip","steel","copper"]},"T":{"unit":"t_marine","needs":["tire","fuel","steel"]}},"SOURCES":{"chip":["K"],"tire":["J"],"rare":["C"],"engine":["A"],"uranium":["N"],"rubber":["T"],"fuel":["N","A"],"oil":["N","A"],"aluminum":["N","A"],"steel":["C","K"],"iron":["C","K","A"],"copper":["C","T","J"],"gold":["N","K","J"],"jewelry":["N","J"],"cotton":["C","A"],"clothes":["T","C"],"spice":["T"],"wine":["A"],"food":["A","C","T"]},"CRISIS":{"ban":{"K":"chip","N":"uranium","J":"tire","T":"rubber","C":"rare","A":"engine"},"tariffItems":["jewelry","steel","spice","wine","clothes"],"tariffRate":0.5,"rebuild":{"K":{"banned":"uranium","tariffed":"jewelry","partner":"N"},"N":{"banned":"chip","tariffed":"steel","partner":"K"},"J":{"banned":"rubber","tariffed":"spice","partner":"T"},"T":{"banned":"tire","tariffed":"jewelry","partner":"J"},"C":{"banned":"engine","tariffed":"wine","partner":"A"},"A":{"banned":"rare","tariffed":"clothes","partner":"C"}},"rebuildQty":2,"rebuildHappy":15,"merchantMult":2},"SUPPORT_GROUPS":[{"k":"basic","name":"기본 자원","items":["coin","food","wood","iron"]},{"k":"lux","name":"사치 자원","items":["gold","cotton","spice","wine","clothes","jewelry"]},{"k":"strategic","name":"전략 자원","items":["copper","aluminum","uranium","rare","oil","rubber","steel","fuel","chip","tire","engine"]}],"SCOUT_MOVE":5,"WORKER_MOVE":0,"SCOUT_SIGHT":2,"CITY_SIGHT":2,"INCOME":{"capital":20,"city":6,"market":12,"harbor":5,"capitalFood":3,"cityFood":1,"workerFood":1},"PRODUCTIVITY":{"K":{"market":18,"harbor":8},"J":{"market":18,"harbor":8}},"HAPPY":{"base":0,"perLuxType":10,"perPlaza":5,"glory":20,"gloryDecay":5,"perCity":-3,"pressurePerTurn":5,"pressureMax":30,"hunger":-10,"tariffPer":8,"golden":30,"unhappy":0,"unrest":-20,"revolt":-40},"TYPES":{"K":{"name":"반도의 용","color":"#2F6FE0","techs":["shipbuilding","steelmaking","chipmaking"],"like":"한국","desc":"땅이 좁고 산이 많아요. 자원은 적지만 기술이 뛰어나요."},"J":{"name":"파도의 섬왕국","color":"#E0463C","techs":["shipbuilding","navigation","economics"],"like":"일본","desc":"바다로 둘러싸인 섬나라예요. 소재·부품 기술이 좋아요."},"C":{"name":"대륙의 제국","color":"#F29A2E","techs":["engineering","economics","steelmaking"],"like":"중국","desc":"넓은 땅에 철광석·목화·구리가 많고, 많이 만드는 공장이 있어요."},"A":{"name":"신대륙의 강국","color":"#8A4FD8","techs":["engineering","refining","radar"],"like":"미국","desc":"넓은 땅에 석유·곡물이 많고 과학 기술이 앞서요."},"N":{"name":"북방의 대국","color":"#22A36A","techs":["chivalry","refining","economics"],"like":"러시아","desc":"가장 넓지만 얼어붙은 땅이 많아요. 석유와 금이 나요."},"T":{"name":"열대 해양국","color":"#EC5C9A","techs":["shipbuilding","economics","navigation"],"like":"동남아시아 여러 나라","desc":"정글과 섬의 나라예요. 고무·향신료가 많고 일손이 많아요."}},"CITY_ART":{"K":"capital_peninsula","J":"capital_island","C":"capital_continental","A":"capital_newworld","N":"capital_northern","T":"capital_tropical","village":"neutral_village","fortress":"neutral_fortress","harbor":"neutral_harbor","boss":"boss","final":"final_fortress"},"CITY_ANCHOR":0.83,"DEFAULT_TYPES":{"1":"K","2":"J","3":"C","4":"A","5":"N","6":"T"},"ROLES":["국가 대표","국방부 장관","기획부 장관","국토부 장관","과학기술부 장관"],"ROLE_INFO":{"국가 대표":{"icon":"leader","now":"모든 장관의 일 + 나라 이름·국기, 모둠 회의, 「턴 끝내기」","later":"무역 제안 최종 승인, 조약 서명"},"국방부 장관":{"icon":"spear","now":"병력 훈련·이동, 도시국가 공격","later":"무역 사절: 다른 나라에 거래 제안 보내기"},"기획부 장관":{"icon":"market","now":"도시 건물·공장·근미래 건물 짓기","later":"공장 가동, 무엇을 만들어 팔지 정하기"},"국토부 장관":{"icon":"worker","now":"노동자로 땅 개발(농장·광산·채석장…), 노동자 고용","later":"창고 관리, 모자란 자원 찾아 수입 요청"},"과학기술부 장관":{"icon":"scout","now":"기술 연구, 정찰병으로 세계 탐험","later":"시장 조사: 기준가·생산비 비교"}},"ROLE_KEY":{"leader":"국가 대표","army":"국방부 장관","build":"기획부 장관","land":"국토부 장관","explore":"과학기술부 장관"},"GROWTH_LIMIT":{"K":4,"J":4,"C":5,"A":5,"N":5,"T":5},"PHASES":[{"n":0,"name":"건국","desc":"나라 이름을 정하고 지도를 살펴봐요."},{"n":1,"name":"나라 키우기","desc":"노동자로 땅을 개발하고, 건물을 짓고, 도시국가를 차지해요."},{"n":2,"name":"성장의 한계","desc":"시민들이 더 다양한 물건을 원해요."},{"n":3,"name":"세계 시장 개방","desc":"다른 나라와 거래할 수 있어요."},{"n":4,"name":"무역 라운드","desc":"잘 만드는 것을 만들고 거래해요."},{"n":5,"name":"공급 차질","desc":"한 나라에 한파가 찾아왔어요."},{"n":6,"name":"가격 경쟁","desc":"세계 시장이 물건을 주문했어요."},{"n":7,"name":"실제 나라와 비교","desc":"우리 나라는 어느 나라와 닮았을까요?"},{"n":8,"name":"협정 만료","desc":"세계 무역 협정이 끝났어요. 관세가 붙고, 일부 물건은 수출이 막혔어요."},{"n":9,"name":"피해 보고서","desc":"우리 나라가 무역에서 겪은 어려움을 살펴봐요."},{"n":10,"name":"조약 회의","desc":"우리 나라의 약속을 정하고, 상대 나라와 협상해요."},{"n":11,"name":"무역 헌장","desc":"약속이 지켜지는 세계! 다시 거래해서 도시를 재건해요."}]}$cfg$::jsonb)
   on conflict (id) do update set data = excluded.data;
 
 insert into priv.tiles(id, c, r, zone, terrain, res) values
@@ -1401,12 +1410,12 @@ insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech, tier, max
 ('K2',580,'cs','K','푸른나루',8,false,null,1,80,50,false,false,false),
 ('K3',338,'cs','K','솔바람재',13,false,'navigation',2,110,70,false,false,false),
 ('K4',703,'cs','K','물새섬',20,true,'economics',3,150,90,false,false,false),
-('K5',296,'cs','K','단풍고개',70,false,null,4,300,300,false,false,true),
+('K5',296,'cs','K','단풍고개',70,false,null,4,100,300,false,false,true),
 ('J1',546,'cs','J','안개곶',5,false,'shipbuilding,navigation,economics',0,50,100,true,false,false),
 ('J2',347,'cs','J','붉은항',8,false,null,1,80,50,false,false,false),
 ('J3',548,'cs','J','벚꽃마을',13,false,'navigation',2,110,70,false,false,false),
 ('J4',627,'cs','J','등대섬',20,false,'economics',3,150,90,false,false,false),
-('J5',710,'cs','J','파도곶',70,true,null,4,300,300,false,false,true),
+('J5',710,'cs','J','파도곶',70,true,null,4,100,300,false,false,true),
 ('C1',449,'cs','C','황토성',5,false,'engineering,economics,steelmaking',0,50,100,true,false,false),
 ('C2',495,'cs','C','붉은강',8,false,'engineering',1,80,50,false,false,false),
 ('C3',768,'cs','C','비단마을',8,false,null,1,80,50,false,false,false),
@@ -1414,7 +1423,7 @@ insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech, tier, max
 ('C5',327,'cs','C','모래성',13,false,null,2,110,70,false,false,false),
 ('C6',252,'cs','C','옥수마을',20,false,'economics',3,150,90,false,false,false),
 ('C7',404,'cs','C','대나무성',20,false,null,3,150,90,false,false,false),
-('C8',643,'cs','C','황하나루',70,false,'chipmaking',4,300,300,false,false,true),
+('C8',643,'cs','C','황하나루',70,false,'chipmaking',4,100,300,false,false,true),
 ('A1',474,'cs','A','들판마을',5,false,'engineering,refining,radar',0,50,100,true,false,false),
 ('A2',558,'cs','A','큰강나루',8,false,'engineering',1,80,50,false,false,false),
 ('A3',438,'cs','A','검은샘',8,false,null,1,80,50,false,false,false),
@@ -1422,7 +1431,7 @@ insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech, tier, max
 ('A5',793,'cs','A','바위성',13,false,null,2,110,70,false,false,false),
 ('A6',273,'cs','A','은빛고원',20,false,'combustion',3,150,90,false,false,false),
 ('A7',877,'cs','A','독수리봉',20,false,null,3,150,90,false,false,false),
-('A8',236,'cs','A','황금평원',70,false,null,4,300,300,false,false,true),
+('A8',236,'cs','A','황금평원',70,false,null,4,100,300,false,false,true),
 ('N1',54,'cs','N','눈꽃마을',5,false,'chivalry,refining,economics',0,50,100,true,false,false),
 ('N2',19,'cs','N','얼음항',8,false,'chivalry',1,80,50,false,false,false),
 ('N3',181,'cs','N','금빛골',8,false,null,1,80,50,false,false,false),
@@ -1430,14 +1439,14 @@ insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech, tier, max
 ('N5',24,'cs','N','서리성',13,false,null,2,110,70,false,false,false),
 ('N6',185,'cs','N','북극성',20,false,'chipmaking',3,150,90,false,false,false),
 ('N7',109,'cs','N','오로라성',20,false,null,3,150,90,false,false,false),
-('N8',42,'cs','N','늑대고개',70,false,null,4,300,300,false,false,true),
+('N8',42,'cs','N','늑대고개',70,false,null,4,100,300,false,false,true),
 ('T1',852,'cs','T','야자마을',5,false,'shipbuilding,economics,navigation',0,50,100,true,false,false),
 ('T2',1016,'cs','T','고무나무골',8,false,'navigation',1,80,50,false,false,false),
 ('T3',1011,'cs','T','향기섬',8,false,null,1,80,50,false,false,false),
 ('T4',818,'cs','T','구리곶',13,false,'economics',2,110,70,false,false,false),
 ('T5',969,'cs','T','산호섬',13,false,null,2,110,70,false,false,false),
 ('T6',900,'cs','T','망고나루',20,false,'economics',3,150,90,false,false,false),
-('T7',1020,'cs','T','코코넛만',70,false,null,4,300,300,false,false,true),
+('T7',1020,'cs','T','코코넛만',70,false,null,4,100,300,false,false,true),
 ('X1',945,'cs','X','잊힌 제국 아르카',110,true,null,5,1200,500,false,true,false),
 ('X2',907,'cs','X','수호자의 탑',40,true,null,4,220,150,false,false,false),
 ('X3',151,'cs','X','폭풍섬',20,true,null,3,150,90,false,false,false),
@@ -1503,6 +1512,9 @@ language sql as $$ update public.game set ver = ver + 1, updated_at = now() wher
 create or replace function priv.notice(msg text, k text default 'info', c int default null) returns void
 language sql as $$ insert into public.notices(country, kind, message) values (c, k, msg) $$;
 
+create or replace function priv.notice_d(msg text, k text, c int, d jsonb) returns void
+language sql as $$ insert into public.notices(country, kind, message, data) values (c, k, msg, d) $$;
+
 create or replace function priv.event(k text, msg text, d jsonb default null) returns void
 language sql as $$ insert into priv.events(turn, kind, message, data) values (priv.turn(), k, msg, d) $$;
 
@@ -1519,9 +1531,16 @@ language sql stable as $$ select case when item = 'coin' then '코인' else coal
 
 -- 육각 거리 (odd-r 오프셋 → 큐브)
 -- 도시 그림 종류: 수도는 나라 유형(K·J…), 도시국가는 harbor(바다) / fortress(방어 13 이상) / village
+-- 물건 목록 글자로: {"gold":2,"coin":50} → 금 2개 · 코인 50
+create or replace function priv.items_text(p jsonb) returns text
+language sql stable as $$
+  select coalesce(string_agg(case when key = 'coin' then '코인 ' || value else priv.iname(key) || ' ' || value || '개' end, ' · '), '')
+  from jsonb_each_text(coalesce(p, '{}'::jsonb))
+$$;
+
 create or replace function priv.city_art(p_id text) returns text
 language sql stable as $$
-  select case when c.boss then 'boss' when c.final then 'fortress' when c.kind = 'capital' then coalesce((select type from priv.countries where id = c.country), c.type)
+  select case when c.boss then 'boss' when c.final then 'final' when c.kind = 'capital' then coalesce((select type from priv.countries where id = c.country), c.type)
               when c.tier >= 3 then 'fortress' when c.sea then 'harbor' else 'village' end
   from priv.cities c where c.id = p_id
 $$;
@@ -1543,6 +1562,9 @@ language sql stable as $$ select priv.hdist(x.c, x.r, y.c, y.r) from priv.tiles 
 
 create or replace function priv.inv(c int, it text) returns int
 language sql stable as $$ select coalesce((select qty from priv.inventory where country = c and item = it), 0) $$;
+
+create or replace function priv.coin(c int) returns int
+language sql stable as $$ select coalesce((select coin from priv.countries where id = c), 0) $$;
 
 create or replace function priv.add(c int, it text, n int) returns void
 language plpgsql as $$
@@ -1646,14 +1668,15 @@ begin
   delete from priv.treaties where true;
   delete from priv.reflections where true;
   delete from priv.snapshots where true;
+  delete from priv.trade_fails where true;
   delete from public.notices where true;
   update public.game set phase = 0, turn = 0, turn_end = null, market_open = false, diplomacy_open = false, crisis = false,
-    fair_cap = true, tariff = 0, banned = '{}'::jsonb, cold_snap = null, world_first = null, locked = false, timer_end = null where id = 1;
+    fair_cap = true, tariff = 0, tariffs = '{}'::jsonb, banned = '{}'::jsonb, cold_snap = null, world_first = null, locked = false, timer_end = null where id = 1;
   for co in select * from priv.countries order by id loop
     update priv.countries set coin = (cfg->'START'->>'coin')::int, happy = (cfg->'HAPPY'->>'base')::int, glory = '{}', happy_detail = '[]', research_count = 0, lux_used = '{}',
       techs = '{}',
       discovered = '{}', explored = '{}', title = null, lux_types = 0, income = 0, short = '{}', tariff_turn = 0, attacked_turn = -1,
-      ready_turn = 0, research_turn = -1, crisis = false
+      ready_turn = 0, research_turn = -1, crisis = false, rebuilt = false
      where id = co.id;
     for k, v in select key, value from jsonb_each_text(cfg->'START') loop
       if k <> 'coin' then perform priv.add(co.id, k, v::int); end if;
@@ -1701,11 +1724,13 @@ language sql stable as $$ select coalesce(sum(qty), 0)::int from priv.trades whe
 
 create or replace function priv.gauge() returns int
 language sql stable as $$
-  with w as (select priv.world_power() p), g as (select turn, base_vol from public.game where id = 1)
+  with w as (select priv.world_power() p), g as (select turn, base_vol, banned from public.game where id = 1)
   select round(0.4 * least(100, greatest(0, (w.p->>'happy')::numeric + 50))
              + 0.2 * least(100, (w.p->>'econ')::numeric / 4.2)
              + 0.2 * least(100, (w.p->>'culture')::numeric / 1.5)
-             + 0.2 * least(100, priv.trade_volume(g.turn - 1) * 100.0 / greatest(1, g.base_vol)))::int
+             + 0.2 * least(100, priv.trade_volume(g.turn - 1) * 100.0 / greatest(1, g.base_vol))
+             - case when g.banned <> '{}'::jsonb then 15 else 0 end
+             + 2 * (select count(*) from priv.countries where rebuilt))::int
   from w, g
 $$;
 
@@ -1726,9 +1751,9 @@ begin
   gl := coalesce((select sum(x) from unnest(co.glory) x), 0)::int;
   press := least((h->>'pressureMax')::int, greatest(0, tn - 1) * (h->>'pressurePerTurn')::int);
   cityv := greatest(0, ncity - 1) * (h->>'perCity')::int;
-  tarv := ceil(co.tariff_turn::numeric / (h->>'tariffPer')::int)::int;
+  tarv := case when co.rebuilt then (cfg->'CRISIS'->>'rebuildHappy')::int else 0 end;
   hung := case when '식량' = any(co.short) then (h->>'hunger')::int else 0 end;
-  v := greatest(-100, least(100, (h->>'base')::int + types * (h->>'perLuxType')::int + plz + adv + gl - press + cityv - tarv + hung));
+  v := greatest(-100, least(100, (h->>'base')::int + types * (h->>'perLuxType')::int + plz + adv + gl - press + cityv + tarv + hung));
   update priv.countries set happy = v, happy_detail = jsonb_build_array(
       jsonb_build_object('k', '사치품 ' || types || '종류', 'v', types * (h->>'perLuxType')::int, 'tip', '사치품 종류마다 +' || (h->>'perLuxType') || ' (창고에 있으면 바로! 매 턴 종류마다 1개씩 써요)'),
       jsonb_build_object('k', '광장', 'v', plz, 'tip', '광장이 있는 도시마다 +' || (h->>'perPlaza')),
@@ -1736,7 +1761,7 @@ begin
       jsonb_build_object('k', '점령 환호', 'v', gl, 'tip', '도시국가를 차지하면 +' || (h->>'glory') || ', 매 턴 ' || (h->>'gloryDecay') || '씩 줄어요'),
       jsonb_build_object('k', '인구 증가', 'v', -press, 'tip', '턴마다 사람이 늘어 물건이 더 필요해요 (턴마다 -' || (h->>'pressurePerTurn') || ', 최대 -' || (h->>'pressureMax') || ')'),
       jsonb_build_object('k', '도시 관리', 'v', cityv, 'tip', '수도 말고 도시마다 ' || (h->>'perCity')),
-      jsonb_build_object('k', '관세로 오른 물가', 'v', -tarv, 'tip', '수입품에 관세가 붙으면 물가가 올라요'),
+      jsonb_build_object('k', '도시 재건', 'v', tarv, 'tip', '17차시: 새로 얻은 도시를 다시 세우면 +' || (cfg->'CRISIS'->>'rebuildHappy')),
       jsonb_build_object('k', '식량 부족', 'v', hung, 'tip', '식량이 모자라면 ' || (h->>'hunger')))
    where id = p_c;
   if v < (h->>'unhappy')::int and co.happy >= (h->>'unhappy')::int then
@@ -1999,7 +2024,7 @@ begin
   return jsonb_build_object(
     'now', now(),
     'game', jsonb_build_object('phase', g.phase, 'turn', g.turn, 'turn_end', g.turn_end, 'market_open', g.market_open,
-      'diplomacy_open', g.diplomacy_open, 'crisis', g.crisis, 'fair_cap', g.fair_cap, 'tariff', g.tariff, 'banned', g.banned,
+      'diplomacy_open', g.diplomacy_open, 'crisis', g.crisis, 'fair_cap', g.fair_cap, 'tariff', g.tariff, 'tariffs', g.tariffs, 'banned', g.banned,
       'world_first', g.world_first, 'locked', g.locked, 'timer_end', g.timer_end, 'timer_label', g.timer_label, 'test_mode', g.test_mode),
     'me', jsonb_build_object('id', me.id, 'name', coalesce(me.nickname, me.name), 'roles', me.roles, 'is_leader', me.is_leader),
     'members', (select coalesce(jsonb_agg(jsonb_build_object('name', coalesce(s.nickname, '(아직 안 들어옴)'), 'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null,
@@ -2007,7 +2032,7 @@ begin
     'country', jsonb_build_object('id', co.id, 'type', co.type, 'name', priv.cname(co.id), 'flag_url', co.flag_url, 'emblem_url', co.emblem_url,
       'coin', co.coin, 'happy', co.happy, 'income', co.income, 'lux_types', co.lux_types, 'short', co.short, 'techs', co.techs,
       'title', co.title, 'glory', coalesce((select sum(x) from unnest(co.glory) x), 0), 'attacked', co.attacked_turn >= g.turn,
-      'ready', co.ready_turn = g.turn, 'researched', co.research_turn >= g.turn and co.research_count >= (priv.cfg()->>'RESEARCH_PER_TURN')::int, 'research_n', case when co.research_turn >= g.turn then co.research_count else 0 end, 'happy_detail', co.happy_detail, 'crisis', co.crisis,
+      'ready', co.ready_turn = g.turn, 'researched', co.research_turn >= g.turn and co.research_count >= (priv.cfg()->>'RESEARCH_PER_TURN')::int, 'research_n', case when co.research_turn >= g.turn then co.research_count else 0 end, 'happy_detail', co.happy_detail, 'crisis', co.crisis, 'rebuilt', co.rebuilt,
       'discovered', co.discovered, 'explored_count', coalesce(array_length(co.explored, 1), 0)),
     'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}') from priv.inventory where country = co.id and qty <> 0),
     'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
@@ -2036,6 +2061,8 @@ begin
     'notices', (select coalesce(jsonb_agg(to_jsonb(n) order by n.id desc), '[]') from (select * from public.notices
         where country is null or country = co.id order by id desc limit 30) n),
     'treaty', (select to_jsonb(t) from priv.treaties t where t.country = co.id),
+    'treaties', case when g.phase >= 10 then (select coalesce(jsonb_agg(to_jsonb(t) order by t.country), '[]') from priv.treaties t) end,
+    'report', case when g.phase >= 8 then priv.crisis_report(co.id) end,
     'gauge', priv.gauge()
   );
 end $$;
@@ -2475,6 +2502,19 @@ begin
   if p_give_item = 'coin' and p_get_item = 'coin' then perform priv.err('BAD_ITEM', '코인끼리는 바꿀 수 없어요.'); end if;
   if priv.cost_short(me.country_id, jsonb_build_object(p_give_item, p_give_qty)) is not null then
     perform priv.err('NO_MONEY', '줄 물건이 모자라요: ' || priv.cost_short(me.country_id, jsonb_build_object(p_give_item, p_give_qty))); end if;
+  if priv.is_banned(me.country_id, p_give_item) then
+    perform priv.fail(p_to, me.country_id, p_give_item, p_give_qty, 'ban');
+    perform priv.bump(me.country_id);
+    return jsonb_build_object('ok', false, 'blocked', 'ban', 'own', true, 'item', p_give_item, 'seller', me.country_id,
+      'message', '우리 나라가 지금 ' || priv.iname(p_give_item) || ' 수출을 막고 있어요. 거래가 이루어지지 않았어요.');
+  end if;
+  if priv.is_banned(p_to, p_get_item) then
+    perform priv.fail(me.country_id, p_to, p_get_item, p_get_qty, 'ban');
+    perform priv.notice(priv.cname(me.country_id) || '이(가) ' || priv.iname(p_get_item) || '을(를) 사려고 했지만, 우리 나라의 수출 제한 때문에 거래가 막혔어요.', 'alert', p_to);
+    perform priv.bump(me.country_id); perform priv.bump(p_to);
+    return jsonb_build_object('ok', false, 'blocked', 'ban', 'own', false, 'item', p_get_item, 'seller', p_to,
+      'message', priv.cname(p_to) || '이(가) ' || priv.iname(p_get_item) || ' 수출을 막았어요! 거래가 이루어지지 않았어요.');
+  end if;
   perform priv.trade_check(me.country_id, p_give_item, p_give_qty, case when p_get_item = 'coin' then p_get_qty end);
   perform priv.trade_check(p_to, p_get_item, p_get_qty, case when p_give_item = 'coin' then p_give_qty end);
   insert into priv.offers(turn, from_c, to_c, give_item, give_qty, get_item, get_qty, by_student)
@@ -2482,7 +2522,7 @@ begin
   perform priv.notice(priv.cname(me.country_id) || '이(가) 거래를 제안했어요: ' || priv.iname(p_give_item) || ' ' || p_give_qty
     || ' ↔ ' || priv.iname(p_get_item) || ' ' || p_get_qty, 'offer', p_to);
   perform priv.bump(me.country_id); perform priv.bump(p_to);
-  return jsonb_build_object('ok', true, 'id', id_);
+  return jsonb_build_object('ok', true, 'id', id_, 'tariff', priv.tariff_of(p_get_item, p_get_qty));
 end $$;
 
 create or replace function public.offer_cancel(p_offer int) returns jsonb
@@ -2494,17 +2534,35 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- 관세: 관세가 붙은 물건을 수입하면 1개마다 (기준가 × 관세율, 올림) 코인을 더 내요
+create or replace function priv.tariff_of(p_item text, p_qty int) returns int
+language sql stable as $$
+  select case when p_item <> 'coin' and g.tariffs ? p_item
+    then (ceil((priv.cfg()->'ITEMS'->p_item->>'ref')::numeric * (g.tariffs->>p_item)::numeric) * p_qty)::int else 0 end
+  from public.game g where g.id = 1
+$$;
+
+-- 수출 제한인지 (판 나라가 그 물건 수출을 막았나)
+create or replace function priv.is_banned(p_seller int, p_item text) returns boolean
+language sql stable as $$
+  select p_item <> 'coin' and g.banned ? p_seller::text and (g.banned->p_seller::text) ? p_item from public.game g where g.id = 1
+$$;
+
+-- 막힌 거래 기록 (피해 보고서에 그대로 씀)
+create or replace function priv.fail(p_buyer int, p_seller int, p_item text, p_qty int, p_reason text) returns void
+language sql as $$
+  insert into priv.trade_fails(turn, phase, buyer, seller, item, qty, reason)
+  select g.turn, g.phase, p_buyer, p_seller, p_item, p_qty, p_reason from public.game g where g.id = 1
+$$;
+
 -- 한 방향 기록 (판 나라 → 산 나라)
-create or replace function priv.record_trade(seller int, buyer int, item text, qty int, coin int, broker boolean default false) returns int
+drop function if exists priv.record_trade(int, int, text, int, int, boolean);
+create or replace function priv.record_trade(seller int, buyer int, item text, qty int, coin int, broker boolean default false, tar int default 0) returns int
 language plpgsql as $$
-declare g public.game; cfg jsonb := priv.cfg(); val int; tar int := 0;
+declare g public.game; cfg jsonb := priv.cfg(); val int;
 begin
   select * into g from public.game where id = 1;
   val := coalesce(coin, (cfg->'ITEMS'->item->>'ref')::int * qty);
-  if g.tariff > 0 and buyer is not null and seller is not null then
-    tar := round(val * g.tariff);
-    update priv.countries set tariff_turn = tariff_turn + tar where id = buyer;
-  end if;
   insert into priv.trades(turn, phase, from_c, to_c, item, qty, price, value, tariff, broker)
     values (g.turn, g.phase, seller, buyer, item, qty, case when coin is not null then round(coin::numeric / qty) end, val, tar, broker);
   return tar;
@@ -2512,7 +2570,7 @@ end $$;
 
 create or replace function public.offer_respond(p_offer int, p_accept boolean) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(3); o priv.offers; g public.game; s text; tar int := 0;
+declare me priv.students := priv.act_start(3); o priv.offers; g public.game; s text; tar int := 0; tar_to int; tar_from int; bs int; bb int; bi text; bq int;
 begin
   select * into g from public.game where id = 1;
   select * into o from priv.offers where id = p_offer and to_c = me.country_id for update;
@@ -2527,16 +2585,49 @@ begin
   if not g.market_open then perform priv.err('CLOSED', '세계 시장이 닫혀 있어요.'); end if;
   -- 두 나라를 번호 순서로 잠금 (교착 방지)
   perform 1 from priv.countries where id in (o.from_c, o.to_c) order by id for update;
+  -- 수출 제한 (제안을 보낸 뒤에 협정이 끝났을 수도 있어요)
+  if priv.is_banned(o.from_c, o.give_item) or priv.is_banned(o.to_c, o.get_item) then
+    if priv.is_banned(o.from_c, o.give_item) then bs := o.from_c; bb := o.to_c; bi := o.give_item; bq := o.give_qty;
+    else bs := o.to_c; bb := o.from_c; bi := o.get_item; bq := o.get_qty; end if;
+    perform priv.fail(bb, bs, bi, bq, 'ban');
+    update priv.offers set status = 'blocked', decided_at = now() where id = o.id;
+    perform priv.notice('수출 제한! ' || priv.cname(bs) || '이(가) ' || priv.iname(bi) || ' 수출을 막아서 거래가 이루어지지 않았어요.', 'alert', o.from_c);
+    perform priv.notice('수출 제한! ' || priv.cname(bs) || '이(가) ' || priv.iname(bi) || ' 수출을 막아서 거래가 이루어지지 않았어요.', 'alert', o.to_c);
+    perform priv.bump(o.from_c); perform priv.bump(o.to_c);
+    return jsonb_build_object('ok', false, 'blocked', 'ban', 'own', bs = me.country_id, 'item', bi, 'seller', bs,
+      'message', case when bs = me.country_id then '우리 나라가 지금 ' || priv.iname(bi) || ' 수출을 막고 있어요. 거래가 이루어지지 않았어요.'
+        else priv.cname(bs) || '이(가) ' || priv.iname(bi) || ' 수출을 막았어요! 거래가 이루어지지 않았어요.' end);
+  end if;
   s := priv.cost_short(o.from_c, jsonb_build_object(o.give_item, o.give_qty));
   if s is not null then perform priv.err('NO_MONEY', priv.cname(o.from_c) || '의 물건이 모자라 거래할 수 없어요: ' || s); end if;
   s := priv.cost_short(o.to_c, jsonb_build_object(o.get_item, o.get_qty));
   if s is not null then perform priv.err('NO_MONEY', '우리 나라가 줄 것이 모자라요: ' || s); end if;
   perform priv.trade_check(o.from_c, o.give_item, o.give_qty, case when o.get_item = 'coin' then o.get_qty end);
   perform priv.trade_check(o.to_c, o.get_item, o.get_qty, case when o.give_item = 'coin' then o.give_qty end);
+  -- 관세: 수입한 나라가 코인으로 더 내요. 코인이 모자라면 거래가 막혀요
+  tar_to := priv.tariff_of(o.give_item, o.give_qty);     -- 받는 나라(o.to_c)가 냄
+  tar_from := priv.tariff_of(o.get_item, o.get_qty);     -- 제안한 나라(o.from_c)가 냄
+  if tar_to > 0 and priv.coin(o.to_c) < tar_to + (case when o.get_item = 'coin' then o.get_qty else 0 end) then
+    perform priv.fail(o.to_c, o.from_c, o.give_item, o.give_qty, 'tariff');
+    perform priv.bump(o.to_c);
+    return jsonb_build_object('ok', false, 'blocked', 'tariff', 'item', o.give_item, 'tariff', tar_to,
+      'message', '관세 ' || tar_to || '코인을 낼 코인이 모자라 거래하지 못했어요.');
+  end if;
+  if tar_from > 0 and priv.coin(o.from_c) < tar_from + (case when o.give_item = 'coin' then o.give_qty else 0 end) then
+    perform priv.fail(o.from_c, o.to_c, o.get_item, o.get_qty, 'tariff');
+    update priv.offers set status = 'blocked', decided_at = now() where id = o.id;
+    perform priv.notice(priv.cname(o.from_c) || '은(는) 관세 ' || tar_from || '코인을 낼 코인이 모자라 거래가 막혔어요.', 'alert', o.from_c);
+    perform priv.bump(o.from_c); perform priv.bump(o.to_c);
+    return jsonb_build_object('ok', false, 'blocked', 'tariff', 'item', o.get_item, 'tariff', tar_from,
+      'message', priv.cname(o.from_c) || '이(가) 관세 ' || tar_from || '코인을 낼 코인이 모자라 거래하지 못했어요.');
+  end if;
   perform priv.add(o.from_c, o.give_item, -o.give_qty); perform priv.add(o.to_c, o.give_item, o.give_qty);
   perform priv.add(o.to_c, o.get_item, -o.get_qty);     perform priv.add(o.from_c, o.get_item, o.get_qty);
-  if o.give_item <> 'coin' then tar := tar + priv.record_trade(o.from_c, o.to_c, o.give_item, o.give_qty, case when o.get_item = 'coin' then o.get_qty end); end if;
-  if o.get_item <> 'coin' then tar := tar + priv.record_trade(o.to_c, o.from_c, o.get_item, o.get_qty, case when o.give_item = 'coin' then o.give_qty end); end if;
+  if tar_to > 0 then perform priv.add(o.to_c, 'coin', -tar_to); end if;
+  if tar_from > 0 then perform priv.add(o.from_c, 'coin', -tar_from); end if;
+  tar := tar_to + tar_from;
+  if o.give_item <> 'coin' then perform priv.record_trade(o.from_c, o.to_c, o.give_item, o.give_qty, case when o.get_item = 'coin' then o.get_qty end, false, tar_to); end if;
+  if o.get_item <> 'coin' then perform priv.record_trade(o.to_c, o.from_c, o.get_item, o.get_qty, case when o.give_item = 'coin' then o.give_qty end, false, tar_from); end if;
   perform priv.refresh_happy(o.from_c); perform priv.refresh_happy(o.to_c);   -- 사치품이 오면 행복도가 바로 올라요
   update priv.offers set status = 'accepted', decided_at = now() where id = o.id;
   perform priv.notice('거래 성사! ' || priv.cname(o.from_c) || ' ↔ ' || priv.cname(o.to_c) || ': '
@@ -2544,7 +2635,62 @@ begin
   perform priv.notice('거래 성사! ' || priv.cname(o.from_c) || ' ↔ ' || priv.cname(o.to_c) || ': '
     || priv.iname(o.give_item) || ' ' || o.give_qty || ' ↔ ' || priv.iname(o.get_item) || ' ' || o.get_qty, 'trade', o.to_c);
   perform priv.bump(o.from_c); perform priv.bump(o.to_c); perform priv.bump_game();
-  return jsonb_build_object('ok', true, 'accepted', true, 'tariff', tar);
+  return jsonb_build_object('ok', true, 'accepted', true, 'tariff', tar, 'tariff_me', case when me.country_id = o.to_c then tar_to else tar_from end);
+end $$;
+
+-- 17차시: 새로 얻은 도시 재건 (수출 제한 물건 2개 + 관세 물건 2개)
+create or replace function public.city_rebuild() returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(8, '기획부 장관'); cfg jsonb := priv.cfg(); co priv.countries; rb jsonb; q int; cost jsonb; s text; v int;
+begin
+  select * into co from priv.countries where id = me.country_id;
+  if co.rebuilt then perform priv.err('DONE', '이미 도시를 재건했어요.'); end if;
+  rb := cfg->'CRISIS'->'rebuild'->co.type; q := (cfg->'CRISIS'->>'rebuildQty')::int;
+  cost := jsonb_build_object(rb->>'banned', q, rb->>'tariffed', q);
+  s := priv.cost_short(co.id, cost);
+  if s is not null then perform priv.err('NO_MONEY', '재건 물자가 모자라요: ' || s); end if;
+  perform priv.pay(co.id, cost);
+  -- 재건에 쓴 사치품은 이번 턴에 즐긴 것으로 쳐요 (재건하자마자 행복도가 깎이지 않게)
+  update priv.countries set rebuilt = true,
+    lux_used = array(select distinct x from unnest(lux_used || array[rb->>'banned', rb->>'tariffed']) x where x in (select jsonb_array_elements_text(cfg->'LUX')))
+   where id = co.id;
+  v := priv.refresh_happy(co.id);
+  perform priv.notice(priv.cname(co.id) || '이(가) 무역으로 물자를 모아 새 도시를 재건했어요!', 'world');
+  perform priv.event('rebuild', priv.cname(co.id) || ' 도시 재건', jsonb_build_object('country', co.id));
+  perform priv.bump(co.id); perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true, 'happy', v);
+end $$;
+
+-- 피해 보고서: 실제 거래 기록으로만 만들어요 (없던 피해를 만들지 않음)
+create or replace function priv.crisis_report(p_c int) returns jsonb
+language plpgsql stable as $$
+declare cfg jsonb := priv.cfg(); co priv.countries; rb jsonb; ct int; rate numeric;
+begin
+  select * into co from priv.countries where id = p_c;
+  rb := cfg->'CRISIS'->'rebuild'->co.type;
+  rate := (cfg->'CRISIS'->>'tariffRate')::numeric;
+  select min(turn) into ct from priv.events where kind = 'expire';
+  return jsonb_build_object(
+    'partner', (select id from priv.countries where type = rb->>'partner' limit 1),
+    'my_ban', cfg->'CRISIS'->'ban'->>co.type,
+    'need', (cfg->'CRISIS'->>'rebuildQty')::int,
+    'rebuilt', co.rebuilt,
+    'crisis_turn', ct,
+    'items', (select jsonb_agg(jsonb_build_object('item', x.item, 'kind', x.kind, 'have', priv.inv(p_c, x.item),
+        'tariff_unit', case when x.kind = 'tariff' then ceil((cfg->'ITEMS'->x.item->>'ref')::numeric * rate)::int else 0 end,
+        'ref', (cfg->'ITEMS'->x.item->>'ref')::int,
+        'before', (select round(avg(price))::int from priv.trades where item = x.item and price is not null and phase < 8),
+        'after', (select round(avg(price))::int from priv.trades where item = x.item and price is not null and phase >= 8 and not broker),
+        'bought', (select coalesce(sum(qty), 0) from priv.trades where item = x.item and to_c = p_c and phase >= 8))
+        order by x.ord)
+      from (values (rb->>'banned', 'ban', 1), (rb->>'tariffed', 'tariff', 2)) as x(item, kind, ord)),
+    'fails', (select coalesce(jsonb_agg(jsonb_build_object('turn', f.turn, 'buyer', f.buyer, 'seller', f.seller, 'item', f.item, 'qty', f.qty, 'reason', f.reason) order by f.id), '[]')
+      from priv.trade_fails f where f.buyer = p_c or f.seller = p_c),
+    'tariff_paid', (select coalesce(sum(tariff), 0) from priv.trades where to_c = p_c and phase >= 8),
+    'trades_before', (select count(*) from priv.trades where (from_c = p_c or to_c = p_c) and not broker and ct is not null and turn between ct - 2 and ct - 1),
+    'trades_after', (select count(*) from priv.trades where (from_c = p_c or to_c = p_c) and not broker and phase >= 8 and phase < 11),
+    'trades_charter', (select count(*) from priv.trades where (from_c = p_c or to_c = p_c) and not broker and phase >= 11)
+  );
 end $$;
 
 -- 조약 (17차시) · 개인 한 문장
@@ -2591,12 +2737,15 @@ language sql stable security definer set search_path = public, priv as $$
   select jsonb_build_object(
     'now', now(),
     'game', (select jsonb_build_object('phase', phase, 'turn', turn, 'turn_end', turn_end, 'market_open', market_open,
-      'diplomacy_open', diplomacy_open, 'world_first', world_first, 'timer_end', timer_end, 'timer_label', timer_label) from public.game where id = 1),
+      'diplomacy_open', diplomacy_open, 'world_first', world_first, 'timer_end', timer_end, 'timer_label', timer_label, 'banned', banned, 'tariffs', tariffs) from public.game where id = 1),
     'countries', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'type_name', priv.cfg()->'TYPES'->c.type->>'name',
         'name', priv.cname(c.id), 'flag_url', c.flag_url, 'emblem_url', c.emblem_url, 'happy', c.happy, 'title', c.title,
         'cities', (select count(*) from priv.cities where country = c.id), 'discovered', coalesce(array_length(c.discovered, 1), 0),
         'exports', (select coalesce(sum(qty), 0) from priv.trades where from_c = c.id and not broker),
-        'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker)) order by c.id), '[]') from priv.countries c),
+        'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker),
+        'rebuilt', c.rebuilt, 'final_done', exists(select 1 from priv.cities f where f.final and f.type = c.type and f.country = c.id),
+        'fails', (select count(*) from priv.trade_fails f where f.buyer = c.id or f.seller = c.id),
+        'tariff_paid', (select coalesce(sum(tariff), 0) from priv.trades where to_c = c.id and phase >= 8)) order by c.id), '[]') from priv.countries c),
     'tiles', (select jsonb_agg(jsonb_build_array(t.id, t.terrain, t.res, t.owner, t.imp) order by t.id) from priv.tiles t),
     'cities', (select jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'country', c.country, 'art', priv.city_art(c.id),
         'buildings', c.buildings, 'unrest', c.unrest, 'tier', c.tier, 'boss', c.boss, 'max_hp', c.max_hp,
@@ -2701,7 +2850,11 @@ begin
         'advanced', (select coalesce(jsonb_agg(kind), '[]') from priv.advanced where country = c.id),
         'exports', (select coalesce(sum(qty), 0) from priv.trades where from_c = c.id and not broker),
         'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker),
-        'online', (select count(*) from priv.students where country_id = c.id and last_seen > now() - interval '60 seconds')
+        'online', (select count(*) from priv.students where country_id = c.id and last_seen > now() - interval '60 seconds'),
+        'rebuilt', c.rebuilt,
+        'final', (select jsonb_build_object('id', f.id, 'name', f.name, 'hp', f.hp, 'max_hp', f.max_hp, 'taken', f.country = c.id, 'owner', f.country)
+                  from priv.cities f where f.final and f.type = c.type limit 1),
+        'report', case when g.phase >= 8 then priv.crisis_report(c.id) end
       ) order by c.id), '[]') from priv.countries c),
     'students', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'country_id', s.country_id, 'no', s.no, 'name', s.name, 'nick', s.nickname,
         'roles', s.roles, 'is_leader', s.is_leader, 'bound', s.uid is not null, 'online', s.last_seen > now() - interval '60 seconds',
@@ -2720,7 +2873,7 @@ end $$;
 -- 단계 넘기기 (앞으로만)
 create or replace function public.admin_set_phase(p_target int) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare g public.game; nxt int;
+declare g public.game; nxt int; cfg jsonb := priv.cfg(); co record; rb jsonb;
 begin
   perform priv.need_admin();
   select * into g from public.game where id = 1 for update;
@@ -2741,12 +2894,30 @@ begin
       perform priv.notice('세계 시장이 열렸어요! 무역 탭에서 다른 나라에 거래를 제안해 보세요.', 'market');
       perform priv.event('market', '세계 시장 개방');
     elsif nxt = 8 then
-      update public.game set fair_cap = false where id = 1;
-      perform priv.notice('긴급: 세계 무역 협정 기간이 끝났습니다. 이제 공정 거래 규칙이 없어요.', 'alert');
-      perform priv.event('expire', '세계 무역 협정 만료');
+      -- 세계 무역 협정 만료: 공정 거래 규칙이 사라지고, 나라마다 특산품 하나 수출 제한, 정해진 물건에 관세
+      update public.game set fair_cap = false,
+        tariffs = (select coalesce(jsonb_object_agg(x, (cfg->'CRISIS'->>'tariffRate')::numeric), '{}') from jsonb_array_elements_text(cfg->'CRISIS'->'tariffItems') x),
+        banned = (select coalesce(jsonb_object_agg(c.id::text, jsonb_build_array(cfg->'CRISIS'->'ban'->>c.type)), '{}') from priv.countries c)
+       where id = 1;
+      perform priv.notice('긴급: 세계 무역 협정이 끝났어요! 나라마다 자기 특산품 하나의 수출을 막았고, 일부 수입품에는 관세가 붙었어요.', 'alert');
+      for co in select * from priv.countries order by id loop
+        rb := cfg->'CRISIS'->'rebuild'->co.type;
+        perform priv.notice_d('우리 나라 정부는 「' || priv.iname(cfg->'CRISIS'->'ban'->>co.type) || '」 수출을 막기로 했어요. 그리고 새로 얻은 도시를 다시 세우려면 「'
+          || priv.iname(rb->>'banned') || '」 ' || (cfg->'CRISIS'->>'rebuildQty') || '개와 「' || priv.iname(rb->>'tariffed') || '」 ' || (cfg->'CRISIS'->>'rebuildQty')
+          || '개가 필요해요. 무역 미션을 확인해요!', 'crisis', co.id, jsonb_build_object('mode', 'crisis', 'ban', cfg->'CRISIS'->'ban'->>co.type, 'rebuild', rb));
+      end loop;
+      perform priv.event('expire', '세계 무역 협정 만료 (관세·수출 제한)');
+    elsif nxt = 9 then
+      update public.game set locked = true where id = 1;
+      perform priv.notice('피해 보고서 시간이에요. 게임 조작은 잠시 멈추고, 「피해 보고서」 탭에서 우리 나라가 겪은 어려움을 살펴봐요.', 'phase');
+      perform priv.event('report', '피해 보고서');
     elsif nxt = 10 then
       update public.game set locked = true where id = 1;
-      perform priv.notice('조약 회의 시간이에요. 게임 조작은 멈추고, 피해를 살펴보며 약속을 만들어요.', 'phase');
+      perform priv.notice('조약 회의 시간이에요. 우리 나라의 약속을 정하고, 상대 나라와 협상해요.', 'phase');
+    elsif nxt = 11 then
+      update public.game set locked = false, banned = '{}'::jsonb, tariffs = '{}'::jsonb, fair_cap = true where id = 1;
+      perform priv.notice('세계 무역 헌장 체결! 수출 제한이 풀리고 관세가 사라졌어요. 약속을 지키며 다시 거래하고, 도시를 재건해요.', 'market');
+      perform priv.event('charter', '세계 무역 헌장 체결');
     end if;
   end loop;
   update public.game set phase = p_target where id = 1;
@@ -2759,7 +2930,7 @@ language plpgsql security definer set search_path = public, priv as $$
 begin
   perform priv.need_admin();
   if p_target < 0 or p_target > 11 then perform priv.err('BAD_PHASE', '없는 단계예요.'); end if;
-  update public.game set phase = p_target, locked = (p_target = 10) where id = 1;
+  update public.game set phase = p_target, locked = (p_target in (9, 10)) where id = 1;
   perform priv.bump_game(); perform priv.bump_all();
   return jsonb_build_object('ok', true);
 end $$;
@@ -2955,11 +3126,59 @@ begin
       perform priv.add(c.id, k, v::int);
     end loop;
     perform priv.refresh_happy(c.id);
-    perform priv.notice('우주 운영진 지원: ' || coalesce(nullif(trim(p_reason), ''), '나라 발전 지원'), 'grant', c.id);
+    perform priv.notice_d('지구 서버 관리자의 지원: ' || priv.items_text(p_items) || coalesce(' (' || nullif(trim(p_reason), '') || ')', ''), 'grant', c.id,
+      jsonb_build_object('mode', 'grant', 'items', p_items, 'reason', nullif(trim(p_reason), '')));
     perform priv.bump(c.id);
   end loop;
   perform priv.event('grant', coalesce(p_reason, ''), jsonb_build_object('country', p_country, 'items', p_items));
   return jsonb_build_object('ok', true);
+end $$;
+
+-- 긴급 중립 상인: 거래가 막혔을 때만. 기준가의 2배 코인을 받고 팔아요
+create or replace function public.admin_merchant(p_country int, p_items jsonb) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare cfg jsonb := priv.cfg(); k text; v text; total int := 0; unit int;
+begin
+  perform priv.need_admin();
+  for k, v in select key, value from jsonb_each_text(coalesce(p_items, '{}'::jsonb)) loop
+    if k = 'coin' or cfg->'ITEMS'->k is null or v::int <= 0 then perform priv.err('BAD_ITEM', '팔 수 없는 물건이에요.'); end if;
+    total := total + ceil((cfg->'ITEMS'->k->>'ref')::numeric * (cfg->'CRISIS'->>'merchantMult')::numeric)::int * v::int;
+  end loop;
+  if total = 0 then perform priv.err('BAD_ITEM', '물건을 골라 주세요.'); end if;
+  if priv.coin(p_country) < total then perform priv.err('NO_MONEY', priv.cname(p_country) || '의 코인이 모자라요 (필요 ' || total || ', 있음 ' || priv.coin(p_country) || ')'); end if;
+  for k, v in select key, value from jsonb_each_text(p_items) loop
+    unit := ceil((cfg->'ITEMS'->k->>'ref')::numeric * (cfg->'CRISIS'->>'merchantMult')::numeric)::int;
+    perform priv.add(p_country, k, v::int);
+    perform priv.record_trade(null, p_country, k, v::int, unit * v::int, true);
+  end loop;
+  perform priv.add(p_country, 'coin', -total);
+  perform priv.refresh_happy(p_country);
+  perform priv.notice_d('긴급 중립 상인이 물건을 팔았어요: ' || priv.items_text(p_items) || ' (코인 -' || total || ')', 'grant', p_country,
+    jsonb_build_object('mode', 'merchant', 'items', p_items, 'coin', total));
+  perform priv.event('merchant', priv.cname(p_country) || ' 긴급 중립 상인', jsonb_build_object('country', p_country, 'items', p_items, 'coin', total));
+  perform priv.bump(p_country);
+  return jsonb_build_object('ok', true, 'coin', total);
+end $$;
+
+-- 특수 부대 지원 (17차시 정복 준비): 최종 도시국가에서 2칸 떨어진 곳에 그 나라 특수 부대 1대
+create or replace function public.admin_boss_help(p_country int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare cfg jsonb := priv.cfg(); tp text := priv.ctype(p_country); uk text; f priv.cities; tl int;
+begin
+  perform priv.need_admin();
+  uk := cfg->'BOSS_UNIT'->tp->>'unit';
+  select * into f from priv.cities where final and type = tp limit 1;
+  if not found then perform priv.err('NO_FINAL', '이 나라의 최종 도시국가가 없어요.'); end if;
+  if f.country is not null then perform priv.err('TAKEN', '이미 최종 도시국가를 차지했어요.'); end if;
+  select t.id into tl from priv.tiles t, priv.tiles ft where ft.id = f.tile_id and priv.hdist(t.c, t.r, ft.c, ft.r) = 2
+   order by (t.terrain in ('ocean', 'coast')), (t.owner is not distinct from p_country) desc, t.id limit 1;
+  insert into priv.units(country, kind, tile_id) values (p_country, uk, tl);
+  perform priv.reveal(p_country, priv.within(tl, 2));
+  perform priv.notice_d('지구 서버 관리자의 지원: 「' || (cfg->'UNITS'->uk->>'name') || '」이(가) ' || f.name || ' 근처에 도착했어요!', 'grant', p_country,
+    jsonb_build_object('mode', 'boss', 'unit', uk, 'city', f.name));
+  perform priv.event('boss_help', priv.cname(p_country) || ' 특수 부대 지원', jsonb_build_object('country', p_country));
+  perform priv.bump(p_country);
+  return jsonb_build_object('ok', true, 'tile', tl);
 end $$;
 
 -- 불안 진정: 행복도 +15 (점령 환호처럼 3턴에 걸쳐 줄어듦), 불안 도시 회복
@@ -2969,7 +3188,7 @@ begin
   perform priv.need_admin();
   update priv.countries set glory = glory || 15, happy = least(100, happy + 15) where id = p_country;
   update priv.cities set unrest = false where country = p_country;
-  perform priv.notice('우주 운영진이 축제를 열어 시민들의 마음을 달랬어요. (행복도 +15)', 'grant', p_country);
+  perform priv.notice('지구 서버 관리자가 축제를 열어 시민들의 마음을 달랬어요. (행복도 +15)', 'grant', p_country);
   perform priv.event('relief', priv.cname(p_country), jsonb_build_object('country', p_country));
   perform priv.bump(p_country);
   return jsonb_build_object('ok', true);
@@ -2984,7 +3203,7 @@ begin
   select id into nxt from priv.cities where kind = 'cs' and type = tp and country is null order by def limit 1;
   if nxt is not null then update priv.cities set def_help = def_help + 5 where id = nxt; end if;
   update priv.countries set coin = coin + 40 where id = p_country;
-  perform priv.notice('우주 운영진 지원: 코인 40과 함께, 다음 도시국가의 성벽이 약해졌다는 소식이 들어왔어요.', 'grant', p_country);
+  perform priv.notice('지구 서버 관리자 지원: 코인 40과 함께, 다음 도시국가의 성벽이 약해졌다는 소식이 들어왔어요.', 'grant', p_country);
   perform priv.event('turn_help', priv.cname(p_country), jsonb_build_object('country', p_country, 'city', nxt));
   perform priv.bump(p_country);
   return jsonb_build_object('ok', true);
@@ -3011,7 +3230,7 @@ language plpgsql security definer set search_path = public, priv as $$
 begin
   perform priv.need_admin();
   update public.game set diplomacy_open = true where id = 1;
-  perform priv.notice('우주 운영진이 세계 지도를 전했어요. 외교 창에서 여섯 나라를 볼 수 있어요.', 'world');
+  perform priv.notice('지구 서버 관리자가 세계 지도를 전했어요. 외교 창에서 여섯 나라를 볼 수 있어요.', 'world');
   perform priv.event('diplomacy', '교사가 외교 열기');
   perform priv.bump_game(); perform priv.bump_all();
   return jsonb_build_object('ok', true);

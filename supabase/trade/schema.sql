@@ -229,6 +229,15 @@ alter table priv.cities add column if not exists built_count int not null defaul
 alter table priv.countries add column if not exists research_count int not null default 0;
 alter table priv.countries add column if not exists happy_detail jsonb not null default '[]';
 alter table priv.countries add column if not exists lux_used text[] not null default '{}';
+-- v6: 17차시 무역 위기(관세·수출 제한·재건), 관리자 지원 팝업
+alter table public.game add column if not exists tariffs jsonb not null default '{}'::jsonb;
+alter table priv.countries add column if not exists rebuilt boolean not null default false;
+alter table public.notices add column if not exists data jsonb;
+create table if not exists priv.trade_fails (
+  id serial primary key, turn int, phase int, buyer int, seller int, item text, qty int,
+  reason text,                 -- ban(수출 제한) | tariff(관세 낼 코인 부족)
+  created_at timestamptz not null default now()
+);
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 
