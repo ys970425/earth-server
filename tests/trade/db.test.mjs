@@ -183,7 +183,11 @@ const km = (await unitsOf(1, 'k_missile'))[0];
 await db.query(`update priv.units set tile_id = ${await beside(fin, 1)} where id = ${km.id}`);
 await db.query(`update priv.countries set happy = 10 where id = 1`);
 const kr = await rpc(L(1), 'unit_attack', km.id, fin);
-ok(kr.city_dmg >= 50, '특수 부대로 최종 도시국가 공격: -' + kr.city_dmg + ' (체력 ' + kr.city_hp + '/' + kr.max_hp + ')');
+ok(kr.captured && kr.city_dmg === 100, '특수 부대(힘 300) 한 번 공격으로 최종 도시국가 정복: -' + kr.city_dmg);
+await db.query(`update priv.countries set happy = -10 where id = 1`); await db.query(`update priv.cities set country = null, hp = max_hp where id = '${fin}'`); await db.query(`update priv.units set attacked_turn = -1 where id = ${km.id}`);
+const kr2 = await rpc(L(1), 'unit_attack', km.id, fin);
+ok(!kr2.captured && kr2.city_dmg >= 80, '행복도가 0 밑이면 특수 부대도 약해져서 한 번에는 못 깸: -' + kr2.city_dmg);
+await db.query(`update priv.cities set hp = max_hp where id = '${fin}'`);
 
 // 모든 나라 튜토리얼 점령 + 몇 턴 진행
 for (let c = 2; c <= 6; c++) {
@@ -270,7 +274,7 @@ ok((await one(`select data from public.notices where country = 1 and kind = 'gra
 await db.query(`update priv.cities set hp = max_hp where id = '${finK.id}'`);
 let hits = 0, cap = false;
 while (!cap && hits < 4) { await db.query(`update priv.units set attacked_turn = -1 where id = ${bu.id}`); const r = await rpc(L(1), 'unit_attack', bu.id, finK.id); hits++; cap = r.captured; }
-ok(cap && hits === 2, '최종 도시국가: 특수 부대 2번 공격이면 정복 (' + hits + '번)');
+ok(cap && hits === 1, '최종 도시국가: 특수 부대 1번 공격으로 정복 (' + hits + '번)');
 ok(await fail(rpc(ADMIN, 'admin_boss_help', 1), 'TAKEN'), '이미 정복하면 특수 부대 지원 안 함');
 // 관리자 지원 창: 무료 지원 / 긴급 중립 상인
 await rpc(ADMIN, 'admin_grant', 6, { gold: 2, coin: 30 }, '거래 막힘 구제');

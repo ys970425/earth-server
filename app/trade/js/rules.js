@@ -146,12 +146,12 @@
     trireme:   { name: '삼단노선', era: 1, str: 10, move: 4, sea: true, tech: 'shipbuilding', cost: { coin: 30, wood: 3 }, img: 'trireme' },
     frigate:   { name: '프리깃', era: 2, str: 24, move: 5, range: 2, sea: true, tech: 'navigation', cost: { coin: 60, wood: 3, iron: 1 }, img: 'frigate' },
     battleship:{ name: '전함', era: 3, str: 55, move: 5, range: 2, sea: true, tech: 'warship', cost: { coin: 110, steel: 3, fuel: 1 }, img: 'warship' },
-    k_missile: { name: '장거리 미사일 부대', boss: 'K', era: 4, str: 140, move: 5, range: 3, fly: true, cost: { coin: 80, uranium: 2, fuel: 2, aluminum: 2 }, img: 'boss_K' },
-    j_patrol:  { name: '해상 초계기', boss: 'J', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, fuel: 2, steel: 2 }, img: 'boss_J' },
-    c_jet:     { name: '대형 전투기 편대', boss: 'C', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, engine: 2, fuel: 2, aluminum: 2 }, img: 'boss_C' },
-    a_stealth: { name: '스텔스 폭격기', boss: 'A', era: 4, str: 140, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, steel: 2, copper: 2 }, img: 'boss_A' },
-    n_hyper:   { name: '극초음속 미사일', boss: 'N', era: 4, str: 140, move: 5, range: 3, fly: true, cost: { coin: 80, chip: 2, steel: 2, copper: 2 }, img: 'boss_N' },
-    t_marine:  { name: '상륙 기갑부대', boss: 'T', era: 4, str: 140, move: 5, range: 2, fly: true, cost: { coin: 80, tire: 2, fuel: 2, steel: 2 }, img: 'boss_T' },
+    k_missile: { name: '장거리 미사일 부대', boss: 'K', era: 4, str: 300, move: 5, range: 3, fly: true, cost: { coin: 80, uranium: 2, fuel: 2, aluminum: 2 }, img: 'boss_K' },
+    j_patrol:  { name: '해상 초계기', boss: 'J', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, fuel: 2, steel: 2 }, img: 'boss_J' },
+    c_jet:     { name: '대형 전투기 편대', boss: 'C', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, engine: 2, fuel: 2, aluminum: 2 }, img: 'boss_C' },
+    a_stealth: { name: '스텔스 폭격기', boss: 'A', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2, steel: 2, copper: 2 }, img: 'boss_A' },
+    n_hyper:   { name: '극초음속 미사일', boss: 'N', era: 4, str: 300, move: 5, range: 3, fly: true, cost: { coin: 80, chip: 2, steel: 2, copper: 2 }, img: 'boss_N' },
+    t_marine:  { name: '상륙 기갑부대', boss: 'T', era: 4, str: 300, move: 5, range: 2, fly: true, cost: { coin: 80, tire: 2, fuel: 2, steel: 2 }, img: 'boss_T' },
     cruiser:   { name: '미사일 순양함', era: 4, str: 90, move: 6, range: 3, sea: true, tech: 'missile', cost: { coin: 160, steel: 2, fuel: 2, chip: 2 }, img: 'cruiser' }
   };
   R.UNIT_UPKEEP = 1;
@@ -174,7 +174,7 @@
     { name: '잊힌 제국', def: 110, hp: 1200, coin: 500, heal: 80 }
   ];
   // 나라마다 하나: 최종 도시국가. 그 나라의 특수 부대로만 무너뜨릴 수 있어요 (다른 병력은 꿈쩍도 안 함)
-  // 체력 100·회복 없음: 특수 부대가 2번 공격하면(2턴, 또는 특수 부대 2대로 1턴) 무너져요 → 17차시 도입 6분 안에 정복
+  // 체력 100·회복 없음: 특수 부대(힘 300)가 한 번 공격하면 무너져요 (행복도가 0 밑이면 힘이 줄어 2번) → 17차시 도입 6분 안에 정복
   R.FINAL_CS = { name: '최종 도전', def: 70, hp: 100, coin: 300, heal: 0, glory: 40 };
   // 특수 부대: 우리 나라에 없는 자원 3가지가 필요해요. 첫째는 딱 한 나라만 가지고 있어요!
   R.BOSS_UNIT = {
