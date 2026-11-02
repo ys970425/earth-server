@@ -84,7 +84,7 @@ $$;
 
 create or replace function priv.city_art(p_id text) returns text
 language sql stable as $$
-  select case when c.boss then 'boss' when c.final then 'final' when c.kind = 'capital' then coalesce((select type from priv.countries where id = c.country), c.type)
+  select case when c.boss or c.rebel then 'boss' when c.final then 'final' when c.kind = 'capital' then coalesce((select type from priv.countries where id = c.country), c.type)
               when c.tier >= 3 then 'fortress' when c.sea then 'harbor' else 'village' end
   from priv.cities c where c.id = p_id
 $$;
@@ -201,6 +201,9 @@ language plpgsql as $$
 declare cfg jsonb := priv.cfg(); co record; cap priv.cities; k text; v text;
 begin
   update priv.tiles set owner = null, imp = null where true;
+  -- 반란 도시였던 튜토리얼 도시국가는 원래 성벽으로
+  update priv.cities set rebel = false, def = (cfg->'CS_TIERS'->tier->>'def')::int, max_hp = (cfg->'CS_TIERS'->tier->>'hp')::int, bonus = (cfg->'CS_TIERS'->tier->>'coin')::int
+   where rebel or (tutorial and not final);
   update priv.cities set country = null, buildings = '{}', built_turn = -1, trained_turn = -1, trained_count = 0, built_count = 0, unrest = false, taken_turn = null, def_help = 0, hp = max_hp where true;
   delete from priv.units where true;
   delete from priv.inventory where true;
@@ -215,7 +218,7 @@ begin
   delete from priv.trade_fails where true;
   delete from public.notices where true;
   update public.game set phase = 0, turn = 0, turn_end = null, market_open = false, diplomacy_open = false, crisis = false,
-    fair_cap = true, tariff = 0, tariffs = '{}'::jsonb, banned = '{}'::jsonb, cold_snap = null, world_first = null, locked = false, timer_end = null where id = 1;
+    fair_cap = true, tariff = 0, tariffs = '{}'::jsonb, banned = '{}'::jsonb, alliance = false, cold_snap = null, world_first = null, locked = false, timer_end = null where id = 1;
   for co in select * from priv.countries order by id loop
     update priv.countries set coin = (cfg->'START'->>'coin')::int, happy = (cfg->'HAPPY'->>'base')::int, glory = '{}', happy_detail = '[]', research_count = 0, lux_used = '{}',
       techs = '{}',
@@ -274,7 +277,7 @@ language sql stable as $$
              + 0.2 * least(100, (w.p->>'culture')::numeric / 1.5)
              + 0.2 * least(100, priv.trade_volume(g.turn - 1) * 100.0 / greatest(1, g.base_vol))
              - case when g.banned <> '{}'::jsonb then 15 else 0 end
-             + 2 * (select count(*) from priv.countries where rebuilt))::int
+             - 3 * (select count(*) from priv.cities where rebel))::int
   from w, g
 $$;
 
@@ -284,7 +287,7 @@ $$;
 -- 행복도 계산 (턴이 끝날 때 + 무역·점령·건설 직후 바로). 사치품은 이번 턴에 즐긴 것 + 창고에 있는 것
 create or replace function priv.refresh_happy(p_c int, p_turn int default null) returns int
 language plpgsql as $$
-declare cfg jsonb := priv.cfg(); h jsonb := cfg->'HAPPY'; co priv.countries; tn int; types int; plz int; adv int; gl int; press int; ncity int; cityv int; tarv int; hung int; v int;
+declare cfg jsonb := priv.cfg(); h jsonb := cfg->'HAPPY'; co priv.countries; g public.game; tn int; types int; plz int; adv int; gl int; press int; ncity int; cityv int; tarv int; bore int; hung int; v int;
 begin
   select * into co from priv.countries where id = p_c;
   tn := coalesce(p_turn, priv.turn());
@@ -295,9 +298,13 @@ begin
   gl := coalesce((select sum(x) from unnest(co.glory) x), 0)::int;
   press := least((h->>'pressureMax')::int, greatest(0, tn - 1) * (h->>'pressurePerTurn')::int);
   cityv := greatest(0, ncity - 1) * (h->>'perCity')::int;
-  tarv := case when co.rebuilt then (cfg->'CRISIS'->>'rebuildHappy')::int else 0 end;
+  select * into g from public.game where id = 1;
+  -- 17차시: 잊힌 제국의 테러 (우리 반란 도시가 남아 있는 동안) · 인터넷으로 사치품에 싫증
+  tarv := case when exists(select 1 from priv.cities where rebel and type = co.type)
+               then (cfg->'REBEL'->>(case when g.alliance then 'terrorWeak' else 'terror' end))::int else 0 end;
+  bore := case when g.phase >= 8 then (cfg->'REBEL'->>'boredom')::int else 0 end;
   hung := case when '식량' = any(co.short) then (h->>'hunger')::int else 0 end;
-  v := greatest(-100, least(100, (h->>'base')::int + types * (h->>'perLuxType')::int + plz + adv + gl - press + cityv + tarv + hung));
+  v := greatest(-100, least(100, (h->>'base')::int + types * (h->>'perLuxType')::int + plz + adv + gl - press + cityv - tarv - bore + hung));
   update priv.countries set happy = v, happy_detail = jsonb_build_array(
       jsonb_build_object('k', '사치품 ' || types || '종류', 'v', types * (h->>'perLuxType')::int, 'tip', '사치품 종류마다 +' || (h->>'perLuxType') || ' (창고에 있으면 바로! 매 턴 종류마다 1개씩 써요)'),
       jsonb_build_object('k', '광장', 'v', plz, 'tip', '광장이 있는 도시마다 +' || (h->>'perPlaza')),
@@ -305,7 +312,8 @@ begin
       jsonb_build_object('k', '점령 환호', 'v', gl, 'tip', '도시국가를 차지하면 +' || (h->>'glory') || ', 매 턴 ' || (h->>'gloryDecay') || '씩 줄어요'),
       jsonb_build_object('k', '인구 증가', 'v', -press, 'tip', '턴마다 사람이 늘어 물건이 더 필요해요 (턴마다 -' || (h->>'pressurePerTurn') || ', 최대 -' || (h->>'pressureMax') || ')'),
       jsonb_build_object('k', '도시 관리', 'v', cityv, 'tip', '수도 말고 도시마다 ' || (h->>'perCity')),
-      jsonb_build_object('k', '도시 재건', 'v', tarv, 'tip', '17차시: 새로 얻은 도시를 다시 세우면 +' || (cfg->'CRISIS'->>'rebuildHappy')),
+      jsonb_build_object('k', '잊힌 제국의 테러', 'v', -tarv, 'tip', '반란 도시를 되찾으면 사라져요 (무역 동맹을 맺으면 줄어요)'),
+      jsonb_build_object('k', '사치품에 싫증', 'v', -bore, 'tip', '인터넷으로 다른 나라 물건을 보게 되어 사람들이 더 다양한 사치품을 원해요'),
       jsonb_build_object('k', '식량 부족', 'v', hung, 'tip', '식량이 모자라면 ' || (h->>'hunger')))
    where id = p_c;
   if v < (h->>'unhappy')::int and co.happy >= (h->>'unhappy')::int then
@@ -586,7 +594,7 @@ begin
         order by c.kind, c.taken_turn), '[]') from priv.cities c where c.country = co.id),
     'targets', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'name', c.name, 'art', priv.city_art(c.id), 'def', greatest(1, c.def - c.def_help),
         'sea', c.sea, 'tech', c.tech, 'taken', c.country is not null, 'mine', c.type = co.type, 'owner', c.country,
-        'tier', c.tier, 'hp', c.hp, 'max_hp', c.max_hp, 'bonus', c.bonus, 'tutorial', c.tutorial, 'boss', c.boss, 'final', c.final,
+        'tier', c.tier, 'hp', c.hp, 'max_hp', c.max_hp, 'bonus', c.bonus, 'tutorial', c.tutorial, 'boss', c.boss, 'final', c.final, 'rebel', c.rebel,
         'res', (select coalesce(jsonb_agg(t.res), '[]') from priv.tiles t, priv.tiles ct where ct.id = c.tile_id and t.res is not null and priv.hdist(t.c, t.r, ct.c, ct.r) <= 1))
         order by c.tier, c.id), '[]') from priv.cities c where c.kind = 'cs' and (c.type = co.type or c.tile_id = any(co.explored))),
     'units', (select coalesce(jsonb_agg(jsonb_build_object('id', u.id, 'kind', u.kind, 'tile', u.tile_id, 'acted', u.acted_turn >= g.turn,
@@ -607,6 +615,7 @@ begin
     'treaty', (select to_jsonb(t) from priv.treaties t where t.country = co.id),
     'treaties', case when g.phase >= 10 then (select coalesce(jsonb_agg(to_jsonb(t) order by t.country), '[]') from priv.treaties t) end,
     'report', case when g.phase >= 8 then priv.crisis_report(co.id) end,
+    'alliance', g.alliance,
     'gauge', priv.gauge()
   );
 end $$;
@@ -630,7 +639,7 @@ begin
         'country', c.country, 'mine', c.type = co.type, 'buildings', case when c.country = co.id then c.buildings end,
         'unrest', case when c.country = co.id then c.unrest end,
         'def', case when c.kind = 'cs' and c.country is null then greatest(1, c.def - c.def_help) end,
-        'hp', case when c.kind = 'cs' and c.country is null then c.hp end, 'max_hp', c.max_hp, 'tier', c.tier, 'boss', c.boss, 'final', c.final, 'tutorial', c.tutorial)), '[]')
+        'hp', case when c.kind = 'cs' and c.country is null then c.hp end, 'max_hp', c.max_hp, 'tier', c.tier, 'boss', c.boss, 'final', c.final, 'tutorial', c.tutorial, 'rebel', c.rebel)), '[]')
       from priv.cities c where c.tile_id = any(co.explored))
   );
 end $$;
@@ -847,6 +856,7 @@ begin
   select * into c from priv.cities where id = p_city for update;
   if not found or c.kind <> 'cs' then perform priv.err('BAD_CITY', '공격할 수 있는 도시국가가 아니에요.'); end if;
   if c.country is not null then perform priv.err('TAKEN', '이미 ' || priv.cname(c.country) || '의 도시예요.'); end if;
+  if c.rebel and c.type <> co.type then perform priv.err('PROTECTED', c.name || '은(는) ' || (select priv.cname(id) from priv.countries where type = c.type limit 1) || '의 반란 도시예요. 우리 나라 반란 도시를 되찾아요!'); end if;
   if c.tutorial and c.type <> co.type then perform priv.err('PROTECTED', '각 나라의 첫 도시국가는 그 나라만 차지할 수 있어요.'); end if;
   ud := cfg->'UNITS'->u.kind;
   if c.final and ud->>'boss' is distinct from c.type then
@@ -876,10 +886,14 @@ begin
   if chp = 0 then
     captured := true;
     update priv.cities set country = co.id, taken_turn = tn, hp = max_hp where id = c.id;
+    if c.rebel then   -- 잊힌 제국 격퇴: 원래 도시로
+      update priv.cities set rebel = false, def = (cfg->'CS_TIERS'->c.tier->>'def')::int, max_hp = (cfg->'CS_TIERS'->c.tier->>'hp')::int,
+        hp = (cfg->'CS_TIERS'->c.tier->>'hp')::int, bonus = (cfg->'CS_TIERS'->c.tier->>'coin')::int where id = c.id;
+    end if;
     -- 주변 땅 (주인 없는 땅이면 어느 지역이든)
     update priv.tiles set owner = co.id where id = any(priv.within(c.tile_id, 1)) and owner is null and terrain not in ('ocean', 'coast');
     perform priv.reveal(co.id, priv.within(c.tile_id, (cfg->>'CITY_SIGHT')::int));
-    update priv.countries set glory = glory || (case when c.final then (cfg->'FINAL_CS'->>'glory')::int else (cfg->'HAPPY'->>'glory')::int end), coin = coin + c.bonus,
+    update priv.countries set glory = glory || (case when c.final then (cfg->'FINAL_CS'->>'glory')::int when c.rebel then (cfg->'REBEL'->>'glory')::int else (cfg->'HAPPY'->>'glory')::int end), coin = coin + c.bonus,
       title = case when c.final then '최종 도전 성공' else title end where id = co.id;
     perform priv.refresh_happy(co.id);
     if c.final then perform priv.notice(priv.cname(co.id) || '이(가) 무역으로 모은 자원으로 특수 부대를 만들어 최종 도전 「' || c.name || '」을(를) 무너뜨렸어요!', 'world'); end if;
@@ -896,6 +910,14 @@ begin
       perform priv.notice(c.name || '의 기술자들이 합류해 「' || array_to_string(got, '」·「') || '」 기술을 얻었어요.', 'tech', co.id);
     end if;
     if c.boss then perform priv.notice(priv.cname(co.id) || '이(가) 최종 보스 「' || c.name || '」을(를) 무너뜨렸어요!', 'world'); end if;
+    if c.rebel then
+      perform priv.notice(priv.cname(co.id) || '이(가) 잊힌 제국을 몰아내고 「' || c.name || '」을(를) 되찾았어요!', 'world');
+      perform priv.event('rebel_down', priv.cname(co.id) || ' 반란 도시 탈환', jsonb_build_object('country', co.id, 'city', c.id));
+      if not exists(select 1 from priv.cities where rebel) then
+        perform priv.notice('잊힌 제국이 세계에서 완전히 물러났어요! 무역 동맹의 승리예요.', 'world');
+        perform priv.event('rebel_all', '잊힌 제국 완전 격퇴');
+      end if;
+    end if;
     perform priv.event('capture', priv.cname(co.id) || ' → ' || c.name, jsonb_build_object('country', co.id, 'city', c.id));
   end if;
   perform priv.bump(co.id); perform priv.bump_game(); perform priv.bump_all();
@@ -1050,14 +1072,14 @@ begin
     perform priv.fail(p_to, me.country_id, p_give_item, p_give_qty, 'ban');
     perform priv.bump(me.country_id);
     return jsonb_build_object('ok', false, 'blocked', 'ban', 'own', true, 'item', p_give_item, 'seller', me.country_id,
-      'message', '우리 나라가 지금 ' || priv.iname(p_give_item) || ' 수출을 막고 있어요. 거래가 이루어지지 않았어요.');
+      'message', '잊힌 제국이 무역선과 수송기를 공격하고 있어서 「' || priv.iname(p_give_item) || '」은(는) 지금 실어 보낼 수 없어요.');
   end if;
   if priv.is_banned(p_to, p_get_item) then
     perform priv.fail(me.country_id, p_to, p_get_item, p_get_qty, 'ban');
-    perform priv.notice(priv.cname(me.country_id) || '이(가) ' || priv.iname(p_get_item) || '을(를) 사려고 했지만, 우리 나라의 수출 제한 때문에 거래가 막혔어요.', 'alert', p_to);
+    perform priv.notice(priv.cname(me.country_id) || '이(가) 우리 ' || priv.iname(p_get_item) || '을(를) 사려고 했지만, 잊힌 제국의 무역로 공격 때문에 막혔어요.', 'alert', p_to);
     perform priv.bump(me.country_id); perform priv.bump(p_to);
     return jsonb_build_object('ok', false, 'blocked', 'ban', 'own', false, 'item', p_get_item, 'seller', p_to,
-      'message', priv.cname(p_to) || '이(가) ' || priv.iname(p_get_item) || ' 수출을 막았어요! 거래가 이루어지지 않았어요.');
+      'message', '잊힌 제국이 무역선과 수송기를 공격하고 있어서 「' || priv.iname(p_get_item) || '」을(를) 실어 올 수 없어요!');
   end if;
   perform priv.trade_check(me.country_id, p_give_item, p_give_qty, case when p_get_item = 'coin' then p_get_qty end);
   perform priv.trade_check(p_to, p_get_item, p_get_qty, case when p_give_item = 'coin' then p_give_qty end);
@@ -1135,12 +1157,11 @@ begin
     else bs := o.to_c; bb := o.from_c; bi := o.get_item; bq := o.get_qty; end if;
     perform priv.fail(bb, bs, bi, bq, 'ban');
     update priv.offers set status = 'blocked', decided_at = now() where id = o.id;
-    perform priv.notice('수출 제한! ' || priv.cname(bs) || '이(가) ' || priv.iname(bi) || ' 수출을 막아서 거래가 이루어지지 않았어요.', 'alert', o.from_c);
-    perform priv.notice('수출 제한! ' || priv.cname(bs) || '이(가) ' || priv.iname(bi) || ' 수출을 막아서 거래가 이루어지지 않았어요.', 'alert', o.to_c);
+    perform priv.notice('무역로 공격! 잊힌 제국 때문에 ' || priv.iname(bi) || '을(를) 실어 나를 수 없어 거래가 막혔어요.', 'alert', o.from_c);
+    perform priv.notice('무역로 공격! 잊힌 제국 때문에 ' || priv.iname(bi) || '을(를) 실어 나를 수 없어 거래가 막혔어요.', 'alert', o.to_c);
     perform priv.bump(o.from_c); perform priv.bump(o.to_c);
     return jsonb_build_object('ok', false, 'blocked', 'ban', 'own', bs = me.country_id, 'item', bi, 'seller', bs,
-      'message', case when bs = me.country_id then '우리 나라가 지금 ' || priv.iname(bi) || ' 수출을 막고 있어요. 거래가 이루어지지 않았어요.'
-        else priv.cname(bs) || '이(가) ' || priv.iname(bi) || ' 수출을 막았어요! 거래가 이루어지지 않았어요.' end);
+      'message', '잊힌 제국이 무역선과 수송기를 공격하고 있어서 「' || priv.iname(bi) || '」을(를) 실어 나를 수 없어요!');
   end if;
   s := priv.cost_short(o.from_c, jsonb_build_object(o.give_item, o.give_qty));
   if s is not null then perform priv.err('NO_MONEY', priv.cname(o.from_c) || '의 물건이 모자라 거래할 수 없어요: ' || s); end if;
@@ -1155,7 +1176,7 @@ begin
     perform priv.fail(o.to_c, o.from_c, o.give_item, o.give_qty, 'tariff');
     perform priv.bump(o.to_c);
     return jsonb_build_object('ok', false, 'blocked', 'tariff', 'item', o.give_item, 'tariff', tar_to,
-      'message', '관세 ' || tar_to || '코인을 낼 코인이 모자라 거래하지 못했어요.');
+      'message', '관세 폭탄! 관세 ' || tar_to || '코인을 낼 코인이 모자라 거래하지 못했어요.');
   end if;
   if tar_from > 0 and priv.coin(o.from_c) < tar_from + (case when o.give_item = 'coin' then o.give_qty else 0 end) then
     perform priv.fail(o.from_c, o.to_c, o.get_item, o.get_qty, 'tariff');
@@ -1182,74 +1203,54 @@ begin
   return jsonb_build_object('ok', true, 'accepted', true, 'tariff', tar, 'tariff_me', case when me.country_id = o.to_c then tar_to else tar_from end);
 end $$;
 
--- 17차시: 새로 얻은 도시 재건 (수출 제한 물건 2개 + 관세 물건 2개)
-create or replace function public.city_rebuild() returns jsonb
-language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.act_start(8, '기획부 장관'); cfg jsonb := priv.cfg(); co priv.countries; rb jsonb; q int; cost jsonb; s text; v int;
-begin
-  select * into co from priv.countries where id = me.country_id;
-  if co.rebuilt then perform priv.err('DONE', '이미 도시를 재건했어요.'); end if;
-  rb := cfg->'CRISIS'->'rebuild'->co.type; q := (cfg->'CRISIS'->>'rebuildQty')::int;
-  cost := jsonb_build_object(rb->>'banned', q, rb->>'tariffed', q);
-  s := priv.cost_short(co.id, cost);
-  if s is not null then perform priv.err('NO_MONEY', '재건 물자가 모자라요: ' || s); end if;
-  perform priv.pay(co.id, cost);
-  -- 재건에 쓴 사치품은 이번 턴에 즐긴 것으로 쳐요 (재건하자마자 행복도가 깎이지 않게)
-  update priv.countries set rebuilt = true,
-    lux_used = array(select distinct x from unnest(lux_used || array[rb->>'banned', rb->>'tariffed']) x where x in (select jsonb_array_elements_text(cfg->'LUX')))
-   where id = co.id;
-  v := priv.refresh_happy(co.id);
-  perform priv.notice(priv.cname(co.id) || '이(가) 무역으로 물자를 모아 새 도시를 재건했어요!', 'world');
-  perform priv.event('rebuild', priv.cname(co.id) || ' 도시 재건', jsonb_build_object('country', co.id));
-  perform priv.bump(co.id); perform priv.bump_game(); perform priv.bump_all();
-  return jsonb_build_object('ok', true, 'happy', v);
-end $$;
-
--- 피해 보고서: 실제 거래 기록으로만 만들어요 (없던 피해를 만들지 않음)
+drop function if exists public.city_rebuild();
+-- 우리 나라가 겪은 일 (실제 거래 기록으로만): 세계 무역 회의 화면에 한 줄 요약
 create or replace function priv.crisis_report(p_c int) returns jsonb
 language plpgsql stable as $$
-declare cfg jsonb := priv.cfg(); co priv.countries; rb jsonb; ct int; rate numeric;
+declare ct int;
 begin
-  select * into co from priv.countries where id = p_c;
-  rb := cfg->'CRISIS'->'rebuild'->co.type;
-  rate := (cfg->'CRISIS'->>'tariffRate')::numeric;
   select min(turn) into ct from priv.events where kind = 'expire';
   return jsonb_build_object(
-    'partner', (select id from priv.countries where type = rb->>'partner' limit 1),
-    'my_ban', cfg->'CRISIS'->'ban'->>co.type,
-    'need', (cfg->'CRISIS'->>'rebuildQty')::int,
-    'rebuilt', co.rebuilt,
     'crisis_turn', ct,
-    'items', (select jsonb_agg(jsonb_build_object('item', x.item, 'kind', x.kind, 'have', priv.inv(p_c, x.item),
-        'tariff_unit', case when x.kind = 'tariff' then ceil((cfg->'ITEMS'->x.item->>'ref')::numeric * rate)::int else 0 end,
-        'ref', (cfg->'ITEMS'->x.item->>'ref')::int,
-        'before', (select round(avg(price))::int from priv.trades where item = x.item and price is not null and phase < 8),
-        'after', (select round(avg(price))::int from priv.trades where item = x.item and price is not null and phase >= 8 and not broker),
-        'bought', (select coalesce(sum(qty), 0) from priv.trades where item = x.item and to_c = p_c and phase >= 8))
-        order by x.ord)
-      from (values (rb->>'banned', 'ban', 1), (rb->>'tariffed', 'tariff', 2)) as x(item, kind, ord)),
     'fails', (select coalesce(jsonb_agg(jsonb_build_object('turn', f.turn, 'buyer', f.buyer, 'seller', f.seller, 'item', f.item, 'qty', f.qty, 'reason', f.reason) order by f.id), '[]')
       from priv.trade_fails f where f.buyer = p_c or f.seller = p_c),
-    'tariff_paid', (select coalesce(sum(tariff), 0) from priv.trades where to_c = p_c and phase >= 8),
+    'tariff_paid', (select coalesce(sum(tariff), 0) from priv.trades where to_c = p_c and phase >= 9),
     'trades_before', (select count(*) from priv.trades where (from_c = p_c or to_c = p_c) and not broker and ct is not null and turn between ct - 2 and ct - 1),
-    'trades_after', (select count(*) from priv.trades where (from_c = p_c or to_c = p_c) and not broker and phase >= 8 and phase < 11),
-    'trades_charter', (select count(*) from priv.trades where (from_c = p_c or to_c = p_c) and not broker and phase >= 11)
+    'trades_after', (select count(*) from priv.trades where (from_c = p_c or to_c = p_c) and not broker and phase between 9 and 10),
+    'rebel', (select jsonb_build_object('id', c.id, 'name', c.name, 'hp', c.hp, 'max_hp', c.max_hp, 'def', c.def) from priv.cities c, priv.countries co
+              where co.id = p_c and c.rebel and c.type = co.type limit 1)
   );
 end $$;
 
--- 조약 (17차시) · 개인 한 문장
+-- 무역 동맹: 무역이 되살아나고 잊힌 제국이 크게 약해져요
+create or replace function priv.alliance() returns void
+language plpgsql as $$
+declare cfg jsonb := priv.cfg(); co record;
+begin
+  update public.game set alliance = true, locked = false, banned = '{}'::jsonb, tariffs = '{}'::jsonb, fair_cap = true, phase = greatest(phase, 11) where id = 1;
+  update priv.cities set def = (cfg->'REBEL'->>'weakDef')::int, max_hp = (cfg->'REBEL'->>'weakHp')::int, hp = least(hp, (cfg->'REBEL'->>'weakHp')::int) where rebel;
+  for co in select id from priv.countries loop perform priv.refresh_happy(co.id); end loop;
+  perform priv.notice('무역 동맹 체결! 무역로가 다시 열리고 관세 폭탄이 사라졌어요. 잊힌 제국이 크게 약해졌어요 — 우리 반란 도시를 되찾아요!', 'market');
+  perform priv.event('alliance', '무역 동맹 체결');
+end $$;
+
+-- 세계 무역 회의: 모둠이 고른 무역 규칙 1개 (국가 대표가 입력). 6나라가 다 입력하면 무역 동맹!
 create or replace function public.treaty_submit(p_focus text, p_problem text, p_promise text, p_reason text) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
-declare me priv.students := priv.me();
+declare me priv.students := priv.me(); n int; ally boolean := false;
 begin
-  if not me.is_leader then perform priv.err('LEADER_ONLY', '조약 등록은 국가 대표가 해요.'); end if;
-  if priv.phase() < 10 then perform priv.err('PHASE', '조약 회의 시간에 등록할 수 있어요.'); end if;
+  if not me.is_leader and not exists(select 1 from priv.admins where uid = auth.uid() and control = me.country_id) then perform priv.err('LEADER_ONLY', '규칙 입력은 국가 대표가 해요.'); end if;
+  if priv.phase() < 10 then perform priv.err('PHASE', '세계 무역 회의 시간에 입력할 수 있어요.'); end if;
+  if coalesce(trim(p_promise), '') = '' then perform priv.err('EMPTY', '무역 규칙을 한 문장으로 써 주세요.'); end if;
   insert into priv.treaties(country, focus, problem, promise, reason, agreed, updated_at)
-    values (me.country_id, p_focus, left(trim(p_problem), 120), left(trim(p_promise), 120), left(trim(p_reason), 120), '{}', now())
+    values (me.country_id, p_focus, left(trim(coalesce(p_problem, '')), 120), left(trim(p_promise), 120), left(trim(coalesce(p_reason, '')), 120), '{}', now())
     on conflict (country) do update set focus = excluded.focus, problem = excluded.problem, promise = excluded.promise,
-      reason = excluded.reason, agreed = '{}', updated_at = now();
+      reason = excluded.reason, updated_at = now();
+  select count(*) into n from priv.treaties;
+  perform priv.notice(priv.cname(me.country_id) || '이(가) 세계 무역 헌장에 규칙을 올렸어요: 「' || left(trim(p_promise), 60) || '」 (' || n || '/6)', 'world');
+  if n >= 6 and priv.phase() = 10 then perform priv.alliance(); ally := true; end if;
   perform priv.bump_all(); perform priv.bump_game();
-  return jsonb_build_object('ok', true);
+  return jsonb_build_object('ok', true, 'count', n, 'alliance', ally);
 end $$;
 
 create or replace function public.treaty_agree() returns jsonb
@@ -1281,15 +1282,15 @@ language sql stable security definer set search_path = public, priv as $$
   select jsonb_build_object(
     'now', now(),
     'game', (select jsonb_build_object('phase', phase, 'turn', turn, 'turn_end', turn_end, 'market_open', market_open,
-      'diplomacy_open', diplomacy_open, 'world_first', world_first, 'timer_end', timer_end, 'timer_label', timer_label, 'banned', banned, 'tariffs', tariffs) from public.game where id = 1),
+      'diplomacy_open', diplomacy_open, 'world_first', world_first, 'timer_end', timer_end, 'timer_label', timer_label, 'banned', banned, 'tariffs', tariffs, 'alliance', alliance) from public.game where id = 1),
     'countries', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'type', c.type, 'type_name', priv.cfg()->'TYPES'->c.type->>'name',
         'name', priv.cname(c.id), 'flag_url', c.flag_url, 'emblem_url', c.emblem_url, 'happy', c.happy, 'title', c.title,
         'cities', (select count(*) from priv.cities where country = c.id), 'discovered', coalesce(array_length(c.discovered, 1), 0),
         'exports', (select coalesce(sum(qty), 0) from priv.trades where from_c = c.id and not broker),
         'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker),
-        'rebuilt', c.rebuilt, 'final_done', exists(select 1 from priv.cities f where f.final and f.type = c.type and f.country = c.id),
+        'rebel', exists(select 1 from priv.cities r where r.rebel and r.type = c.type), 'final_done', exists(select 1 from priv.cities f where f.final and f.type = c.type and f.country = c.id),
         'fails', (select count(*) from priv.trade_fails f where f.buyer = c.id or f.seller = c.id),
-        'tariff_paid', (select coalesce(sum(tariff), 0) from priv.trades where to_c = c.id and phase >= 8)) order by c.id), '[]') from priv.countries c),
+        'tariff_paid', (select coalesce(sum(tariff), 0) from priv.trades where to_c = c.id and phase >= 9)) order by c.id), '[]') from priv.countries c),
     'tiles', (select jsonb_agg(jsonb_build_array(t.id, t.terrain, t.res, t.owner, t.imp) order by t.id) from priv.tiles t),
     'cities', (select jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'country', c.country, 'art', priv.city_art(c.id),
         'buildings', c.buildings, 'unrest', c.unrest, 'tier', c.tier, 'boss', c.boss, 'max_hp', c.max_hp,
@@ -1395,7 +1396,7 @@ begin
         'exports', (select coalesce(sum(qty), 0) from priv.trades where from_c = c.id and not broker),
         'imports', (select coalesce(sum(qty), 0) from priv.trades where to_c = c.id and not broker),
         'online', (select count(*) from priv.students where country_id = c.id and last_seen > now() - interval '60 seconds'),
-        'rebuilt', c.rebuilt,
+        'rebel', (select jsonb_build_object('name', r.name, 'hp', r.hp, 'max_hp', r.max_hp) from priv.cities r where r.rebel and r.type = c.type limit 1),
         'final', (select jsonb_build_object('id', f.id, 'name', f.name, 'hp', f.hp, 'max_hp', f.max_hp, 'taken', f.country = c.id, 'owner', f.country)
                   from priv.cities f where f.final and f.type = c.type limit 1),
         'report', case when g.phase >= 8 then priv.crisis_report(c.id) end
@@ -1438,30 +1439,36 @@ begin
       perform priv.notice('세계 시장이 열렸어요! 무역 탭에서 다른 나라에 거래를 제안해 보세요.', 'market');
       perform priv.event('market', '세계 시장 개방');
     elsif nxt = 8 then
-      -- 세계 무역 협정 만료: 공정 거래 규칙이 사라지고, 나라마다 특산품 하나 수출 제한, 정해진 물건에 관세
-      update public.game set fair_cap = false,
-        tariffs = (select coalesce(jsonb_object_agg(x, (cfg->'CRISIS'->>'tariffRate')::numeric), '{}') from jsonb_array_elements_text(cfg->'CRISIS'->'tariffItems') x),
-        banned = (select coalesce(jsonb_object_agg(c.id::text, jsonb_build_array(cfg->'CRISIS'->'ban'->>c.type)), '{}') from priv.countries c)
-       where id = 1;
-      perform priv.notice('긴급: 세계 무역 협정이 끝났어요! 나라마다 자기 특산품 하나의 수출을 막았고, 일부 수입품에는 관세가 붙었어요.', 'alert');
-      for co in select * from priv.countries order by id loop
-        rb := cfg->'CRISIS'->'rebuild'->co.type;
-        perform priv.notice_d('우리 나라 정부는 「' || priv.iname(cfg->'CRISIS'->'ban'->>co.type) || '」 수출을 막기로 했어요. 그리고 새로 얻은 도시를 다시 세우려면 「'
-          || priv.iname(rb->>'banned') || '」 ' || (cfg->'CRISIS'->>'rebuildQty') || '개와 「' || priv.iname(rb->>'tariffed') || '」 ' || (cfg->'CRISIS'->>'rebuildQty')
-          || '개가 필요해요. 무역 미션을 확인해요!', 'crisis', co.id, jsonb_build_object('mode', 'crisis', 'ban', cfg->'CRISIS'->'ban'->>co.type, 'rebuild', rb));
+      -- 잊힌 제국 등장: 각 나라가 처음 차지한 도시를 빼앗아 반란 도시로
+      update public.game set phase = 8 where id = 1;   -- 행복도 계산(사치품 싫증)이 바로 반영되게
+      for co in select c.*, p.id pid, (select tile_id from priv.cities where kind = 'capital' and type = c.type) cap
+                from priv.cities c join priv.countries p on p.type = c.type where c.tutorial and not c.final loop
+        update priv.units set tile_id = co.cap where tile_id = co.tile_id;
+        update priv.cities set rebel = true, country = null, buildings = '{}', unrest = false,
+          def = (cfg->'REBEL'->>'def')::int, max_hp = (cfg->'REBEL'->>'hp')::int, hp = (cfg->'REBEL'->>'hp')::int, bonus = (cfg->'REBEL'->>'coin')::int
+         where id = co.id;
+        perform priv.reveal(co.pid, priv.within(co.tile_id, 1));
+        perform priv.notice_d('긴급속보! 잊힌 제국이 「' || co.name || '」을(를) 빼앗아 반란 도시로 만들었어요. 테러로 시민들이 불안해해요.', 'crisis', co.pid,
+          jsonb_build_object('mode', 'rebel', 'city', co.name, 'tile', co.tile_id));
       end loop;
-      perform priv.event('expire', '세계 무역 협정 만료 (관세·수출 제한)');
+      for co in select id from priv.countries loop perform priv.refresh_happy(co.id); end loop;
+      perform priv.notice('긴급속보: 잊힌 제국 등장! 여섯 나라의 첫 도시가 잊힌 제국에게 넘어갔어요. 인터넷으로 다른 나라 물건을 보게 된 시민들은 사치품에 싫증을 내기 시작했어요.', 'alert');
+      perform priv.event('rebel', '잊힌 제국 등장');
     elsif nxt = 9 then
-      update public.game set locked = true where id = 1;
-      perform priv.notice('피해 보고서 시간이에요. 게임 조작은 잠시 멈추고, 「피해 보고서」 탭에서 우리 나라가 겪은 어려움을 살펴봐요.', 'phase');
-      perform priv.event('report', '피해 보고서');
+      -- 협정 만료: 잊힌 제국이 무역 규칙을 깨요 (사치품 거래 불가 · 나머지 관세 폭탄)
+      update public.game set fair_cap = false,
+        tariffs = (select coalesce(jsonb_object_agg(k, (cfg->'CRISIS'->>'tariffRate')::numeric), '{}') from jsonb_object_keys(cfg->'ITEMS') k
+                   where not (cfg->'LUX') ? k),
+        banned = (select coalesce(jsonb_object_agg(c.id::text, cfg->'LUX'), '{}') from priv.countries c)
+       where id = 1;
+      perform priv.notice('긴급속보: 세계 무역 협정 만료! 잊힌 제국이 무역선과 수송기를 공격해요. 사치품은 거래할 수 없고, 다른 물건에는 관세 폭탄(+100%)이 붙었어요.', 'alert');
+      perform priv.event('expire', '협정 만료: 잊힌 제국의 무역 파괴');
     elsif nxt = 10 then
       update public.game set locked = true where id = 1;
-      perform priv.notice('조약 회의 시간이에요. 우리 나라의 약속을 정하고, 상대 나라와 협상해요.', 'phase');
+      perform priv.notice('세계 무역 회의 시간이에요! ① 같은 역할끼리 모이고 → ② 모둠 규칙 1개 → ③ 대표들이 세계 무역 헌장을 만들어요.', 'phase');
+      perform priv.event('meeting', '세계 무역 회의');
     elsif nxt = 11 then
-      update public.game set locked = false, banned = '{}'::jsonb, tariffs = '{}'::jsonb, fair_cap = true where id = 1;
-      perform priv.notice('세계 무역 헌장 체결! 수출 제한이 풀리고 관세가 사라졌어요. 약속을 지키며 다시 거래하고, 도시를 재건해요.', 'market');
-      perform priv.event('charter', '세계 무역 헌장 체결');
+      perform priv.alliance();
     end if;
   end loop;
   update public.game set phase = p_target where id = 1;
@@ -1474,7 +1481,7 @@ language plpgsql security definer set search_path = public, priv as $$
 begin
   perform priv.need_admin();
   if p_target < 0 or p_target > 11 then perform priv.err('BAD_PHASE', '없는 단계예요.'); end if;
-  update public.game set phase = p_target, locked = (p_target in (9, 10)) where id = 1;
+  update public.game set phase = p_target, locked = (p_target = 10) where id = 1;
   perform priv.bump_game(); perform priv.bump_all();
   return jsonb_build_object('ok', true);
 end $$;
@@ -1490,7 +1497,8 @@ begin
   perform priv.end_turn();
   -- 도시국가 성벽 회복 (한 번에 못 무너뜨리면 다시 단단해져요)
   update priv.cities set hp = least(max_hp, hp + case when final then (cfg->'FINAL_CS'->>'heal')::int else coalesce((cfg->'CS_TIERS'->tier->>'heal')::int, 10) end)
-   where kind = 'cs' and country is null and hp < max_hp;
+   where kind = 'cs' and country is null and hp < max_hp and not rebel;
+  if not g.alliance then update priv.cities set hp = max_hp where rebel; end if;   -- 잊힌 제국: 무역 동맹 전에는 매 턴 체력을 모두 회복
   update priv.offers set status = 'expired', decided_at = now() where status = 'pending';
   update public.game set turn = turn + 1, turn_end = case when auto_turn > 0 then now() + make_interval(secs => auto_turn) end,
     cold_snap = null where id = 1;

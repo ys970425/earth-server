@@ -238,6 +238,9 @@ create table if not exists priv.trade_fails (
   reason text,                 -- ban(수출 제한) | tariff(관세 낼 코인 부족)
   created_at timestamptz not null default now()
 );
+-- v7: 잊힌 제국 (반란 도시)·무역 동맹
+alter table priv.cities add column if not exists rebel boolean not null default false;
+alter table public.game add column if not exists alliance boolean not null default false;
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 

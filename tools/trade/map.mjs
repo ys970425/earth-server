@@ -52,7 +52,7 @@ const ZONES = {
 };
 // 주인 없는 땅의 도시국가 (누구나 차지할 수 있고, 최종 보스는 여러 나라가 힘을 합쳐야 해요)
 const NEUTRAL = [
-  { id: 'X1', name: '잊힌 제국 아르카', at: [25, 23], tier: 5, res: ['gold', 'aluminum'], boss: true },
+  { id: 'X1', name: '고대 성채 아르카', at: [25, 23], tier: 4, res: ['gold', 'aluminum'] },   // 잊힌 제국은 섬이 아니라 각 나라의 반란 도시로 등장 (17차시)
   { id: 'X2', name: '수호자의 탑', at: [27, 22], tier: 4, res: [] },
   { id: 'X3', name: '폭풍섬', at: [31, 3], tier: 3, res: ['aluminum'] },
   { id: 'X4', name: '천둥 요새', at: [33, 4], tier: 4, res: ['uranium'] },
