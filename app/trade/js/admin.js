@@ -9,15 +9,11 @@
   const NEXT = {
     1: { title: '나라 키우기 시작 (턴 1)', desc: '노동자·건물·병력·점령·정찰을 할 수 있어요. 13차시 시작.' },
     2: { title: '성장의 한계', desc: '시민들이 사치품·강철·연료를 원하기 시작해요. 다음 턴 정산부터 행복도가 떨어져요. (14차시 시작)' },
-    3: { title: '세계 시장 개방', desc: '외교 창과 무역(거래 제안)이 열려요. 나라마다 수출 1건, 수입 1건 미션!' },
-    4: { title: '무역 라운드 (15차시)', desc: '생산비 비교, 잘 만드는 것 집중하기.' },
-    5: { title: '공급 차질 (16차시)', desc: '단계만 바뀌어요. 한파 사건은 아래 사건 버튼으로 실행해요.' },
-    6: { title: '가격 경쟁', desc: '단계만 바뀌어요. 가격 경쟁 사건은 사건 버튼으로.' },
-    7: { title: '실제 나라와 비교', desc: '16차시 마무리.' },
-    8: { title: '긴급속보: 잊힌 제국 등장 (17차시 7분쯤)', desc: '각 나라의 첫 도시가 반란 도시로(체력 1000, 매 턴 모두 회복). 테러 -15, 사치품 싫증 -10으로 행복도가 떨어져요. 최종 도시국가 정복이 끝난 뒤 눌러요.' },
-    9: { title: '긴급속보: 협정 만료 · 잊힌 제국의 무역 파괴 (9분쯤)', desc: '사치품은 거래 불가, 나머지 물건은 관세 폭탄(+100%). 학생들이 5분 정도 거래해 보며 막히는 걸 겪어요.' },
-    10: { title: '세계 무역 회의 (14분쯤, 게임 멈춤)', desc: '① 같은 역할끼리 모임 4분 → ② 모둠 규칙 1개 4분 → ③ 대표 모여 헌장 5분 → 국가 대표 입력. 6나라가 다 올리면 자동으로 무역 동맹!' },
-    11: { title: '무역 동맹 체결 (강제)', desc: '6나라가 다 올리면 저절로 넘어가요. 시간이 없을 때만 눌러요. 무역 회복 + 반란 도시 체력 150·회복 없음.' }
+    3: { title: '세계 시장 개방 (14차시 끝~16차시)', desc: '외교 창과 무역이 열려요. 무역 미션으로 특수 부대 재료와 사치품을 모아요. 16차시 끝에 특수 부대를 최종 도시국가 근처에 세워 두기!' },
+    4: { title: '긴급속보: 잊힌 제국 등장 (17차시 7분쯤)', desc: '각 나라의 첫 도시가 반란 도시로(체력 1000, 매 턴 모두 회복). 테러 -15, 사치품 싫증 -10으로 행복도가 떨어져요. 최종 도시국가 정복이 끝난 뒤 눌러요.' },
+    5: { title: '긴급속보: 협정 만료 · 잊힌 제국의 무역 파괴 (9분쯤)', desc: '사치품은 거래 불가, 나머지 물건은 관세 폭탄(+100%). 학생들이 5분 정도 거래해 보며 막히는 걸 겪어요.' },
+    6: { title: '세계 무역 회의 (14분쯤, 게임 멈춤)', desc: '① 같은 역할끼리 모임 4분 → ② 모둠 규칙 1개 4분 → ③ 대표 모여 헌장 5분 → 국가 대표 입력. 6나라가 다 올리면 자동으로 무역 동맹!' },
+    7: { title: '무역 동맹 체결 (강제)', desc: '6나라가 다 올리면 저절로 넘어가요. 시간이 없을 때만 눌러요. 무역 회복 + 반란 도시 체력 150·회복 없음.' }
   };
 
   async function start() {
@@ -125,7 +121,7 @@
         g.market_open ? h('div', { class: noTrade.length ? 'warn-box' : 'done-box', style: { marginTop: '10px' } },
           noTrade.length ? '수출·수입 미션 미완료: ' + noTrade.map(c => c.name + (c.exports ? '' : ' (수출 0)') + (c.imports ? '' : ' (수입 0)')).join(', ') : '모든 나라가 수출과 수입을 했어요.') : null)));
     page.appendChild(supportPanel());
-    if (g.phase >= 6) page.appendChild(lessonPanel());
+    if (g.phase >= 3) page.appendChild(lessonPanel());
     page.appendChild(nationsTable());
     page.appendChild(eventsPanel());
   }
@@ -194,20 +190,20 @@
   // ---------- 16·17차시 진행판 ----------
   function lessonPanel() {
     const st = A.st, g = st.game;
-    const steps = [['0~7분', '최종 도시국가 정복·발전', g.phase <= 7], ['7분', '▶ 잊힌 제국 등장', g.phase === 8], ['9분', '▶ 협정 만료: 무역 파괴 → 거래해 보기', g.phase === 9],
-      ['14분', '▶ 세계 무역 회의 (역할 모임 → 모둠 규칙 → 대표 헌장)', g.phase === 10], ['28분', '6/6 입력 → 무역 동맹 (자동)', g.phase === 11 && st.countries.some(c => c.rebel)],
-      ['28~35분', '반란 도시 되찾기', g.phase === 11], ['35분', '정리: 나의 한 문장', false]];
+    const steps = [['0~7분', '최종 도시국가 정복·발전', g.phase <= 3], ['7분', '▶ 잊힌 제국 등장', g.phase === 4], ['9분', '▶ 협정 만료: 무역 파괴 → 거래해 보기', g.phase === 5],
+      ['14분', '▶ 세계 무역 회의 (역할 모임 → 모둠 규칙 → 대표 헌장)', g.phase === 6], ['28분', '6/6 입력 → 무역 동맹 (자동)', g.phase === 7 && st.countries.some(c => c.rebel)],
+      ['28~35분', '반란 도시 되찾기', g.phase === 7], ['35분', '정리: 나의 한 문장', false]];
     const n = (st.treaties || []).length;
     return h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '17차시 진행판', h('small', {}, '정복이 7분 안에 안 끝나도 넘어가요. 회의 시간은 줄이지 않기!')),
       h('div', { class: 'timeline' }, steps.map(([t, l, on]) => h('div', { class: 'tl' + (on ? ' on' : '') }, h('small', {}, t), h('span', {}, l)))),
-      g.phase >= 10 ? h('div', { class: 'ally-bar' }, h('i', { style: { width: (n / 6 * 100) + '%' } }), h('span', {}, '세계 무역 헌장 ' + n + '/6' + (g.alliance ? ' · 무역 동맹 체결!' : ''))) : null,
+      g.phase >= 6 ? h('div', { class: 'ally-bar' }, h('i', { style: { width: (n / 6 * 100) + '%' } }), h('span', {}, '세계 무역 헌장 ' + n + '/6' + (g.alliance ? ' · 무역 동맹 체결!' : ''))) : null,
       h('table', { class: 'tbl' }, h('tr', {}, ['나라', '최종 도시국가', '특수 부대', '반란 도시', '막힌 거래', '낸 관세', '헌장 규칙', ''].map(x => h('th', {}, x))),
         st.countries.map(c => {
           const bu = R.BOSS_UNIT[c.type].unit, nb = (c.units || {})[bu] || 0, f = c.final || {}, t = (st.treaties || []).find(x => x.country === c.id);
           return h('tr', {}, h('td', {}, h('b', { style: { color: typeColor(c.type) } }, c.name)),
             h('td', { class: f.taken ? 'good' : '' }, f.taken ? '정복 완료' : f.name ? f.name + ' (체력 ' + f.hp + '/' + f.max_hp + ')' : '-'),
             h('td', { class: !f.taken && !nb ? 'bad' : '' }, nb ? R.UNITS[bu].name + ' ' + nb : '없음'),
-            h('td', { class: c.rebel ? 'bad' : g.phase >= 8 ? 'good' : '' }, c.rebel ? c.rebel.name + ' (체력 ' + c.rebel.hp + '/' + c.rebel.max_hp + ')' : g.phase >= 8 ? '되찾음' : '-'),
+            h('td', { class: c.rebel ? 'bad' : g.phase >= 4 ? 'good' : '' }, c.rebel ? c.rebel.name + ' (체력 ' + c.rebel.hp + '/' + c.rebel.max_hp + ')' : g.phase >= 4 ? '되찾음' : '-'),
             h('td', {}, c.report ? c.report.fails.length + '번' : '-'), h('td', {}, c.report ? c.report.tariff_paid + '코인' : '-'),
             h('td', {}, t ? t.promise : '-'),
             h('td', {}, !f.taken && f.name ? h('button', { class: 'small', onclick: () => confirm(c.name + '에 특수 부대를 보낼까요?') && act('admin_boss_help', [c.id], '특수 부대 지원') }, '특수 부대 지원') : null));

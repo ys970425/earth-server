@@ -254,7 +254,7 @@ await shot(A, '29-boss-unit');
 // 잊힌 제국 등장
 const R5 = async () => { await A.evaluate(() => window.__refresh()); await wait(1500); };
 await adm.goto(BASE + '/admin.html'); await adm.waitForSelector('.support-panel'); await wait(300);
-await call(ADMIN, 'admin_set_phase', { p_target: 8 }); await R5();
+await call(ADMIN, 'admin_set_phase', { p_target: 4 }); await R5();
 ok(await A.$('.news-flash') !== null && (await one(`select count(*)::int n from priv.cities where rebel`)).n === 6, 'UI: 긴급속보 잊힌 제국 등장 + 반란 도시 6곳');
 await shot(A, '30-rebel-news');
 await A.evaluate(() => document.querySelectorAll('.modal-back').forEach(b => b.remove()));
@@ -264,7 +264,7 @@ await A.evaluate(t => window.__map.centerOn(t), rk.tile_id); await wait(400);
 await clickTile(A, rk.tile_id); await wait(700);
 await shot(A, '31-rebel-city');
 // 협정 만료: 무역 파괴
-await call(ADMIN, 'admin_set_phase', { p_target: 9 }); await R5();
+await call(ADMIN, 'admin_set_phase', { p_target: 5 }); await R5();
 ok(await A.$('.news-flash') !== null, 'UI: 긴급속보 협정 만료');
 await shot(A, '32-expire-news');
 await A.evaluate(() => document.querySelectorAll('.modal-back').forEach(b => b.remove()));
@@ -277,7 +277,7 @@ await A.evaluate(() => document.querySelectorAll('.modal-back').forEach(b => b.r
 await board.reload(); await wait(2500);
 await shot(board, '36-board-crisis');
 // 세계 무역 회의
-await call(ADMIN, 'admin_set_phase', { p_target: 10 }); await R5();
+await call(ADMIN, 'admin_set_phase', { p_target: 6 }); await R5();
 ok(await A.$('.role-talks') !== null, 'UI: 세계 무역 회의 화면');
 await A.click('.tcard >> nth=0'); await wait(200);
 await shot(A, '34-meeting');
@@ -285,7 +285,7 @@ await A.click('button:has-text("세계 무역 헌장에 올리기")'); await wai
 await db.query(`insert into priv.treaties(country, focus, promise, reason) select id, '2', '거래 조건을 바꿀 때는 미리 알려요.', '' from priv.countries where id between 2 and 4 on conflict do nothing`);
 await adm.reload(); await adm.waitForSelector('.support-panel'); await wait(600);
 await shot(adm, '37-admin-17');
-await call(ADMIN, 'admin_set_phase', { p_target: 11 }); await R5();
+await call(ADMIN, 'admin_set_phase', { p_target: 7 }); await R5();
 ok((await one(`select alliance from public.game`)).alliance, 'UI: 무역 동맹');
 await shot(A, '35-alliance');
 console.log('ERRORS:', errors.length ? '\n' + errors.join('\n') : 'none');

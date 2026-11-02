@@ -241,6 +241,16 @@ create table if not exists priv.trade_fails (
 -- v7: 잊힌 제국 (반란 도시)·무역 동맹
 alter table priv.cities add column if not exists rebel boolean not null default false;
 alter table public.game add column if not exists alliance boolean not null default false;
+-- v8: 단계 줄이기 (예전 4~7 무역 라운드·공급 차질·가격 경쟁·실제 나라 비교 삭제, 예전 8~11 → 4~7). 한 번만 옮겨요
+alter table public.game add column if not exists phase_v int not null default 1;
+do $$ begin
+  if (select phase_v from public.game where id = 1) < 2 then
+    update public.game set phase = case when phase between 4 and 7 then 3 when phase >= 8 then phase - 4 else phase end,
+      locked = (phase = 10), phase_v = 2 where id = 1;
+    update priv.trades set phase = case when phase between 4 and 7 then 3 when phase >= 8 then phase - 4 else phase end;
+    update priv.trade_fails set phase = case when phase between 4 and 7 then 3 when phase >= 8 then phase - 4 else phase end;
+  end if;
+end $$;
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 

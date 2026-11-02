@@ -290,7 +290,7 @@ await db.query(`update priv.countries set coin = 500 where id = 4`);
 const nextTo = async cid => (await one(`select t.id from priv.tiles t, priv.tiles ct, priv.cities c where c.id = '${cid}' and ct.id = c.tile_id and priv.hdist(t.c, t.r, ct.c, ct.r) = 1
   and t.terrain not in ('ocean', 'coast') and t.id not in (select tile_id from priv.cities) order by t.id limit 1`)).id;
 const h0 = (await one(`select priv.refresh_happy(1) h`)).h;
-await rpc(ADMIN, 'admin_set_phase', 8);
+await rpc(ADMIN, 'admin_set_phase', 4);
 const rb1 = await one(`select * from priv.cities where tutorial and type = 'K'`);
 ok(rb1.rebel && rb1.country === null && rb1.hp === 1000 && rb1.def === 200, '잊힌 제국 등장: 반도의 첫 도시가 반란 도시로 (체력 1000·방어 200)');
 ok((await one(`select count(*)::int n from priv.cities where rebel`)).n === 6, '여섯 나라 모두 반란 도시 1곳씩');
@@ -311,7 +311,7 @@ ok(!ra.captured && ra.city_dmg < 60, '동맹 전 반란 도시: 특수 부대로
 await rpc(ADMIN, 'admin_next_turn');
 ok((await one(`select hp from priv.cities where id = '${rb1.id}'`)).hp === 1000, '동맹 전 반란 도시는 매 턴 체력을 모두 회복');
 // 협정 만료: 잊힌 제국의 무역 파괴
-await rpc(ADMIN, 'admin_set_phase', 9);
+await rpc(ADMIN, 'admin_set_phase', 5);
 const g9 = (await rpc(L(1), 'my_state')).game;
 ok(!g9.fair_cap && g9.banned['1'].includes('gold') && g9.banned['5'].includes('jewelry') && g9.tariffs.steel === 1 && !g9.tariffs.gold, '협정 만료: 사치품 거래 불가, 나머지 관세 폭탄 100%');
 await rpc(ADMIN, 'admin_grant', 5, { jewelry: 2, uranium: 4 }, '테스트');
@@ -332,13 +332,13 @@ const rep1 = (await rpc(L(1), 'my_state')).report;
 ok(rep1.fails.length === 1 && rep1.tariff_paid === 30, '우리 나라가 겪은 일: 막힌 거래 1번, 낸 관세 30 (실제 기록)');
 ok((await rpc(randomUUID(), 'get_board')).countries[0].rebel === true, '전자칠판에 반란 도시 표시');
 // 세계 무역 회의 → 6나라 입력 → 무역 동맹
-await rpc(ADMIN, 'admin_set_phase', 10);
+await rpc(ADMIN, 'admin_set_phase', 6);
 ok(await fail(rpc(L(1), 'offer_create', 2, 'coin', 10, 'iron', 1), 'LOCKED'), '세계 무역 회의 시간엔 게임 멈춤');
 ok(await fail(rpc(of(1)[1].uid, 'treaty_submit', '1', '', '약속을 지켜요', ''), 'LEADER_ONLY'), '규칙 입력은 국가 대표만');
 for (let c = 1; c <= 5; c++) { const r = await rpc(L(c), 'treaty_submit', String(c), '', '한 번 정한 거래 약속은 꼭 지켜요.', '믿고 거래하려고'); if (c === 5) ok(!r.alliance && r.count === 5, '5나라까지는 아직 동맹 전'); }
 const last = await rpc(L(6), 'treaty_submit', 'X', '', '무역로를 함께 지켜요.', '잊힌 제국 때문에');
 const g11 = (await rpc(L(1), 'my_state')).game;
-ok(last.alliance && g11.phase === 11 && !g11.locked && Object.keys(g11.banned).length === 0 && Object.keys(g11.tariffs).length === 0, '6나라가 다 입력하자 자동으로 무역 동맹 (무역 회복)');
+ok(last.alliance && g11.phase === 7 && !g11.locked && Object.keys(g11.banned).length === 0 && Object.keys(g11.tariffs).length === 0, '6나라가 다 입력하자 자동으로 무역 동맹 (무역 회복)');
 const rb2 = await one(`select * from priv.cities where id = '${rb1.id}'`);
 ok(rb2.max_hp === 150 && rb2.hp <= 150 && rb2.def === 40, '무역 동맹: 반란 도시가 크게 약해짐 (체력 150·방어 40)');
 const h11 = (await one(`select priv.refresh_happy(1) h`)).h;
@@ -351,7 +351,14 @@ const rb3 = await one(`select * from priv.cities where id = '${rb1.id}'`);
 ok(rr.captured && !rb3.rebel && rb3.country === 1 && rb3.def === 5, '특수 부대로 반란 도시 탈환 → 원래 도시로');
 const h12 = (await one(`select priv.refresh_happy(1) h`)).h;
 ok(h12 >= h11 + 40, '잊힌 제국 격퇴: 테러 사라지고 행복도 +40 (' + h11 + ' → ' + h12 + ')');
-ok(await fail(rpc(ADMIN, 'admin_set_phase', 12), 'BAD_PHASE'), '단계는 11까지');
+ok(await fail(rpc(ADMIN, 'admin_set_phase', 8), 'BAD_PHASE'), '단계는 7까지');
+// 예전 단계 번호(8~11)로 진행 중이던 게임도 SQL을 다시 실행하면 새 번호로 한 번만 옮겨짐
+await db.query(`update public.game set phase = 10, phase_v = 1 where id = 1`);
+await db.exec(SQL);
+const gm = await one(`select phase, locked, phase_v from public.game where id = 1`);
+await db.exec(SQL);
+ok(gm.phase === 6 && gm.locked && gm.phase_v === 2 && (await one(`select phase from public.game where id = 1`)).phase === 6, '예전 10단계(조약 회의) → 새 6단계(세계 무역 회의), 다시 실행해도 그대로');
+await db.query(`update public.game set phase = 7, locked = false where id = 1`);
 // 보드·관제실·백업
 const b = await rpc(randomUUID(), 'get_board');
 ok(b.tiles.length === 1120 && b.countries.length === 6 && typeof b.gauge === 'number', '전자칠판 데이터, 안정도 ' + b.gauge);
