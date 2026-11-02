@@ -907,3 +907,32 @@ button.nick-slot { --b-top: #3A4A2A; --b-bot: #1E2A14; --b-text: #FFE7A6; border
 .guide-tip { margin-top: 10px; font-size: 14px; background: #2C3548; color: #FFE7A6; padding: 6px 12px; border-radius: 3px; }
 .warn-box.final { background: #3A1020; color: #FFE7A6; border-color: #000; }
 .big-joy { font-family: var(--font-display); font-size: 22px; color: #1E7A43; }
+
+/* ---------- v5: 무역 미션·행복 축하 ---------- */
+.nav .badge.gold { background: #E2B85C; color: #2A1A05; }
+.mission-head p { margin: 0; }
+.missions { display: flex; flex-direction: column; gap: 10px; max-width: 980px; margin: 0 auto; }
+.mcard { display: grid; grid-template-columns: 54px 1fr; gap: 12px; padding: 12px 14px; border: 2px solid #5A4228; border-radius: 4px; background: #FBF4E1; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.mcard .m-num { width: 46px; height: 46px; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 22px; background: #2C3548; color: #FFE7A6; border: 2px solid #000; box-shadow: 0 0 0 1px var(--gold); }
+.m-body { display: flex; flex-direction: column; gap: 6px; }
+.m-body b { font-family: var(--font-display); font-size: 18px; color: #3A2716; }
+.m-body p { margin: 0; font-size: 14.5px; line-height: 1.5; }
+.mcard.now { background: linear-gradient(180deg, #FFF8E2, #F6E6B8); border-color: #C08A2A; box-shadow: 0 0 0 2px #E2B85C, 0 0 18px rgba(226,184,92,.5), 0 3px 0 rgba(0,0,0,.35); }
+.mcard.now .m-num { background: #B8394A; animation: pulseglow 1.2s ease-in-out infinite; }
+.mcard.only.now { border-color: #A3202F; }
+.mcard.lock { filter: grayscale(1); opacity: .55; }
+.mcard.done { background: #E8F3DF; border-color: #2E7A4C; }
+.mcard.done .m-num { background: #23784F; color: #fff; }
+.m-who { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14px; }
+.m-c { font-family: var(--font-display); font-weight: 700; padding: 2px 10px; border-left: 6px solid var(--gc); background: #fff; border-radius: 2px; }
+.m-say { background: #2C3548; color: #FFE7A6; padding: 6px 12px; border-radius: 3px; font-size: 14.5px; }
+.celebrate { position: relative; overflow: hidden; }
+.burst { position: absolute; inset: -40%; background: repeating-conic-gradient(from 0deg, rgba(255,215,100,.25) 0 10deg, transparent 10deg 20deg); animation: spin 6s linear infinite; z-index: -1; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.joy-pop { position: fixed; left: 50%; top: 22%; transform: translate(-50%, 0) scale(1); z-index: 99; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 18px 34px; background: radial-gradient(circle at 50% 30%, #6BE08A, #1E7A43); color: #FFF; border: 3px solid #0B2A1C; box-shadow: 0 0 0 3px #E2B85C, 0 0 40px rgba(120,255,160,.7); border-radius: 6px;
+  animation: joyin .5s cubic-bezier(.2,1.6,.4,1); transition: opacity .5s, transform .5s; text-align: center; pointer-events: none; }
+.joy-pop b { font-family: var(--font-display); font-size: 34px; text-shadow: 0 3px 0 #0B2A1C; }
+.joy-pop span { font-size: 16px; } .joy-pop small { font-size: 13px; opacity: .9; }
+.joy-pop.out { opacity: 0; transform: translate(-50%, -30px) scale(.9); }
+@keyframes joyin { from { transform: translate(-50%, 40px) scale(.4); opacity: 0; } }

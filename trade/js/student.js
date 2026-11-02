@@ -158,9 +158,11 @@
       let st, mv;
       if (S.obs && !S.ctl) { const r = await rpc('admin_observe', S.obs); st = r.state; mv = r.map; S.world = r.world; }
       else [st, mv] = await Promise.all([rpc('my_state'), rpc('map_view')]);
-      const prevPhase = S.st && S.st.game.phase, prevTurn = S.st && S.st.game.turn;
+      const prevPhase = S.st && S.st.game.phase, prevTurn = S.st && S.st.game.turn, prev = S.st && S.st.game.turn === st.game.turn ? { happy: S.st.country.happy, detail: S.st.country.happy_detail || [] } : null;
       S.st = st; S.mv = mv;
       if (prevTurn !== undefined && st.game.turn > prevTurn) Sound.play('turn');
+      if (prev && prevTurn === st.game.turn && st.country.happy > prev.happy && !S.obs) cheer(prev, st.country);
+      if (st.game.market_open && !S.obs) missionCheck();
       if (st.now) S.offset = new Date(st.now).getTime() - Date.now();
       if (first || !$('.topbar')) shell(); else { renderTop(); renderNav(); }
       updateMap();
@@ -277,11 +279,12 @@
   }
   function renderNav() {
     const g = S.st.game;
-    const tabs = [['map', '지도'], ['nation', '우리 나라'], ['tech', '기술'], ['diplo', '외교'], ['trade', '무역'], ['news', '소식']];
+    const tabs = [['map', '지도'], ['nation', '우리 나라'], ['tech', '기술'], ['diplo', '외교'], ['mission', '무역 미션'], ['trade', '무역'], ['news', '소식']];
     if (g.phase >= 10) tabs.splice(1, 0, ['treaty', '조약 회의']);
     const nav = $('#nav'); nav.innerHTML = '';
     nav.append(...[...tabs.map(([k, label]) => h('button', { class: S.view === k ? 'on' : '', 'data-v': k, onclick: () => go(k) }, h('span', { class: 'dot' }), label,
       k === 'trade' && pendingIn() ? h('span', { class: 'badge' }, pendingIn()) : null,
+      k === 'mission' && S.st.game.market_open && missionNow() ? h('span', { class: 'badge gold' }, '!') : null,
       k === 'diplo' && g.diplomacy_open ? null : null)),
       S.st.game.test_mode && (!S.obs || S.ctl) ? h('button', { class: 'small danger test-btn', title: '테스트용: 모든 나라가 연구·개발을 끝낸 상태로', onclick: testEndgame }, '최종 성장 모드 (테스트)') : null,
       h('span', { class: 'credit-nav' }, '제작 · 조영산'),
@@ -306,6 +309,7 @@
     if (S.view === 'map') return mapView(page);
     if (S.view === 'nation') return nationView(page);
     if (S.view === 'tech') return techView(page);
+    if (S.view === 'mission') return missionView(page);
     if (S.view === 'diplo') return diploView(page);
     if (S.view === 'trade') return tradeView(page);
     if (S.view === 'news') return newsView(page);
@@ -413,8 +417,20 @@
     if (city && !mine) side.append(h('p', {}, city.kind === 'capital' ? (ownerName || '') + '의 수도예요.' : city.name + (city.country ? '' : ' (다른 나라 쪽 도시국가)')));
     if (t.res) side.append(h('div', { class: 'res-line' }, h('img', { src: itemImg(t.res) }), itemName(t.res), mine ? '' : ' — 우리 땅이 되어야 개발할 수 있어요.'));
     if (!mine) return;
-    if (t.imp) { side.append(h('div', { class: 'done-box' }, R.IMPROVE[t.imp].name + ' 완성! 매 턴 ' + yieldText(t))); return; }
-    const opts = Object.entries(R.IMPROVE).filter(([k, v]) => v.res ? (t.res && v.res.includes(t.res)) : v.on.includes(t.terrain) && !(v.noRes && t.res));
+    const resImp = t.res && Object.values(R.IMPROVE).some(v => v.res && v.res.includes(t.res));
+    if (t.imp) {
+      side.append(h('div', { class: 'done-box' }, R.IMPROVE[t.imp].name + ' 완성! 매 턴 ' + yieldText(t)));
+      // 자원 칸에 다른 시설을 지었으면 해체할 수 있어요
+      if (resImp && !R.IMPROVE[t.imp].res) {
+        const ready = st.units.some(u => u.kind === 'worker' && !u.acted);
+        const why = roleWhy('국토부 장관') || (!ready ? '일할 노동자가 없어요' : short(R.DEMOLISH_COST));
+        side.append(h('div', { class: 'warn-box' }, '이 칸에는 「' + itemName(t.res) + '」이(가) 있는데 ' + R.IMPROVE[t.imp].name + '을(를) 지었어요. 해체하고 자원 시설을 지으면 ' + itemName(t.res) + '을(를) 얻어요!'));
+        side.append(h('button', { class: 'danger' + off('국토부 장관'), disabled: !!why || S.busy, title: why, onclick: () => act('worker_demolish', [t.id], () => map.floatText(t.id, '해체!')) }, R.IMPROVE[t.imp].name + ' 해체하기 (' + costText(R.DEMOLISH_COST) + ', 노동자 1명)'));
+        if (why) side.append(h('small', { class: 'bad' }, why));
+      }
+      return;
+    }
+    const opts = Object.entries(R.IMPROVE).filter(([k, v]) => v.res ? (t.res && v.res.includes(t.res)) : v.on.includes(t.terrain) && !(resImp || (v.noRes && t.res)));
     if (!canRole('국토부 장관')) side.append(h('div', { class: 'role-note' }, '땅 개발은 「국토부 장관」의 일이에요.'));
     const here = myUnitsOn(t.id).filter(u => u.kind !== 'worker');
     if (here.length) side.append(h('div', { class: 'row' }, h('small', { class: 'muted' }, '이 칸 병력:'), here.map(u => h('button', { class: 'small' + off(u.kind === 'scout' ? '과학기술부 장관' : '국방부 장관'), onclick: () => pickUnit(u) }, unitName(u.kind)))));
@@ -829,6 +845,89 @@
     return h('div', { class: 'lux-adv' }, '행복도를 올리려면: ', miss.slice(0, 4).map(l => h('span', {}, itemName(l.it) + '(' + l.from.map(tname).join('·') + ')')), ' 을(를) 사 와요.');
   }
 
+  // ================= 무역 미션 (순서대로 하나씩) =================
+  // 1) 급한 사치품 1개 → 2) 딱 한 나라만 가진 재료 → 3·4) 나머지 재료 → 5) 특수 부대로 최종 도전 → 6) 여유: 사치품 하나 더
+  const imported = it => S.st.trades.filter(t => t.to_c === S.st.country.id && t.item === it).reduce((a, t) => a + t.qty, 0);
+  const countryOf = t => S.st.countries.find(c => c.type === t);
+  // 그 나라가 원하는 우리 물건 (바꿀 거리)
+  function wantsFrom(seller) {
+    const gd = guide();
+    return gd.sell.filter(x => x.buyers.some(b => b.slice(0, 1) === seller) || x.luxBuyers.includes(seller)).map(x => x.it)
+      .concat(['coin']).slice(0, 3);
+  }
+  function missions() {
+    const st = S.st, gd = guide(), inv = st.inventory, me = gd.me;
+    const luxOrder = gd.lux.slice().sort((a, b) => b.from.length - a.from.length);
+    const lux1 = luxOrder[0], lux2 = luxOrder.find(l => l !== lux1 && (lux1 ? l.it !== lux1.it : true));
+    const hasBoss = st.units.some(u => u.kind === gd.bu.unit), finDone = gd.fin.owner === st.country.id;
+    const L = [];
+    if (lux1) L.push({ k: 'lux1', kind: 'lux', it: lux1.it, qty: 1, from: lux1.from, title: '급해요! 사치품 「' + itemName(lux1.it) + '」 1개 사 오기',
+      why: '인구가 늘어 행복도가 계속 떨어지고 있어요. 사치품은 종류마다 행복도 +' + R.HAPPY.perLuxType + '! 받는 순간 바로 올라요.',
+      after: '행복도 +' + R.HAPPY.perLuxType + '! 행복도가 0 위면 병사들도 다시 힘을 내요.', done: (inv[lux1.it] || 0) > 0 || imported(lux1.it) > 0 });
+    gd.needs.forEach((n, i) => L.push({ k: 'need' + i, kind: 'need', it: n.it, qty: n.qty, from: n.from, only: i === 0,
+      title: (i === 0 ? '꼭 필요해요! ' : '특수 부대 재료 ') + '「' + itemName(n.it) + '」 ' + n.qty + '개 사 오기',
+      why: i === 0 ? itemName(n.it) + '은(는) 세계에서 ' + n.from.map(tname).join(', ') + '만 가지고 있어요. 이 나라와 꼭 거래해야 ' + gd.unit.name + '을(를) 만들 수 있어요.'
+                   : gd.unit.name + '에 ' + itemName(n.it) + ' ' + n.qty + '개가 들어가요. ' + n.from.map(tname).join(' 또는 ') + ' 중 조건이 좋은 나라를 골라요.',
+      after: '재료 하나 완성! 다음 재료를 모아요.', done: hasBoss || finDone || (inv[n.it] || 0) >= n.qty }));
+    if (gd.spNeed) L.splice(1, 0, { k: 'sp', kind: 'need', it: gd.spNeed.it, qty: 2, from: gd.spNeed.from, only: true, title: '특산품 원료 「' + itemName(gd.spNeed.it) + '」 2개 사 오기',
+      why: '우리 특산품 ' + itemName(gd.spNeed.out) + '은(는) ' + itemName(gd.spNeed.it) + '을(를) 사 와서 만들어요 (가공 무역). 만든 ' + itemName(gd.spNeed.out) + '은(는) 다른 나라에 비싸게 팔 수 있어요!',
+      after: '특산 공장이 돌아가요! 다음 턴부터 ' + itemName(gd.spNeed.out) + '이(가) 생겨요.', done: (inv[gd.spNeed.it] || 0) >= 2 || imported(gd.spNeed.it) >= 2 });
+    L.push({ k: 'boss', kind: 'act', title: gd.unit.name + ' 만들고 「' + (gd.fin.name || '최종 도전') + '」 공격!',
+      why: '재료가 다 모였어요! 국방부 장관이 병영에서 ' + gd.unit.name + '을(를) 훈련하고, 지도에서 「' + (gd.fin.name || '') + '」 근처로 움직여 공격해요.',
+      after: '최종 도전 성공! 행복도 +' + R.FINAL_CS.glory + ', 코인 +' + R.FINAL_CS.coin + '.', done: finDone, go: 'map' });
+    if (lux2) L.push({ k: 'lux2', kind: 'lux', it: lux2.it, qty: 1, from: lux2.from, title: '여유가 있으면: 사치품 「' + itemName(lux2.it) + '」도 사 오기',
+      why: '사치품 종류가 늘수록 행복도가 더 올라요. 행복도 ' + R.HAPPY.golden + ' 이상이면 황금기(수입 +25%)!', after: '행복도 +' + R.HAPPY.perLuxType + '!', done: (inv[lux2.it] || 0) > 0 || imported(lux2.it) > 0 });
+    return L;
+  }
+  const missionNow = () => missions().find(m => !m.done);
+  function missionView(page) {
+    const st = S.st, g = st.game, L = missions(), cur = L.findIndex(m => !m.done);
+    page.append(h('div', { class: 'panel mission-head' }, h('div', { class: 'panel-title' }, '무역 미션', h('small', {}, '위에서부터 하나씩! 지금 할 미션만 열려 있어요')),
+      g.market_open ? h('p', {}, '모둠이 함께 미션을 읽고, 국가 대표가 상대 나라 대표를 만나 이야기해요. 정해지면 「제안 쓰기」를 눌러 무역 탭에서 보내요.')
+        : h('div', { class: 'hint' }, '아직 세계 시장이 열리지 않았어요. 미리 읽어 보고, 선생님이 시장을 열면 바로 시작해요!')));
+    page.append(h('div', { class: 'missions' }, L.map((m, i) => {
+      const state = m.done ? 'done' : i === cur ? 'now' : 'lock';
+      const card = h('div', { class: 'mcard ' + state + (m.only ? ' only' : '') },
+        h('div', { class: 'm-num' }, m.done ? '✓' : i + 1),
+        h('div', { class: 'm-body' }, h('b', {}, m.title), state === 'lock' ? h('small', {}, '앞의 미션을 끝내면 열려요') : h('p', {}, m.why)));
+      if (state === 'now' && m.it) {
+        const sellers = m.from.map(countryOf).filter(Boolean);
+        card.querySelector('.m-body').append(
+          h('div', { class: 'm-who' }, h('span', {}, '누구에게: '), sellers.map(c => h('span', { class: 'm-c', style: { '--gc': typeColor(c.type) } }, c.name, c.known ? '' : ' (아직 못 만남)'))),
+          h('div', { class: 'm-who' }, h('span', {}, '바꿀 거리: '), (sellers[0] ? wantsFrom(sellers[0].type) : ['coin']).map(it => it === 'coin' ? h('span', { class: 'res-chip' }, '코인') : itemTag(it))),
+          h('div', { class: 'm-say' }, '이렇게 말해 봐요: "우리 ' + itemName((sellers[0] ? wantsFrom(sellers[0].type) : ['coin'])[0]) + '을(를) 줄 테니, ' + itemName(m.it) + ' ' + m.qty + '개를 주세요!"'),
+          h('div', { class: 'row' }, sellers.filter(c => c.known).map(c => h('button', { class: 'primary small', disabled: !g.market_open, onclick: () => { S.prefill = { to: c.id, get: m.it, qty: m.qty, give: wantsFrom(c.type)[0], giveQty: m.qty }; go('trade'); } }, c.name + '에게 제안 쓰기'))));
+      }
+      if (state === 'now' && m.go) card.querySelector('.m-body').append(h('button', { class: 'danger small', onclick: () => go(m.go) }, '지도로 가기'));
+      if (m.done) card.querySelector('.m-body').append(h('small', { class: 'good' }, m.after));
+      return card;
+    })));
+  }
+  // 미션을 끝내면 축하 창 (한 번만)
+  function missionCheck() {
+    const L = missions(), key = 'mission-' + S.st.country.id + '-';
+    for (const m of L) {
+      if (!m.done) break;
+      let seen = false; try { seen = !!localStorage.getItem(key + m.k); localStorage.setItem(key + m.k, '1'); } catch (e) { seen = true; }
+      if (!seen) {
+        const next = L.find(x => !x.done);
+        Sound.play('win');
+        modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('h2', {}, '무역 미션 성공!'), h('p', { class: 'big-joy' }, m.after),
+          next ? h('p', {}, '다음 미션: ', h('b', {}, next.title)) : h('p', {}, '모든 미션 완료! 이제 다른 나라를 도와줘도 좋아요.'),
+          h('button', { class: 'primary big', onclick: () => { document.querySelector('.modal-back').remove(); go('mission'); } }, '다음 미션 보기')));
+        return;
+      }
+    }
+  }
+  // 행복도가 오르면 화려하게
+  function cheer(prev, co) {
+    const d = co.happy - prev.happy;
+    const why = (co.happy_detail || []).filter(x => { const p = prev.detail.find(y => y.k.split(' ')[0] === x.k.split(' ')[0]); return x.v > (p ? p.v : 0); }).map(x => x.k);
+    Sound.play('win');
+    const box = h('div', { class: 'joy-pop' }, h('b', {}, '행복도가 올랐어요! +' + d), h('span', {}, why.join(', ') || ''), h('small', {}, '지금 행복도 ' + co.happy + ' (' + happyWord(co.happy) + ')'));
+    document.body.appendChild(box); setTimeout(() => box.classList.add('out'), 2600); setTimeout(() => box.remove(), 3200);
+  }
+
   // ================= 기술 계통도 =================
   function techView(page) {
     const st = S.st, have = st.country.techs, TT = R.TECH_TREE;
@@ -982,6 +1081,13 @@
     // 같은 것끼리 바꾸지 않도록: 코인을 주면 물건을, 물건을 주면 코인을 기본으로
     const fixPair = () => { if (giveI.value === getI.value) getI.value = giveI.value === 'coin' ? 'food' : 'coin'; };
     getI.value = giveI.value === 'coin' ? 'food' : 'coin';
+    if (S.prefill) {   // 무역 미션에서 넘어오면 미리 채워 줘요
+      const pf = S.prefill; S.prefill = null;
+      if (pf.to && known.some(c => c.id === pf.to)) to.value = pf.to;
+      if (pf.get) { getI.value = pf.get; getQ.value = pf.qty || 1; }
+      if (pf.give && [...giveI.options].some(o => o.value === pf.give)) { giveI.value = pf.give; giveQ.value = pf.giveQty || 1; }
+      setTimeout(() => { const f = $('.offer-form'); if (f) { f.scrollIntoView({ block: 'center' }); f.classList.add('pulse'); } }, 50);
+    }
     giveI.addEventListener('input', fixPair);
     [giveI, getI, giveQ, getQ].forEach(e => e.addEventListener('input', updHelp)); updHelp();
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '거래 제안하기', h('small', {}, '상대 나라 무역 대표가 수락하면 바로 바뀌어요. 제안은 턴이 끝나면 사라져요.')),
