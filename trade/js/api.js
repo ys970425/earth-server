@@ -37,7 +37,8 @@
     admin_reset_binding: ['p_student'], admin_approve: ['p_request'], admin_approve_group: ['p_country'], admin_reject: ['p_request'],
     admin_grant: ['p_country', 'p_items', 'p_reason'], admin_relief: ['p_country'], admin_turn_help: ['p_country'], admin_explore_help: ['p_country'],
     admin_broker_trade: ['p_country', 'p_item', 'p_qty', 'p_coin'], admin_notice: ['p_message'], admin_reset_game: ['p_confirm'],
-    admin_event: ['p_kind', 'p_args'], admin_preview_event: ['p_kind', 'p_args']
+    admin_event: ['p_kind', 'p_args'], admin_preview_event: ['p_kind', 'p_args'],
+    admin_merchant: ['p_country', 'p_items'], admin_boss_help: ['p_country']
   };
   async function rpc(fn, ...vals) {
     let args = {};

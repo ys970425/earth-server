@@ -14,10 +14,10 @@
     5: { title: '공급 차질 (16차시)', desc: '단계만 바뀌어요. 한파 사건은 아래 사건 버튼으로 실행해요.' },
     6: { title: '가격 경쟁', desc: '단계만 바뀌어요. 가격 경쟁 사건은 사건 버튼으로.' },
     7: { title: '실제 나라와 비교', desc: '16차시 마무리.' },
-    8: { title: '협정 만료 (17차시 도입)', desc: '공정 거래 규칙(기준가 2배)이 사라져요.' },
-    9: { title: '무역 갈등', desc: '단계만 바뀌어요. 「세계 경제 위기」 사건 버튼으로 관세·수출 제한을 실행해요.' },
-    10: { title: '조약 회의', desc: '게임 조작이 멈추고, 학생 화면에 조약 회의 탭이 열려요.' },
-    11: { title: '무역 헌장', desc: '조약 체결과 시범 거래, 회복.' }
+    8: { title: '세계 무역 협정 만료 (17차시 위기)', desc: '나라마다 특산품 하나 수출 제한 + 장신구·강철·향신료·와인·옷 관세 50%. 재건 임무가 열려요. (정복이 끝난 뒤, 수업 8분쯤)' },
+    9: { title: '피해 보고서 (게임 멈춤)', desc: '게임 조작이 멈추고, 학생 화면에 실제 거래 기록으로 만든 피해 보고서가 떠요. (15분쯤)' },
+    10: { title: '조약 회의 (게임 멈춤)', desc: '나라 회의 → 협상 짝과 협상 → 조약 등록. (18분쯤)' },
+    11: { title: '무역 헌장 체결', desc: '수출 제한·관세가 풀려요. 시범 거래로 재건하면 행복도 +15. (29분쯤)' }
   };
 
   async function start() {
@@ -28,7 +28,7 @@
     const pw = h('input', { type: 'password', placeholder: '비밀번호' });
     const btn = h('button', { class: 'primary', onclick: login }, '들어가기');
     pw.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-    root.appendChild(h('div', { class: 'entry' }, h('h1', {}, '우주 운영진 관제실'), h('p', { class: 'sub' }, '교사 비밀번호를 입력해 주세요'),
+    root.appendChild(h('div', { class: 'entry' }, h('h1', {}, '지구 서버 관리자 관제실'), h('p', { class: 'sub' }, '교사 비밀번호를 입력해 주세요'),
       h('div', { class: 'row', style: { justifyContent: 'center' } }, pw, btn), h('p', {}, h('a', { href: 'index.html' }, '← 학생 화면으로'))));
     pw.focus();
     async function login() {
@@ -124,8 +124,93 @@
           return h('div', { class: 'row' }, m, h('button', { onclick: () => m.value && act('admin_notice', [m.value], '공지 보냄') }, '보내기')); })(),
         g.market_open ? h('div', { class: noTrade.length ? 'warn-box' : 'done-box', style: { marginTop: '10px' } },
           noTrade.length ? '수출·수입 미션 미완료: ' + noTrade.map(c => c.name + (c.exports ? '' : ' (수출 0)') + (c.imports ? '' : ' (수입 0)')).join(', ') : '모든 나라가 수출과 수입을 했어요.') : null)));
+    page.appendChild(supportPanel());
+    if (g.phase >= 6) page.appendChild(lessonPanel());
     page.appendChild(nationsTable());
     page.appendChild(eventsPanel());
+  }
+
+  // ---------- 지구 서버 관리자의 지원 (거래 실패 구제 장치) ----------
+  function supportPanel() {
+    return h('div', { class: 'panel support-panel' },
+      h('div', { class: 'panel-title' }, '지구 서버 관리자의 지원', h('small', {}, '거래가 막혀 수업이 멈출 때만 써요. 평소에는 나라끼리 거래가 먼저!')),
+      h('div', { class: 'row' }, A.st.countries.map(c => h('button', { class: 'nation-btn', style: { '--gc': typeColor(c.type) }, onclick: () => supportWindow(c.id) },
+        h('b', {}, c.name), h('small', {}, '코인 ' + fmt(c.coin) + ' · 행복 ' + c.happy)))));
+  }
+  // 막힌 곳 추천: 특수 부대 재료 → 재건 물자 → 사치품
+  function needsOf(c) {
+    const out = [], inv = c.inventory || {}, bu = R.BOSS_UNIT[c.type];
+    const hasBoss = (c.units || {})[bu.unit] > 0;
+    if (c.final && !c.final.taken && !hasBoss) for (const it of bu.needs) if ((inv[it] || 0) < 2) out.push({ item: it, qty: 2 - (inv[it] || 0), why: '특수 부대 재료' });
+    if (c.report && !c.rebuilt) for (const x of c.report.items) if (x.have < c.report.need) out.push({ item: x.item, qty: c.report.need - x.have, why: '재건 물자' });
+    if (c.happy < 0) { const lux = R.LUX.find(k => !(inv[k] > 0)); if (lux) out.push({ item: lux, qty: 2, why: '사치품 (행복도 ' + c.happy + ')' }); }
+    return out;
+  }
+  function supportWindow(cid) {
+    const cart = {}; let tab = 'basic', cur = cid;
+    const box = h('div', { class: 'support' });
+    const m = modal(box, { wide: true });
+    const reason = h('input', { type: 'text', placeholder: '이유 (학생 화면에 같이 떠요) 예: 거래 상대가 결석해서', style: { flex: 1 } });
+    const unitPrice = k => Math.ceil(R.ITEMS[k].ref * R.CRISIS.merchantMult);
+    function draw() {
+      const c = A.st.countries.find(x => x.id === cur);
+      const total = Object.entries(cart).reduce((a, [k, v]) => a + (k === 'coin' ? 0 : unitPrice(k) * v), 0);
+      const hasCoin = cart.coin > 0, empty = !Object.keys(cart).length;
+      box.innerHTML = '';
+      box.append(h('div', { class: 'support-head' }, h('div', { class: 'support-badge' }, '지구 서버'), h('h2', {}, '관리자의 지원'),
+        h('p', { class: 'muted' }, '나라를 고르고 → 물건을 눌러 담고 → 「무료 지원」 또는 「긴급 중립 상인」')),
+        h('div', { class: 'row' }, A.st.countries.map(x => h('button', { class: 'nation-btn' + (x.id === cur ? ' on' : ''), style: { '--gc': typeColor(x.type) },
+          onclick: () => { cur = x.id; for (const k in cart) delete cart[k]; draw(); } }, h('b', {}, x.name), h('small', {}, '코인 ' + fmt(x.coin))))));
+      const nd = needsOf(c);
+      box.append(h('div', { class: 'support-rec' }, h('b', {}, '막힌 곳 추천'),
+        nd.length ? nd.map(n => h('button', { class: 'small gold', onclick: () => { cart[n.item] = (cart[n.item] || 0) + n.qty; draw(); } },
+          h('img', { src: UI.itemImg(n.item), class: 'ico', alt: itemName(n.item) }), itemName(n.item) + ' ' + n.qty + ' (' + n.why + ')'))
+          : h('span', { class: 'muted' }, '지금은 막힌 곳이 없어요.'),
+        c.final && !c.final.taken ? h('button', { class: 'small primary', onclick: () => confirm(c.name + '의 최종 도시국가 근처에 「' + R.UNITS[R.BOSS_UNIT[c.type].unit].name + '」을(를) 보낼까요?')
+          && act('admin_boss_help', [c.id], '특수 부대 지원') } , '특수 부대 1대 보내기') : null));
+      box.append(h('div', { class: 'tabs' }, R.SUPPORT_GROUPS.map(gp => h('button', { class: tab === gp.k ? 'on' : '', onclick: () => { tab = gp.k; draw(); } }, gp.name))));
+      const gp = R.SUPPORT_GROUPS.find(x => x.k === tab);
+      box.append(h('div', { class: 'item-grid' }, gp.items.map(k => h('button', { class: 'item-card', onclick: () => { cart[k] = (cart[k] || 0) + (k === 'coin' ? 50 : 1); draw(); } },
+        k === 'coin' ? h('span', { class: 'ico coin coin-big' }, 'C') : h('img', { src: UI.itemImg(k), alt: itemName(k) }), h('b', {}, itemName(k)),
+        h('small', {}, k === 'coin' ? '+50' : '있음 ' + ((c.inventory || {})[k] || 0) + (k in R.ITEMS ? ' · 상인가 ' + unitPrice(k) : ''))))));
+      box.append(h('div', { class: 'sup-cart' }, h('b', {}, c.name + '에게 보낼 것'),
+        empty ? h('span', { class: 'muted' }, '아직 없어요. 위에서 물건을 눌러 담아요.') :
+          Object.entries(cart).map(([k, v]) => h('span', { class: 'cart-it' }, itemName(k) + ' ' + v,
+            h('button', { class: 'small', onclick: () => { cart[k] -= k === 'coin' ? 50 : 1; if (cart[k] <= 0) delete cart[k]; draw(); } }, '−'),
+            h('button', { class: 'small', onclick: () => { cart[k] += k === 'coin' ? 50 : 1; draw(); } }, '+')))));
+      box.append(h('div', { class: 'row' }, reason));
+      box.append(h('div', { class: 'row support-go' },
+        h('button', { class: 'primary big', disabled: empty, onclick: async () => {
+          const r = await act('admin_grant', [c.id, { ...cart }, reason.value.trim()], c.name + '에게 지원했어요');
+          if (r) { for (const k in cart) delete cart[k]; draw(); } } }, '무료로 지원하기'),
+        h('button', { class: 'gold big', disabled: empty || hasCoin || total > c.coin, title: hasCoin ? '코인은 상인이 팔 수 없어요' : '',
+          onclick: async () => { const r = await act('admin_merchant', [c.id, { ...cart }], '긴급 중립 상인 거래 완료'); if (r) { for (const k in cart) delete cart[k]; draw(); } } },
+          '긴급 중립 상인으로 팔기 (코인 ' + total + ')'),
+        h('small', { class: 'muted' }, '긴급 중립 상인: 기준가의 ' + R.CRISIS.merchantMult + '배를 그 나라 코인에서 받아요. 기록에 「보조」로 남아요.')));
+    }
+    draw();
+    return m;
+  }
+
+  // ---------- 16·17차시 진행판 ----------
+  function lessonPanel() {
+    const st = A.st, g = st.game;
+    const steps = [['0~8분', '최종 도시국가 정복 (특수 부대 2번 공격)', g.phase <= 7], ['8분', '▶ 세계 무역 협정 만료', g.phase === 8], ['10~15분', '다시 거래해 보기 (관세·수출 제한 경험)', g.phase === 8],
+      ['15분', '▶ 피해 보고서', g.phase === 9], ['18분', '▶ 조약 회의 → 협상 짝과 협상', g.phase === 10], ['29분', '▶ 무역 헌장 체결 → 시범 거래 → 재건', g.phase === 11], ['36분', '정리: 나의 한 문장', false]];
+    const pairs = [['K', 'N'], ['J', 'T'], ['C', 'A']].map(([a, b]) => [st.countries.find(c => c.type === a), st.countries.find(c => c.type === b)]).filter(([a, b]) => a && b);
+    return h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '17차시 진행판', h('small', {}, '정복이 8분 안에 안 끝나도 다음으로 넘어가요. 협상 시간은 줄이지 않기!')),
+      h('div', { class: 'timeline' }, steps.map(([t, l, on]) => h('div', { class: 'tl' + (on ? ' on' : '') }, h('small', {}, t), h('span', {}, l)))),
+      h('table', { class: 'tbl' }, h('tr', {}, ['나라', '최종 도시국가', '특수 부대', '막힌 거래', '낸 관세', '재건', ''].map(x => h('th', {}, x))),
+        st.countries.map(c => {
+          const bu = R.BOSS_UNIT[c.type].unit, n = (c.units || {})[bu] || 0, f = c.final || {};
+          return h('tr', {}, h('td', {}, h('b', { style: { color: typeColor(c.type) } }, c.name)),
+            h('td', { class: f.taken ? 'good' : '' }, f.taken ? '정복 완료' : f.name ? f.name + ' (체력 ' + f.hp + '/' + f.max_hp + ')' : '-'),
+            h('td', { class: !f.taken && !n ? 'bad' : '' }, n ? R.UNITS[bu].name + ' ' + n : '없음'),
+            h('td', {}, c.report ? c.report.fails.length + '번' : '-'), h('td', {}, c.report ? c.report.tariff_paid + '코인' : '-'),
+            h('td', { class: c.rebuilt ? 'good' : '' }, c.rebuilt ? '완료' : '-'),
+            h('td', {}, !f.taken && f.name ? h('button', { class: 'small', onclick: () => confirm(c.name + '에 특수 부대를 보낼까요?') && act('admin_boss_help', [c.id], '특수 부대 지원') }, '특수 부대 지원') : null));
+        })),
+      h('p', { class: 'muted' }, '협상 짝 (서로 수출을 막은 나라): ' + pairs.map(([a, b]) => a.name + ' ↔ ' + b.name).join(' · ')));
   }
   function eventsPanel() {
     const ev = A.st.events;
@@ -156,7 +241,7 @@
             h('button', { class: 'small', onclick: () => act('admin_turn_help', [c.id], c.name + ' 턴 지원') }, '턴 지원'),
             h('button', { class: 'small', onclick: () => act('admin_relief', [c.id], c.name + ' 불안 진정') }, '불안 진정'),
             h('button', { class: 'small', onclick: () => act('admin_explore_help', [c.id], c.name + ' 탐험 지원') }, '탐험'),
-            g.market_open ? h('button', { class: 'small', onclick: () => broker(c) }, '보조 거래') : null))))));
+            h('button', { class: 'small gold', onclick: () => supportWindow(c.id) }, '지원 창')))))));
   }
   function nations(page) {
     page.appendChild(nationsTable());
@@ -167,16 +252,6 @@
       c.factories.length ? h('div', {}, '공장: ' + c.factories.map(f => R.FACTORIES[f].name).join(', ')) : null,
       c.advanced.length ? h('div', {}, '발전 건물: ' + c.advanced.map(f => R.ADVANCED[f].name).join(', ')) : null))));
   }
-  function broker(c) {
-    const item = h('select', {}, Object.keys(R.ITEMS).map(k => h('option', { value: k }, itemName(k))));
-    const dir = h('select', {}, h('option', { value: '1' }, '중립 상인이 이 나라에 팔기'), h('option', { value: '-1' }, '중립 상인이 이 나라에서 사기'));
-    const qty = h('input', { type: 'number', value: 1, min: 1, style: { width: '80px' } });
-    const coin = h('input', { type: 'number', value: 10, min: 0, style: { width: '90px' } });
-    const m = modal(h('div', { class: 'col' }, h('h2', {}, c.name + ' 보조 거래'), h('p', { class: 'muted' }, '거래 상대가 없을 때만 쓰세요. 기록에 「보조」로 표시돼요.'),
-      dir, h('div', { class: 'row' }, item, qty, '개', coin, '코인'),
-      h('button', { class: 'primary', onclick: async () => { await act('admin_broker_trade', [c.id, item.value, +qty.value * +dir.value, +coin.value], '보조 거래 완료'); m.close(); } }, '거래')));
-  }
-
   // ---------- 무역 기록 ----------
   function trade(page) {
     const st = A.st;

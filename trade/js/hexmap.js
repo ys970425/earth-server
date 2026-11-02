@@ -16,6 +16,7 @@
     ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery', 'swordsman', 'infantry', 'tank', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].map(u => load('u:' + u, 'img/unit/' + u + '.png')),
     // 나라 색 병력 (K는 원래 파랑)
     ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery', 'knight', 'swordsman', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, 'img/unit/' + u + '_' + t + '.png'))),
+    ...['K', 'J', 'C', 'A', 'N', 'T'].map(t => load('u:boss_' + t, 'img/unit/boss_' + t + '.png')),   // 특수 부대 (나라마다 하나)
     ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, 'img/bld/' + b + '.png')),
     ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, 'img/city/' + f + '.png'))
   ]);
@@ -211,7 +212,7 @@
           const im = IMG['c:' + city.art] || IMG[big ? 'b:capital' : (t.terrain === 'coast' || city.sea ? 'b:port' : 'b:capital')];
           ctx.save();
           if (!city.country) ctx.filter = 'saturate(.55) brightness(.95)';
-          if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, city.boss ? 230 : big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
+          if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, city.boss ? 230 : city.art === 'final' ? 190 : big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
           else drawImgBottom(im, x, y + HALF_H * 0.75, big ? 132 : 104);
           ctx.restore();
           if (city.country) drawFlag(city.country, x + 26, y - 30, big ? 1.2 : 0.9);
@@ -260,7 +261,7 @@
     }
     function drawUnits(us, x, y, t, onCity, tint) {
       const sea = t.terrain === 'ocean' || t.terrain === 'coast';
-      const order = ['cruiser', 'battleship', 'tank', 'artillery', 'frigate', 'infantry', 'cannon', 'musket', 'knight', 'trireme', 'catapult', 'spear'];
+      const order = ['k_missile', 'j_patrol', 'c_jet', 'a_stealth', 'n_hyper', 't_marine', 'cruiser', 'battleship', 'tank', 'artillery', 'frigate', 'infantry', 'cannon', 'musket', 'knight', 'trireme', 'catapult', 'spear'];
       const mil = us.filter(u => u.kind !== 'worker' && u.kind !== 'scout');
       const others = us.filter(u => !mil.includes(u));
       const list = [];
@@ -279,7 +280,7 @@
         ctx.strokeStyle = tc; ctx.lineWidth = 3; ctx.stroke();
         if (tint) { ctx.globalAlpha = .9; ctx.strokeStyle = tint; ctx.lineWidth = 4; ctx.stroke(); }
         ctx.restore();
-        const big = ['catapult', 'cannon', 'artillery', 'tank', 'trireme', 'frigate', 'battleship', 'cruiser'].includes(u.kind) ? 72 : 60;
+        const big = (R.UNITS[u.kind] || {}).boss ? 86 : ['catapult', 'cannon', 'artillery', 'tank', 'trireme', 'frigate', 'battleship', 'cruiser'].includes(u.kind) ? 72 : 60;
         if (u.sel) {   // 고른 병력: 금색으로 환하게 빛남
           const pl = 0.6 + 0.4 * Math.sin(performance.now() / 250);
           ctx.save(); ctx.strokeStyle = '#FFE07A'; ctx.lineWidth = 5; ctx.shadowColor = '#FFE07A'; ctx.shadowBlur = 18 * pl; ctx.beginPath(); ctx.ellipse(px, py, 30, 12, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
