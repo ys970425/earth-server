@@ -236,6 +236,21 @@ ok((await rpc(L(1), 'my_state')).inventory.chip === 2, '반도 특산: 구리 �
 await db.query(`update priv.countries set techs = techs || '{chipmaking}' where id = 3`);
 ok(await fail(rpc(L(3), 'factory_build', 'chipfab'), 'SHORT') || await fail(rpc(L(3), 'factory_build', 'chipfab')), '다른 나라는 반도체 공장에 알루미늄 4·구리 3 필요');
 
+// 사치품이 오면 행복도가 바로 오름
+const hb = (await one(`select happy from priv.countries where id = 4`)).happy;
+await rpc(ADMIN, 'admin_grant', 4, { spice: 1 }, '테스트');
+const ha = await one(`select happy from priv.countries where id = 4`);
+ok(ha.happy === hb + 10 || ha.happy === 100, '사치품(향신료)이 오자 행복도 바로 +10: ' + hb + ' → ' + ha.happy);
+// 자원 칸에는 농장 대신 자원 시설, 잘못 지은 시설은 해체
+const rt = await one(`select id from priv.tiles where owner = 4 and res = 'wine' and imp is null limit 1`);
+if (rt) {
+  await db.query(`update priv.tiles set imp = 'lumber' where id = ${rt.id}`);
+  await db.query(`update priv.units set acted_turn = -1 where country = 4 and kind = 'worker'`);
+  await rpc(L(4), 'worker_demolish', rt.id);
+  ok((await one(`select imp from priv.tiles where id = ${rt.id}`)).imp === null, '자원 칸에 잘못 지은 벌목장 해체');
+  await db.query(`update priv.units set acted_turn = -1 where country = 4 and kind = 'worker'`);
+  ok(await fail(rpc(L(4), 'worker_build', rt.id, 'farm')) && await fail(rpc(L(4), 'worker_build', rt.id, 'lumber')), '자원 칸에는 농장·벌목장 못 지음');
+}
 // [테스트] 최종 성장 모드
 const eg = await rpc(L(2), 'test_endgame');
 const after = await rpc(ADMIN, 'admin_state');

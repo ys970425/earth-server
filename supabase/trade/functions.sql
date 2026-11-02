@@ -203,7 +203,7 @@ begin
   update public.game set phase = 0, turn = 0, turn_end = null, market_open = false, diplomacy_open = false, crisis = false,
     fair_cap = true, tariff = 0, banned = '{}'::jsonb, cold_snap = null, world_first = null, locked = false, timer_end = null where id = 1;
   for co in select * from priv.countries order by id loop
-    update priv.countries set coin = (cfg->'START'->>'coin')::int, happy = (cfg->'HAPPY'->>'base')::int, glory = '{}', happy_detail = '[]', research_count = 0,
+    update priv.countries set coin = (cfg->'START'->>'coin')::int, happy = (cfg->'HAPPY'->>'base')::int, glory = '{}', happy_detail = '[]', research_count = 0, lux_used = '{}',
       techs = '{}',
       discovered = '{}', explored = '{}', title = null, lux_types = 0, income = 0, short = '{}', tariff_turn = 0, attacked_turn = -1,
       ready_turn = 0, research_turn = -1, crisis = false
@@ -265,12 +265,47 @@ $$;
 -- ---------------------------------------------------------------------
 -- 턴 끝 처리: 생산 → 공장 → 사치품 → 행복도 → 불안 → 기록
 -- ---------------------------------------------------------------------
+-- 행복도 계산 (턴이 끝날 때 + 무역·점령·건설 직후 바로). 사치품은 이번 턴에 즐긴 것 + 창고에 있는 것
+create or replace function priv.refresh_happy(p_c int, p_turn int default null) returns int
+language plpgsql as $$
+declare cfg jsonb := priv.cfg(); h jsonb := cfg->'HAPPY'; co priv.countries; tn int; types int; plz int; adv int; gl int; press int; ncity int; cityv int; tarv int; hung int; v int;
+begin
+  select * into co from priv.countries where id = p_c;
+  tn := coalesce(p_turn, priv.turn());
+  select count(*) into types from jsonb_array_elements_text(cfg->'LUX') x where x = any(co.lux_used) or priv.inv(p_c, x) >= 1;
+  select count(*) into ncity from priv.cities where country = p_c;
+  plz := (select count(*) from priv.cities where country = p_c and 'plaza' = any(buildings))::int * (h->>'perPlaza')::int;
+  adv := coalesce((select sum(coalesce((cfg->'ADVANCED'->kind->>'happy')::int, 0)) from priv.advanced where country = p_c), 0)::int;
+  gl := coalesce((select sum(x) from unnest(co.glory) x), 0)::int;
+  press := least((h->>'pressureMax')::int, greatest(0, tn - 1) * (h->>'pressurePerTurn')::int);
+  cityv := greatest(0, ncity - 1) * (h->>'perCity')::int;
+  tarv := ceil(co.tariff_turn::numeric / (h->>'tariffPer')::int)::int;
+  hung := case when '식량' = any(co.short) then (h->>'hunger')::int else 0 end;
+  v := greatest(-100, least(100, (h->>'base')::int + types * (h->>'perLuxType')::int + plz + adv + gl - press + cityv - tarv + hung));
+  update priv.countries set happy = v, happy_detail = jsonb_build_array(
+      jsonb_build_object('k', '사치품 ' || types || '종류', 'v', types * (h->>'perLuxType')::int, 'tip', '사치품 종류마다 +' || (h->>'perLuxType') || ' (창고에 있으면 바로! 매 턴 종류마다 1개씩 써요)'),
+      jsonb_build_object('k', '광장', 'v', plz, 'tip', '광장이 있는 도시마다 +' || (h->>'perPlaza')),
+      jsonb_build_object('k', '특별 건물', 'v', adv, 'tip', '극장·통신탑·방송국'),
+      jsonb_build_object('k', '점령 환호', 'v', gl, 'tip', '도시국가를 차지하면 +' || (h->>'glory') || ', 매 턴 ' || (h->>'gloryDecay') || '씩 줄어요'),
+      jsonb_build_object('k', '인구 증가', 'v', -press, 'tip', '턴마다 사람이 늘어 물건이 더 필요해요 (턴마다 -' || (h->>'pressurePerTurn') || ', 최대 -' || (h->>'pressureMax') || ')'),
+      jsonb_build_object('k', '도시 관리', 'v', cityv, 'tip', '수도 말고 도시마다 ' || (h->>'perCity')),
+      jsonb_build_object('k', '관세로 오른 물가', 'v', -tarv, 'tip', '수입품에 관세가 붙으면 물가가 올라요'),
+      jsonb_build_object('k', '식량 부족', 'v', hung, 'tip', '식량이 모자라면 ' || (h->>'hunger')))
+   where id = p_c;
+  if v < (h->>'unhappy')::int and co.happy >= (h->>'unhappy')::int then
+    perform priv.notice('나라가 불행해져서 병사들이 약해졌어요! (공격력 -30%) 사치품을 구해 행복도를 0 위로 올려요.', 'alert', p_c);
+  elsif v >= (h->>'unhappy')::int and co.happy < (h->>'unhappy')::int then
+    perform priv.notice('행복도가 회복됐어요! 병사들이 다시 힘을 냈어요.', 'info', p_c);
+  end if;
+  return v;
+end $$;
+
 create or replace function priv.end_turn() returns void
 language plpgsql as $$
 declare
   cfg jsonb := priv.cfg(); g public.game; co record; ci record; t record; f record;
   inc jsonb; gross int; upkeep int; ncity int; food int; v int; types int; h jsonb; cr jsonb;
-  n int; cost int; it text; y int; shortl text[]; recent record; mil int;
+  n int; cost int; it text; y int; shortl text[]; recent record; mil int; usedl text[];
 begin
   select * into g from public.game where id = 1;
   h := cfg->'HAPPY'; cr := h->'crisis';
@@ -333,43 +368,18 @@ begin
         end if;
       end loop;
     end if;
-    -- 사치품: 종류마다 1개 소비
-    types := 0;
+    -- 사치품: 종류마다 1개 소비 (이번 턴에 즐긴 사치품으로 기록)
+    types := 0; usedl := '{}';
     for it in select jsonb_array_elements_text(cfg->'LUX') loop
-      if priv.inv(co.id, it) >= 1 then perform priv.add(co.id, it, -1); types := types + 1; end if;
+      if priv.inv(co.id, it) >= 1 then perform priv.add(co.id, it, -1); types := types + 1; usedl := usedl || it; end if;
     end loop;
-    -- 행복도: 매 턴 처음부터 계산하고 내역을 남겨요 (학생 화면에서 볼 수 있음)
-    declare plz int; adv int; gl int; press int; cityv int; tarv int; hung int;
-    begin
-      plz := (select count(*) from priv.cities where country = co.id and 'plaza' = any(buildings))::int * (h->>'perPlaza')::int;
-      adv := coalesce((select sum(coalesce((cfg->'ADVANCED'->kind->>'happy')::int, 0)) from priv.advanced where country = co.id), 0)::int;
-      gl := coalesce((select sum(x) from unnest(co.glory) x), 0)::int;
-      press := least((h->>'pressureMax')::int, greatest(0, g.turn - 1) * (h->>'pressurePerTurn')::int);
-      cityv := (ncity - 1) * (h->>'perCity')::int;
-      tarv := ceil(co.tariff_turn::numeric / (h->>'tariffPer')::int)::int;
-      hung := case when '식량' = any(shortl) then (h->>'hunger')::int else 0 end;
-      v := (h->>'base')::int + types * (h->>'perLuxType')::int + plz + adv + gl - press + cityv - tarv + hung;
-      update priv.countries set happy_detail = jsonb_build_array(
-          jsonb_build_object('k', '사치품 ' || types || '종류', 'v', types * (h->>'perLuxType')::int, 'tip', '창고에 있는 사치품 종류마다 +' || (h->>'perLuxType') || ' (종류마다 1개씩 써요)'),
-          jsonb_build_object('k', '광장', 'v', plz, 'tip', '광장이 있는 도시마다 +' || (h->>'perPlaza')),
-          jsonb_build_object('k', '특별 건물', 'v', adv, 'tip', '극장·통신탑·방송국'),
-          jsonb_build_object('k', '점령 환호', 'v', gl, 'tip', '도시국가를 차지하면 +' || (h->>'glory') || ', 매 턴 ' || (h->>'gloryDecay') || '씩 줄어요'),
-          jsonb_build_object('k', '인구 증가', 'v', -press, 'tip', '턴마다 사람이 늘어 물건이 더 필요해요 (턴마다 -' || (h->>'pressurePerTurn') || ', 최대 -' || (h->>'pressureMax') || ')'),
-          jsonb_build_object('k', '도시 관리', 'v', cityv, 'tip', '수도 말고 도시마다 ' || (h->>'perCity')),
-          jsonb_build_object('k', '관세로 오른 물가', 'v', -tarv, 'tip', '수입품에 관세가 붙으면 물가가 올라요'),
-          jsonb_build_object('k', '식량 부족', 'v', hung, 'tip', '식량이 모자라면 ' || (h->>'hunger')))
-       where id = co.id;
-      if press > 0 and press < (h->>'pressureMax')::int then
-        perform priv.notice('인구가 늘어 물건이 더 필요해요! 인구 증가 불행 -' || press || ' (매 턴 -' || (h->>'pressurePerTurn') || '씩 커져요). 사치품을 구해요.', 'short', co.id);
-      end if;
-    end;
-    v := greatest(-100, least(100, v));
-    if v < (h->>'unhappy')::int and co.happy >= (h->>'unhappy')::int then
-      perform priv.notice('나라가 불행해져서 병사들이 약해졌어요! (공격력 -30%) 사치품을 구해 행복도를 0 위로 올려요.', 'alert', co.id);
-    elsif v >= (h->>'unhappy')::int and co.happy < (h->>'unhappy')::int then
-      perform priv.notice('행복도가 회복됐어요! 병사들이 다시 힘을 냈어요.', 'info', co.id);
+    update priv.countries set lux_used = usedl, short = shortl where id = co.id;
+    -- 행복도: 다음 턴 기준으로 다시 계산 (계산식은 priv.refresh_happy 하나로)
+    v := priv.refresh_happy(co.id, g.turn + 1);
+    if least((h->>'pressureMax')::int, g.turn * (h->>'pressurePerTurn')::int) < (h->>'pressureMax')::int then
+      perform priv.notice('인구가 늘어 물건이 더 필요해요! 인구 증가 불행 -' || least((h->>'pressureMax')::int, g.turn * (h->>'pressurePerTurn')::int) || ' (매 턴 -' || (h->>'pressurePerTurn') || '씩 커져요). 사치품을 구해요.', 'short', co.id);
     end if;
-    update priv.countries set happy = v, lux_types = types, short = shortl, tariff_turn = 0,
+    update priv.countries set lux_types = types, tariff_turn = 0,
       glory = array(select x - (h->>'gloryDecay')::int from unnest(glory) x where x - (h->>'gloryDecay')::int > 0)
      where id = co.id;
     -- 불안: 25 미만이면 가장 최근에 얻은 도시 하나가 불안 (영구 손실 없음)
@@ -644,7 +654,8 @@ begin
   if imp ? 'res' then
     if t.res is null or not (imp->'res' ? t.res) then perform priv.err('NO_RES', imp->>'name' || '은(는) 알맞은 자원이 있는 칸에만 지을 수 있어요.'); end if;
   elsif not (imp->'on' ? t.terrain) then perform priv.err('BAD_TERRAIN', imp->>'name' || '은(는) 이 지형에 지을 수 없어요.');
-  elsif (imp->>'noRes')::boolean is true and t.res is not null then perform priv.err('HAS_RES', '자원이 있는 칸이에요. 광산이나 농원을 지어요.'); end if;
+  elsif t.res is not null and exists(select 1 from jsonb_each(cfg->'IMPROVE') x where x.value->'res' ? t.res) then
+    perform priv.err('HAS_RES', '「' || (cfg->'ITEMS'->t.res->>'name') || '」이(가) 있는 칸이에요. 자원 시설(광산·농원·유정)을 지어요.'); end if;
   if imp ? 'tech' and not priv.has_tech(me.country_id, imp->>'tech') then
     perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(imp->>'tech')) || '」 기술이 있어야 해요.'); end if;
   select * into u from priv.units where country = me.country_id and kind = 'worker' and acted_turn < tn order by priv.tdist(tile_id, p_tile), id limit 1;
@@ -655,6 +666,24 @@ begin
   update priv.units set acted_turn = tn, tile_id = p_tile where id = u.id;
   perform priv.bump(me.country_id);
   return jsonb_build_object('ok', true, 'unit', u.id, 'from', u.tile_id, 'to', p_tile);
+end $$;
+
+-- 잘못 지은 시설 해체 (자원이 있는 칸만): 노동자 한 명과 해체 비용이 들어요
+create or replace function public.worker_demolish(p_tile int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(1, '국토부 장관'); cfg jsonb := priv.cfg(); t priv.tiles; u priv.units; tn int := priv.turn();
+begin
+  select * into t from priv.tiles where id = p_tile;
+  if not found or t.owner is distinct from me.country_id then perform priv.err('NOT_MINE', '우리 나라 땅이 아니에요.'); end if;
+  if t.imp is null then perform priv.err('NO_IMP', '해체할 시설이 없어요.'); end if;
+  if t.res is null or (cfg->'IMPROVE'->t.imp ? 'res') then perform priv.err('NO_NEED', '자원 칸에 잘못 지은 시설만 해체할 수 있어요.'); end if;
+  select * into u from priv.units where country = me.country_id and kind = 'worker' and acted_turn < tn order by priv.tdist(tile_id, p_tile), id limit 1;
+  if not found then perform priv.err('NO_WORKER', '이번 턴에 일할 수 있는 노동자가 없어요.'); end if;
+  perform priv.pay(me.country_id, cfg->'DEMOLISH_COST');
+  update priv.tiles set imp = null where id = p_tile;
+  update priv.units set acted_turn = tn, tile_id = p_tile where id = u.id;
+  perform priv.bump(me.country_id);
+  return jsonb_build_object('ok', true, 'unit', u.id, 'to', p_tile);
 end $$;
 
 create or replace function public.hire_worker(p_city text) returns jsonb
@@ -685,6 +714,7 @@ begin
     perform priv.err('NOT_COAST', '바닷가 도시에만 지을 수 있어요.'); end if;
   perform priv.pay(me.country_id, b->'cost');
   update priv.cities set buildings = buildings || p_building, built_count = case when built_turn >= tn then built_count + 1 else 1 end, built_turn = tn where id = c.id;
+  perform priv.refresh_happy(me.country_id);
   perform priv.bump(me.country_id);
   return jsonb_build_object('ok', true);
 end $$;
@@ -833,6 +863,7 @@ begin
     perform priv.reveal(co.id, priv.within(c.tile_id, (cfg->>'CITY_SIGHT')::int));
     update priv.countries set glory = glory || (case when c.final then (cfg->'FINAL_CS'->>'glory')::int else (cfg->'HAPPY'->>'glory')::int end), coin = coin + c.bonus,
       title = case when c.final then '최종 도전 성공' else title end where id = co.id;
+    perform priv.refresh_happy(co.id);
     if c.final then perform priv.notice(priv.cname(co.id) || '이(가) 무역으로 모은 자원으로 특수 부대를 만들어 최종 도전 「' || c.name || '」을(를) 무너뜨렸어요!', 'world'); end if;
     bonus := c.bonus;
     if c.tech is not null then
@@ -957,6 +988,7 @@ begin
     perform priv.err('NO_TECH', '「' || (cfg->'TECHS'->>(a->>'tech')) || '」 기술이 있어야 해요.'); end if;
   perform priv.pay(me.country_id, a->'cost');
   insert into priv.advanced(country, kind) values (me.country_id, p_kind);
+  perform priv.refresh_happy(me.country_id);
   perform priv.notice((a->>'name') || '을(를) 지었어요!', 'build', me.country_id);
   perform priv.bump(me.country_id);
   return jsonb_build_object('ok', true);
@@ -1058,6 +1090,7 @@ begin
   perform priv.add(o.to_c, o.get_item, -o.get_qty);     perform priv.add(o.from_c, o.get_item, o.get_qty);
   if o.give_item <> 'coin' then tar := tar + priv.record_trade(o.from_c, o.to_c, o.give_item, o.give_qty, case when o.get_item = 'coin' then o.get_qty end); end if;
   if o.get_item <> 'coin' then tar := tar + priv.record_trade(o.to_c, o.from_c, o.get_item, o.get_qty, case when o.give_item = 'coin' then o.give_qty end); end if;
+  perform priv.refresh_happy(o.from_c); perform priv.refresh_happy(o.to_c);   -- 사치품이 오면 행복도가 바로 올라요
   update priv.offers set status = 'accepted', decided_at = now() where id = o.id;
   perform priv.notice('거래 성사! ' || priv.cname(o.from_c) || ' ↔ ' || priv.cname(o.to_c) || ': '
     || priv.iname(o.give_item) || ' ' || o.give_qty || ' ↔ ' || priv.iname(o.get_item) || ' ' || o.get_qty, 'trade', o.from_c);
@@ -1474,6 +1507,7 @@ begin
     for k, v in select key, value from jsonb_each_text(coalesce(p_items, '{}'::jsonb)) loop
       perform priv.add(c.id, k, v::int);
     end loop;
+    perform priv.refresh_happy(c.id);
     perform priv.notice('우주 운영진 지원: ' || coalesce(nullif(trim(p_reason), ''), '나라 발전 지원'), 'grant', c.id);
     perform priv.bump(c.id);
   end loop;

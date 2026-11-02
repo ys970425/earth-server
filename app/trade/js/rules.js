@@ -70,6 +70,7 @@
     oilwell: { name: '유정', res: ['oil'], tech: 'refining', cost: { coin: 20, wood: 1 }, yield: 2 }
   };
   R.JUNGLE_MULT = 2;
+  R.DEMOLISH_COST = { coin: 15 };   // 자원 칸에 잘못 지은 시설 해체
   // 채석장: 언덕(자원 없는 칸)에 지으면 매 턴 코인 +10
   R.QUARRY_COIN = 10;
   R.TUNDRA_FOOD = 1;
