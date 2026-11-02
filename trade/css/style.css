@@ -1019,3 +1019,22 @@ td.good { color: #1E7A43; font-weight: 700; }
 .b-banner b { font-family: var(--font-display); font-size: 40px; text-shadow: 0 3px 0 #000; }
 .b-banner span { font-size: 20px; color: #E2C887; }
 .b-banner.out { opacity: 0; transform: translateY(-30px); }
+/* v7: 잊힌 제국 긴급속보 · 세계 무역 회의 */
+.news-flash .stamp { font-size: 34px; }
+.flash-img { width: 150px !important; height: auto !important; filter: drop-shadow(0 0 14px rgba(200,40,60,.7)) !important; }
+.meet-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+@media (max-width: 900px) { .meet-steps { grid-template-columns: 1fr 1fr; } }
+.ms { display: flex; gap: 8px; align-items: center; background: #2C3548; color: #FFE7A6; padding: 8px 10px; border-radius: 3px; font-size: 15px; }
+.ms b { font-family: var(--font-display); font-size: 22px; color: #fff; }
+.ms.gold { background: linear-gradient(180deg, #FBE09A, #D49B37); color: #2A1A05; } .ms.gold b { color: #8E1F2F; }
+.told { background: #FBE3E0; border-left: 6px solid #B8263A; padding: 6px 12px; border-radius: 2px; font-size: 15px; }
+.role-talks { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.rtalk { background: #FBF4E1; border: 2px solid #5A4228; border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.rt-head { display: flex; align-items: center; gap: 8px; } .rt-head img { width: 40px; height: 40px; object-fit: contain; }
+.rt-head b { font-family: var(--font-display); font-size: 18px; }
+.rt-q { margin: 0; font-size: 18px; font-family: var(--font-display); color: #8E1F2F; line-height: 1.4; }
+.rt-hints { display: flex; flex-direction: column; gap: 4px; } .rt-hints small { color: #7A6849; }
+.rt-hints span { background: #fff; border-left: 4px solid #C08A2A; padding: 3px 8px; font-size: 14.5px; border-radius: 2px; }
+.ally-bar { position: relative; height: 30px; background: #D9C9A2; border: 2px solid #2A1C10; border-radius: 3px; margin-bottom: 10px; overflow: hidden; }
+.ally-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #6BE08A, #1E7A43); transition: width .6s; }
+.ally-bar span { position: relative; display: block; text-align: center; line-height: 26px; font-family: var(--font-display); font-size: 17px; color: #1E1508; text-shadow: 0 1px 0 rgba(255,255,255,.7); }

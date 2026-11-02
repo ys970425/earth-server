@@ -15,13 +15,14 @@
       if (!prev.game.world_first && b.game.world_first) overlay('세계 외교의 시대', name(b, b.game.world_first) + '의 정찰대가 세계의 모든 나라를 발견했습니다!', b.countries);
       else if (prev.game.phase < 2 && b.game.phase >= 2) overlay('성장의 한계', '나라가 커지자 시민들이 더 다양한 물건을 원합니다.');
       else if (prev.game.phase < 3 && b.game.phase >= 3) overlay('세계 시장 개방', '이제 다른 나라와 물건을 사고팔 수 있어요.', b.countries);
-      else if (prev.game.phase < 8 && b.game.phase >= 8) overlay('세계 무역 협정 만료!', '나라 사이의 무역 약속이 끝났어요. 일부 수입품에 관세가 붙고, 나라마다 핵심 재료 하나의 수출을 막았어요.', null, 'alarm');
-      else if (prev.game.phase < 9 && b.game.phase >= 9 && b.game.phase < 10) overlay('피해 보고서', '우리 나라는 무역에서 어떤 어려움을 겪었나요?');
-      else if (prev.game.phase < 11 && b.game.phase >= 11) overlay('세계 무역 헌장 체결', '수출 제한이 풀리고 관세가 사라졌어요. 약속을 지키며 다시 거래해요!', b.countries);
+      else if (prev.game.phase < 8 && b.game.phase >= 8 && b.game.phase < 9) overlay('긴급속보: 잊힌 제국 등장!', '잊힌 제국이 여섯 나라의 첫 도시를 빼앗았어요. 테러에 시민들이 불안해하고, 인터넷으로 다른 나라 물건을 본 사람들은 사치품에 싫증을 내요.', null, 'alarm');
+      else if (prev.game.phase < 9 && b.game.phase >= 9 && b.game.phase < 10) overlay('긴급속보: 세계 무역 협정 만료!', '잊힌 제국이 무역선과 수송기를 공격해요. 사치품은 거래 불가, 나머지 물건엔 관세 폭탄!', null, 'alarm');
+      else if (prev.game.phase < 10 && b.game.phase >= 10 && b.game.phase < 11) overlay('세계 무역 회의', '① 같은 역할끼리 모여요 → ② 모둠 규칙 1개 → ③ 대표들이 세계 무역 헌장을 만들어요');
+      else if (prev.game.phase < 11 && b.game.phase >= 11) overlay('무역 동맹 체결!', '여섯 나라의 약속으로 무역로가 다시 열렸어요. 잊힌 제국이 크게 약해졌어요!', b.countries);
       // 최종 도시국가 정복 · 도시 재건 소식은 위쪽 띠로
       b.countries.forEach(c => { const p = prev.countries.find(x => x.id === c.id) || {};
         if (c.final_done && !p.final_done) banner(c.name + ' — 최종 도전 성공!', '무역으로 모은 자원으로 특수 부대를 만들었어요', typeColor(c.type));
-        if (c.rebuilt && !p.rebuilt) banner(c.name + ' — 새 도시 재건!', '다시 이어진 무역 덕분이에요', typeColor(c.type)); });
+        if (p.rebel && !c.rebel) banner(c.name + ' — 잊힌 제국 격퇴!', '빼앗긴 첫 도시를 되찾았어요', typeColor(c.type)); });
     }
   }
   const loadSoon = debounce(load, 500);
@@ -48,16 +49,20 @@
     right.append(h('div', { class: 'panel b-gauge' }, h('div', { class: 'b-gauge-label' }, '지구 서버 안정도 ', h('b', {}, b.gauge + '%')),
       h('div', { class: 'big-gauge', style: { width: '100%', maxWidth: 'none', margin: '6px 0 0' } }, h('i', { style: { width: b.gauge + '%', background: gaugeColor(b.gauge) } }))));
     if (g.phase >= 8 && g.phase < 10) {
-      const bans = Object.entries(g.banned || {}), tars = Object.keys(g.tariffs || {});
-      right.append(h('div', { class: 'panel' }, h('div', { class: 'b-rank-title' }, g.phase === 8 ? '무역 위기 상황' : '나라별 무역 피해'),
-        bans.length ? h('div', { class: 'b-crisis' }, h('b', {}, '수출 제한 '), bans.map(([c, its]) => name(b, +c) + ': ' + its.map(UI.itemName).join(', ')).join(' · ')) : null,
-        tars.length ? h('div', { class: 'b-crisis tariff' }, h('b', {}, '관세 50% '), tars.map(UI.itemName).join(' · ')) : null,
-        h('table', { class: 'tbl b-dmg' }, h('tr', {}, h('th', {}, '나라'), h('th', {}, '막힌 거래'), h('th', {}, '낸 관세'), h('th', {}, '행복')),
-          b.countries.map(c => h('tr', {}, h('td', {}, h('b', { style: { color: typeColor(c.type) } }, c.name)), h('td', { class: c.fails ? 'bad' : '' }, c.fails + '번'), h('td', {}, c.tariff_paid + '코인'), h('td', { class: c.happy < 0 ? 'bad' : '' }, c.happy))))));
+      const bans = [...new Set(Object.values(g.banned || {}).flat())], tars = Object.keys(g.tariffs || {});
+      right.append(h('div', { class: 'panel' }, h('div', { class: 'b-rank-title' }, '잊힌 제국의 공격'),
+        bans.length ? h('div', { class: 'b-crisis' }, h('b', {}, '거래 불가 '), bans.map(UI.itemName).join(' · ')) : null,
+        tars.length ? h('div', { class: 'b-crisis tariff' }, h('b', {}, '관세 폭탄 +100% '), '나머지 물건 ' + tars.length + '가지') : null,
+        h('table', { class: 'tbl b-dmg' }, h('tr', {}, h('th', {}, '나라'), h('th', {}, '반란 도시'), h('th', {}, '막힌 거래'), h('th', {}, '행복')),
+          b.countries.map(c => h('tr', {}, h('td', {}, h('b', { style: { color: typeColor(c.type) } }, c.name)), h('td', { class: c.rebel ? 'bad' : '' }, c.rebel ? '빼앗김' : '되찾음'),
+            h('td', { class: c.fails ? 'bad' : '' }, c.fails + '번'), h('td', { class: c.happy < 0 ? 'bad' : '' }, c.happy))))));
+    } else if (g.phase === 10 && !b.treaties.length) {
+      right.append(h('div', { class: 'panel' }, h('div', { class: 'b-rank-title' }, '세계 무역 회의'),
+        ['① 같은 역할끼리 모여 이야기해요', '② 우리 모둠으로 돌아와 무역 규칙 1개', '③ 대표들이 모여 세계 무역 헌장', '여섯 나라가 다 올리면 무역 동맹!'].map(x => h('div', { class: 'b-sentence' }, x))));
     } else if (g.phase >= 10 && b.treaties.length) {
-      right.append(h('div', { class: 'panel' }, h('div', { class: 'b-rank-title' }, '지구 서버 무역 헌장'),
+      right.append(h('div', { class: 'panel' }, h('div', { class: 'b-rank-title' }, '세계 무역 헌장 ' + b.treaties.length + '/6' + (g.alliance ? ' · 무역 동맹!' : '')),
         b.treaties.map(t => h('div', { class: 'b-sentence', style: { borderLeftColor: typeColor((b.countries.find(c => c.id === t.country) || {}).type) } },
-          h('b', {}, name(b, t.country) + ' '), t.promise || '', g.phase >= 11 && (b.countries.find(c => c.id === t.country) || {}).rebuilt ? h('span', { class: 'b-ok' }, ' 재건 완료') : null, h('div', { class: 'muted' }, t.reason || ''), h('small', {}, '동의 ' + t.agreed.length + '/6')))));
+          h('b', {}, name(b, t.country) + ' '), t.promise || '', h('div', { class: 'muted' }, t.reason || ''), g.alliance ? h('small', { class: 'b-ok' }, (b.countries.find(c => c.id === t.country) || {}).rebel ? '반란 도시 탈환 중' : '잊힌 제국 격퇴 ✓') : null))));
     } else {
       right.append(h('div', { class: 'tb-cards' }, b.countries.map(c => h('div', { class: 'panel tb-card', style: { '--gc': typeColor(c.type) } },
         c.flag_url ? h('img', { src: c.flag_url, class: 'tb-flag' }) : h('div', { class: 'tb-flag none' }, c.id),
