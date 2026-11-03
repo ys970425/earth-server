@@ -259,6 +259,8 @@ alter table public.game add column if not exists normalized boolean not null def
 create table if not exists priv.expert_notes (
   student_id int primary key, country int not null, role text not null, body text not null, updated_at timestamptz not null default now()
 );
+-- v10: 무역로 공격으로 수입 사치품 공급 중단 (수입 행복도 효과 멈춤 → 동맹 뒤 수입하면 다시)
+alter table priv.countries add column if not exists import_cut boolean not null default false;
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 
@@ -1701,7 +1703,7 @@ begin
     update priv.countries set coin = (cfg->'START'->>'coin')::int, happy = (cfg->'HAPPY'->>'base')::int, glory = '{}', happy_detail = '[]', research_count = 0, lux_used = '{}',
       techs = '{}',
       discovered = '{}', explored = '{}', title = null, lux_types = 0, income = 0, short = '{}', tariff_turn = 0, attacked_turn = -1,
-      ready_turn = 0, research_turn = -1, crisis = false, rebuilt = false
+      ready_turn = 0, research_turn = -1, crisis = false, rebuilt = false, import_cut = false
      where id = co.id;
     for k, v in select key, value from jsonb_each_text(cfg->'START') loop
       if k <> 'coin' then perform priv.add(co.id, k, v::int); end if;
@@ -1773,7 +1775,7 @@ begin
   own := cfg->'LUX_OF'->>co.type;
   ownv := case when own = any(co.lux_used) or priv.inv(p_c, own) >= 1 then (h->>'ownLux')::int else 0 end;
   select count(*) into nimp from jsonb_array_elements_text(cfg->'LUX') x where x <> own and (x = any(co.lux_used) or priv.inv(p_c, x) >= 1);
-  impv := (h->'importLux'->>least(nimp, 3))::int;
+  impv := case when co.import_cut then 0 else (h->'importLux'->>least(nimp, 3))::int end;   -- 무역로가 끊기면 수입 효과가 멈춰요
   types := nimp + case when ownv > 0 then 1 else 0 end;
   select count(*) into ncity from priv.cities where country = p_c;
   plz := (select count(*) from priv.cities where country = p_c and 'plaza' = any(buildings))::int * (h->>'perPlaza')::int;
@@ -1790,7 +1792,9 @@ begin
   v := greatest(-100, least(100, (h->>'base')::int + ownv + impv + plz + adv + gl - press + cityv - tarv - bore + hung));
   update priv.countries set happy = v, happy_detail = jsonb_build_array(
       jsonb_build_object('k', '우리 사치품', 'v', ownv, 'tip', '우리 나라 사치품(' || priv.iname(own) || ')은 수도에서 매 턴 ' || (cfg->>'LUX_PER_TURN') || '개씩 생겨요 +' || (h->>'ownLux')),
-      jsonb_build_object('k', '수입 사치품 ' || nimp || '종', 'v', impv, 'tip', '다른 나라 사치품을 여러 가지 수입할수록 크게 올라요: 1종 +' || (h->'importLux'->>1) || ' · 2종 +' || (h->'importLux'->>2) || ' · 3종 +' || (h->'importLux'->>3) || ' (사치품은 2턴에 1개씩 써요)'),
+      jsonb_build_object('k', '수입 사치품 ' || nimp || '종' || case when co.import_cut then ' (공급 끊김)' else '' end, 'v', impv,
+        'tip', case when co.import_cut then '잊힌 제국의 무역로 공격으로 수입 사치품 공급이 끊겼어요. 무역 동맹 뒤 사치품을 한 번 수입하면 다시 이어져요.'
+          else '다른 나라 사치품을 수입할수록 크게 올라요: 1종 +' || (h->'importLux'->>1) || ' · 2종 +' || (h->'importLux'->>2) || ' (목표!) · 3종 +' || (h->'importLux'->>3) || ' (다른 팀과도 거래하면 보너스) · 사치품은 2턴에 1개씩 써요' end),
       jsonb_build_object('k', '광장', 'v', plz, 'tip', '광장이 있는 도시마다 +' || (h->>'perPlaza')),
       jsonb_build_object('k', '특별 건물', 'v', adv, 'tip', '극장·통신탑·방송국'),
       jsonb_build_object('k', '점령 환호', 'v', gl, 'tip', '도시국가를 차지하면 +' || (h->>'glory') || ', 매 턴 ' || (h->>'gloryDecay') || '씩 줄어요'),
@@ -2063,7 +2067,7 @@ begin
     'country', jsonb_build_object('id', co.id, 'type', co.type, 'name', priv.cname(co.id), 'flag_url', co.flag_url, 'emblem_url', co.emblem_url,
       'coin', co.coin, 'happy', co.happy, 'income', co.income, 'lux_types', co.lux_types, 'short', co.short, 'techs', co.techs,
       'title', co.title, 'glory', coalesce((select sum(x) from unnest(co.glory) x), 0), 'attacked', co.attacked_turn >= g.turn,
-      'ready', co.ready_turn = g.turn, 'researched', co.research_turn >= g.turn and co.research_count >= (priv.cfg()->>'RESEARCH_PER_TURN')::int, 'research_n', case when co.research_turn >= g.turn then co.research_count else 0 end, 'happy_detail', co.happy_detail, 'crisis', co.crisis, 'rebuilt', co.rebuilt,
+      'ready', co.ready_turn = g.turn, 'researched', co.research_turn >= g.turn and co.research_count >= (priv.cfg()->>'RESEARCH_PER_TURN')::int, 'research_n', case when co.research_turn >= g.turn then co.research_count else 0 end, 'happy_detail', co.happy_detail, 'crisis', co.crisis, 'rebuilt', co.rebuilt, 'import_cut', co.import_cut,
       'discovered', co.discovered, 'explored_count', coalesce(array_length(co.explored, 1), 0)),
     'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}') from priv.inventory where country = co.id and qty <> 0),
     'cities', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'tile', c.tile_id, 'kind', c.kind, 'name', c.name, 'art', priv.city_art(c.id),
@@ -2629,6 +2633,14 @@ begin
   val := coalesce(coin, (cfg->'ITEMS'->item->>'ref')::int * qty);
   insert into priv.trades(turn, phase, from_c, to_c, item, qty, price, value, tariff, broker)
     values (g.turn, g.phase, seller, buyer, item, qty, case when coin is not null then round(coin::numeric / qty) end, val, tar, broker);
+  -- 무역 동맹 뒤 사치품을 수입하면 공급이 다시 이어져요
+  if buyer is not null and (cfg->'LUX') ? item and g.alliance then
+    update priv.countries set import_cut = false where id = buyer and import_cut;
+    if found then
+      perform priv.notice_d('수입 사치품 공급이 다시 이어졌어요! 무역이 돌아오자 수입 사치품 행복도가 되살아났어요.', 'market', buyer, jsonb_build_object('mode', 'resupply'));
+      perform priv.event('resupply', priv.cname(buyer) || ' 사치품 공급 재개', jsonb_build_object('country', buyer));
+    end if;
+  end if;
   return tar;
 end $$;
 
@@ -2753,6 +2765,8 @@ language plpgsql as $$
 begin
   if exists(select 1 from priv.cities where rebel) or (select normalized from public.game where id = 1) then return; end if;
   update public.game set normalized = true, video_seq = video_seq + 1 where id = 1;
+  update priv.countries set import_cut = false where import_cut;   -- 무역이 정상으로: 수입 사치품 공급도 다시
+  perform priv.refresh_happy(id) from priv.countries;
   perform priv.notice('국가 정상화 성공! 잊힌 제국의 영향력이 사라지고 무역이 정상으로 돌아왔어요. 축하합니다!', 'world');
   perform priv.event('normal', '국가 정상화');
 end $$;
@@ -3016,7 +3030,16 @@ begin
                    where not (cfg->'LUX') ? k and not (cfg->'BANNED_STRAT') ? k),
         banned = (select coalesce(jsonb_object_agg(c.id::text, (cfg->'LUX') || (cfg->'BANNED_STRAT')), '{}') from priv.countries c)
        where id = 1;
-      perform priv.notice('긴급속보: 세계 무역 협정 만료! 잊힌 제국이 "관세를 말도 안 되게 올리지 않으면 무역선을 공격하겠다"고 협박했어요. 겁먹은 나라들이 관세를 크게 올렸고(1개마다 +' || (cfg->'CRISIS'->>'tariffPerUnit') || '코인), 사치품과 핵심 전략 자원은 실어 나를 수 없어요.', 'alert');
+      perform priv.notice('긴급속보: 국제 무역망 마비! 잊힌 제국이 "관세를 말도 안 되게 올리지 않으면 무역선을 공격하겠다"고 협박했어요. 겁먹은 나라들이 관세를 크게 올렸고(1개마다 +' || (cfg->'CRISIS'->>'tariffPerUnit') || '코인), 사치품과 핵심 전략 자원은 실어 나를 수 없어요. 외국 사치품 공급이 끊겨 시민들의 불만이 커지고 있어요.', 'alert');
+      -- 수입 사치품 공급 중단: 창고의 물건은 그대로, 수입 행복도 효과만 멈춰요 (우리 사치품은 그대로)
+      for co in select * from priv.countries order by id loop
+        perform priv.notice_d('외국에서 들어오던 사치품 공급이 끊겼어요! 수입 사치품 행복도 ' ||
+          coalesce((select (x->>'v')::int from jsonb_array_elements(co.happy_detail) x where x->>'k' like '수입 사치품%' limit 1), 0) || ' → 0', 'crisis', co.id,
+          jsonb_build_object('mode', 'cut', 'before', coalesce((select (x->>'v')::int from jsonb_array_elements(co.happy_detail) x where x->>'k' like '수입 사치품%' limit 1), 0), 'happy', co.happy));
+      end loop;
+      update priv.countries set import_cut = true where true;
+      update public.game set phase = 5 where id = 1;
+      for co in select id from priv.countries loop perform priv.refresh_happy(co.id); end loop;
       perform priv.event('expire', '협정 만료: 잊힌 제국의 무역 파괴');
     elsif nxt = 6 then
       update public.game set locked = true where id = 1;

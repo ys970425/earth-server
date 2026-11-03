@@ -865,8 +865,8 @@
             itemTag(gd.myLux, ' 2'), h('span', {}, '↔'), itemTag(l.it, ' 2'), l.have > 0 ? h('small', { class: 'good' }, '✓') : null))),
         h('div', { class: 'gcol sell' }, h('h4', {}, '③ 수입 사치품과 행복도'),
           h('div', { class: 'joy-table' }, h('div', {}, h('span', {}, '우리 사치품'), h('b', {}, '+' + R.HAPPY.ownLux)),
-            h('div', {}, h('span', {}, '수입 1종'), h('b', {}, '+' + imp[1])), h('div', {}, h('span', {}, '수입 2종'), h('b', {}, '+' + imp[2])), h('div', {}, h('span', {}, '수입 3종'), h('b', {}, '+' + imp[3]))),
-          h('small', { class: 'muted' }, '여러 나라에서 수입할수록 행복도가 크게 올라요. 사치품은 2턴에 1개씩 써서 오래가요.'))),
+            h('div', {}, h('span', {}, '수입 1종'), h('b', {}, '+' + imp[1])), h('div', { class: 'goal' }, h('span', {}, '수입 2종 (목표!)'), h('b', {}, '+' + imp[2])), h('div', { class: 'bonus' }, h('span', {}, '3종 · 다른 팀과도 거래하면 보너스'), h('b', {}, '+' + imp[3]))),
+          h('small', { class: 'muted' }, '팀 친구 두 나라와 교환해서 수입 2종을 만드는 게 목표예요. 사치품은 2턴에 1개씩 써서 오래가요.'))),
       h('div', { class: 'guide-tip' }, '거래 예시: "우리 ' + itemName(gd.myStrat) + ' 2개를 줄 테니, ' + itemName(n.it) + ' 2개를 주세요." → 「무역 미션」에서 「제안 쓰기」를 누르면 쉬워요.'));
   }
   function luxAdvice() {
@@ -893,6 +893,14 @@
     const rep = st.report;
     if (st.game.phase >= 4 && rep) {
       const rebel = rep.rebel, ally = st.alliance, lx = gd.lux.find(l => !(inv[l.it] > 0)) || l1;
+      if (ally) return [
+        { k: 'rebel2', kind: 'act', go: 'map', title: '잊힌 제국에게 빼앗긴 「' + (rebel ? rebel.name : '첫 도시') + '」 되찾기',
+          why: rebel ? '무역 동맹 덕분에 잊힌 제국이 약해졌어요 (체력 ' + rebel.hp + '/' + rebel.max_hp + ', 회복 없음). 특수 부대로 공격해요!' : '',
+          after: '잊힌 제국 격퇴! 테러가 사라지고 행복도 +' + R.REBEL.glory + '!', done: !rebel || st.game.normalized },
+        { k: 'resupply', kind: 'lux', it: l1.it, qty: 2, from: l1.from, give: gd.myLux, title: '사치품 공급 다시 잇기: ' + tname(l1.from[0]) + '와(과) 사치품 교환',
+          why: '무역로가 다시 열렸어요! 사치품을 한 번 수입하면 끊겼던 수입 사치품 공급이 이어져 행복도가 크게 돌아와요.',
+          after: '수입 사치품 공급 재개! 행복도가 돌아왔어요.', done: !st.country.import_cut }
+      ];
       return [
         { k: 'c_lux', kind: 'lux', it: lx.it, qty: 2, from: lx.from, give: gd.myLux, title: '행복도를 지켜요! 행복도 ' + R.HAPPY.rebelOpen + ' 위로 올리기',
           why: '잊힌 제국의 테러와 사치품 싫증으로 행복도가 뚝 떨어졌어요. 사치품 「' + itemName(lx.it) + '」을(를) 사 오면 올라요.' + (Object.keys(st.game.banned || {}).length ? ' 그런데… 지금 거래가 될까요? 제안을 보내 봐요.' : ''),
@@ -1008,7 +1016,7 @@
     const later = h('div', { class: 'q-box', style: { visibility: 'hidden' } }, '이제 전자칠판을 봐요! 현실에서 나라들이 무역 약속을 지키지 않으면 어떤 일이 생길까요?');
     modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('h2', {}, '국가 정상화에 성공했습니다!'), h('p', { class: 'big-joy' }, '축하합니다! 잊힌 제국의 영향력이 사라지고 무역이 정상으로 돌아왔어요.'),
       h('div', { class: 'recover' }, h('b', {}, '무역이 다시 이어지자…'),
-        h('div', {}, '사치품을 다시 수입 → 행복도 회복 (지금 ' + co.happy + ', ' + happyWord(co.happy) + ')'),
+        h('div', {}, '수입 사치품 공급 재개 → 행복도 회복 (지금 ' + co.happy + ', ' + happyWord(co.happy) + ')'),
         h('div', {}, '관세 폭탄이 사라짐 → 물건값이 다시 정상'),
         h('div', {}, '전략 자원을 다시 거래 → 군대와 공장이 다시 움직여요'),
         h('div', {}, '행정 마비가 풀림 → 건물과 병력을 다시 만들 수 있어요')),
@@ -1032,19 +1040,27 @@
     } else if (ph === 5) {
       Sound.play('hit');
       const tars = Object.keys(st.game.tariffs || {}).length;
-      modal(h('div', { class: 'blocked-pop news-flash' }, h('div', { class: 'stamp' }, '긴급속보'), h('h2', {}, '세계 무역 협정 만료!'),
+      const cut = (st.notices.find(n => n.kind === 'crisis' && n.data && n.data.mode === 'cut') || {}).data || { before: 0 };
+      modal(h('div', { class: 'blocked-pop news-flash' }, h('div', { class: 'stamp' }, '긴급속보'), h('h2', {}, '국제 무역망 마비!'),
         h('p', {}, '잊힌 제국이 여섯 나라를 협박했어요: "관세를 말도 안 되게 올려라! 그렇지 않으면 무역선과 수송기를 공격하겠다!" 겁먹은 나라들이 관세를 크게 올렸어요.'),
         h('div', { class: 'report-grid' },
           h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '거래 불가'), '사치품 · 핵심 전략 자원'), h('small', {}, R.LUX.concat(R.BANNED_STRAT).map(itemName).join(' · ') + ' — 실어 나를 수 없어요')),
           h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '관세 폭탄'), '나머지 ' + tars + '가지 물건'), h('small', {}, '사 올 때 1개마다 ' + R.CRISIS.tariffPerUnit + '코인을 더 내요'))),
+        h('div', { class: 'cut-box' }, h('span', {}, '외국 사치품 공급이 끊겨 시민들의 불만이 커지고 있어요'),
+          h('div', { class: 'cut-num' }, h('small', {}, '수입 사치품 행복도'), h('b', { class: 'from' }, (cut.before > 0 ? '+' : '') + cut.before), h('i', {}, '→'), h('b', { class: 'to' }, '0')),
+          h('small', {}, '창고의 물건은 그대로지만, 새로 들어오지 않아 수입 효과가 멈췄어요. 우리 나라 사치품은 그대로예요.')),
         h('div', { class: 'q-box' }, '활동 1: 직접 거래해 보며, 무역이 엉망이 되면 무엇이 문제인지 학습지에 적어요!'),
         h('button', { class: 'primary big', onclick: () => { close(); go('trade'); } }, '무역해 보기')));
     } else if (ph === 6 || ph === 8) { close(); go('meeting'); }
     else if (ph === 7) {
       Sound.play('win');
+      const list = st.treaties || [];
       modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('h2', {}, '무역 동맹 체결!'),
-        h('p', { class: 'big-joy' }, '여섯 나라가 함께 약속하자 잊힌 제국의 협박이 더는 통하지 않아요!'),
-        h('p', {}, '무역 동맹으로 잊힌 제국의 영향력이 크게 줄었어요 (반란 도시 체력 ' + R.REBEL.weakHp + ', 회복 없음). 무역로가 다시 열렸어요. 우리 반란 도시를 되찾아요!'),
+        h('p', { class: 'big-joy' }, '여섯 나라는 서로의 조항을 함께 지키기로 약속했습니다.'),
+        list.length ? h('div', { class: 'charter-list' }, list.map(t => { const c = st.countries.find(x => x.id === t.country) || {};
+          return h('div', { class: 'charter-it', style: { '--gc': typeColor(c.type), textAlign: 'left' } }, h('b', {}, c.name + ' '), t.promise || ''); })) : null,
+        h('p', {}, '함께 약속하자 잊힌 제국의 협박이 더는 통하지 않아요!'),
+        h('p', {}, '무역 동맹으로 잊힌 제국의 영향력이 크게 줄었어요 (반란 도시 체력 ' + R.REBEL.weakHp + ', 회복 없음). 무역로가 다시 열렸어요. 반란 도시를 되찾고, 사치품을 수입해 공급을 다시 이어요!'),
         h('button', { class: 'danger big', onclick: () => { close(); go('map'); } }, '반란 도시 되찾으러 가기')));
     }
   }

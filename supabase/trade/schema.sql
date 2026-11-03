@@ -259,6 +259,8 @@ alter table public.game add column if not exists normalized boolean not null def
 create table if not exists priv.expert_notes (
   student_id int primary key, country int not null, role text not null, body text not null, updated_at timestamptz not null default now()
 );
+-- v10: 무역로 공격으로 수입 사치품 공급 중단 (수입 행복도 효과 멈춤 → 동맹 뒤 수입하면 다시)
+alter table priv.countries add column if not exists import_cut boolean not null default false;
 create table if not exists priv.admin_secret (id int primary key default 1 check (id = 1), salt text not null, hash text not null);
 create table if not exists priv.admin_attempts (id bigserial primary key, uid uuid, ok boolean not null, at timestamptz not null default now());
 
