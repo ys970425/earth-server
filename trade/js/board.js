@@ -19,7 +19,8 @@
       else if (prev.game.phase < 5 && b.game.phase >= 5 && b.game.phase < 6) overlay('긴급속보: 세계 무역 협정 만료!', '잊힌 제국이 무역선과 수송기를 공격해요. 사치품은 거래 불가, 나머지 물건엔 관세 폭탄!', null, 'alarm');
       else if (prev.game.phase < 6 && b.game.phase >= 6 && b.game.phase < 7) overlay('세계 무역 회의', '활동 2 전문가 회의: 같은 역할끼리 모여 「올바른 무역을 위해 중요한 것」을 한 문장으로 만들어요');
       else if (b.game.phase === 6 && prev.game.meet_step !== b.game.meet_step && b.game.meet_step === 3) overlay('활동 3 · 모둠 회의', '우리 모둠으로 돌아가 전문가 문장을 나눠요. 대표를 중심으로 두 문장을 골라 하나로 합쳐 무역 조항을 등록해요!');
-      else if (prev.game.phase < 7 && b.game.phase >= 7 && b.game.phase < 8) overlay('무역 동맹 체결!', '여섯 나라가 함께 약속하자 잊힌 제국의 협박이 통하지 않아요. 잊힌 제국의 영향력이 크게 줄고 무역로가 다시 열렸어요!', b.countries);
+      else if (prev.game.phase < 7 && b.game.phase >= 7 && b.game.phase < 8) overlay('무역 동맹 체결!', '여섯 나라는 서로의 조항을 함께 지키기로 약속했습니다. 잊힌 제국의 영향력이 크게 줄고 무역로가 다시 열렸어요!', null, null,
+        b.treaties.map(t => h('div', { class: 'ov-clause', style: { '--gc': typeColor((b.countries.find(c => c.id === t.country) || {}).type) } }, h('b', {}, name(b, t.country)), t.promise || '')));
       else if (prev.game.phase < 8 && b.game.phase >= 8) overlay('정리', '무역을 할 때 필요한 노력을 적어 봅시다');
       // 국가 정상화 → 3초 뒤 영상
       if (!prev.game.normalized && b.game.normalized) {
@@ -110,7 +111,7 @@
     const m = /(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/.exec(url);
     const media = m ? h('iframe', { src: 'https://www.youtube-nocookie.com/embed/' + m[1] + '?autoplay=1&rel=0', allow: 'autoplay; encrypted-media; fullscreen', allowfullscreen: true })
       : h('video', { src: url, autoplay: true, controls: true });
-    const box = h('div', { class: 'b-video' }, h('div', { class: 'b-video-head' }, h('b', {}, '현실에서 무역 약속이 깨지면?'), h('button', { onclick: () => box.remove() }, '닫기')), media);
+    const box = h('div', { class: 'b-video' }, h('div', { class: 'b-video-head' }, h('b', {}, '현실에서 무역 약속이 깨지면?'), h('small', {}, '소리가 안 나오면 화면의 재생 버튼을 눌러요'), h('button', { onclick: () => box.remove() }, '닫기')), media);
     document.body.appendChild(box);
   }
   function banner(title, sub, color) {
@@ -119,12 +120,13 @@
     const el = h('div', { class: 'b-banner', style: { '--gc': color } }, h('b', {}, title), h('span', {}, sub));
     box.appendChild(el); setTimeout(() => el.classList.add('out'), 6000); setTimeout(() => el.remove(), 6800);
   }
-  function overlay(title, msg, countries, kind) {
+  function overlay(title, msg, countries, kind, extra) {
     document.querySelectorAll('.alarm').forEach(x => x.remove());
     const ov = h('div', { class: 'alarm ' + (kind === 'alarm' ? '' : 'calm'), onclick: () => ov.remove() },
       h('h2', {}, title), h('p', { style: { fontSize: '30px' } }, msg),
       countries ? h('div', { class: 'ov-flags' }, countries.map((c, i) => h('div', { class: 'ov-flag', style: { animationDelay: (i * 0.25) + 's', '--gc': typeColor(c.type) } },
         c.flag_url ? h('img', { src: c.flag_url }) : h('div', { class: 'none' }, c.id), h('span', {}, c.name)))) : null,
+      extra && extra.length ? h('div', { class: 'ov-clauses' }, extra) : null,
       h('div', { style: { fontSize: '18px', marginTop: '20px', opacity: .8 } }, '(화면을 누르면 닫혀요)'));
     document.body.appendChild(ov);
   }

@@ -1073,3 +1073,13 @@ td.good { color: #1E7A43; font-weight: 700; }
 .b-wrap td, .b-wrap th { font-size: 22px; padding: 6px 10px; }
 .ex-it { cursor: pointer; text-align: left; }
 .ex-check { width: 24px; height: 24px; border: 2px solid #5A4228; border-radius: 3px; display: grid; place-items: center; font-weight: 700; color: #B8394A; background: #fff; }
+/* v9: 수입 사치품 공급 중단 · 동맹 조항 */
+.joy-table .goal { border: 2px solid #1E7A43; } .joy-table .bonus { opacity: .75; font-size: 12.5px; }
+.cut-box { background: #2C1018; color: #FFE7E0; border: 2px solid #B8263A; border-radius: 4px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.cut-num { display: flex; align-items: baseline; gap: 12px; font-family: var(--font-display); }
+.cut-num small { font-family: var(--font-ui); color: #F3C7C0; }
+.cut-num b { font-size: 40px; } .cut-num b.from { color: #8FE3A6; text-decoration: line-through; text-decoration-thickness: 4px; } .cut-num b.to { color: #FF7A6E; } .cut-num i { font-style: normal; font-size: 30px; }
+.ov-clauses { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; max-width: 1100px; text-align: left; }
+.ov-clause { background: rgba(255,255,255,.12); border-left: 10px solid var(--gc); padding: 8px 16px; font-size: 24px; border-radius: 3px; }
+.ov-clause b { margin-right: 10px; }
+.b-video-head small { font-family: var(--font-ui); font-size: 16px; color: #BFA878; margin-left: auto; margin-right: 14px; }
