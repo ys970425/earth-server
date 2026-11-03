@@ -274,12 +274,12 @@ language sql stable as $$ select coalesce(sum(qty), 0)::int from priv.trades whe
 create or replace function priv.gauge() returns int
 language sql stable as $$
   with w as (select priv.world_power() p), g as (select turn, base_vol, banned from public.game where id = 1)
-  select round(0.4 * least(100, greatest(0, (w.p->>'happy')::numeric + 50))
+  select greatest(0, least(100, round(0.4 * least(100, greatest(0, (w.p->>'happy')::numeric + 50))
              + 0.2 * least(100, (w.p->>'econ')::numeric / 4.2)
              + 0.2 * least(100, (w.p->>'culture')::numeric / 1.5)
              + 0.2 * least(100, priv.trade_volume(g.turn - 1) * 100.0 / greatest(1, g.base_vol))
              - case when g.banned <> '{}'::jsonb then 15 else 0 end
-             - 3 * (select count(*) from priv.cities where rebel))::int
+             - 3 * (select count(*) from priv.cities where rebel))))::int
   from w, g
 $$;
 
@@ -314,7 +314,7 @@ begin
   update priv.countries set happy = v, happy_detail = jsonb_build_array(
       jsonb_build_object('k', '우리 사치품', 'v', ownv, 'tip', '우리 나라 사치품(' || priv.iname(own) || ')은 수도에서 매 턴 ' || (cfg->>'LUX_PER_TURN') || '개씩 생겨요 +' || (h->>'ownLux')),
       jsonb_build_object('k', '수입 사치품 ' || nimp || '종' || case when co.import_cut then ' (공급 끊김)' else '' end, 'v', impv,
-        'tip', case when co.import_cut then '잊힌 제국의 무역로 공격으로 수입 사치품 공급이 끊겼어요. 무역 동맹 뒤 사치품을 한 번 수입하면 다시 이어져요.'
+        'tip', case when co.import_cut then '잊힌 제국의 무역로 공격으로 수입 사치품 공급이 끊겼어요. 무역 동맹을 맺으면 다시 이어져요.'
           else '다른 나라 사치품을 수입할수록 크게 올라요: 1종 +' || (h->'importLux'->>1) || ' · 2종 +' || (h->'importLux'->>2) || ' (목표!) · 3종 +' || (h->'importLux'->>3) || ' (다른 팀과도 거래하면 보너스) · 사치품은 2턴에 1개씩 써요' end),
       jsonb_build_object('k', '광장', 'v', plz, 'tip', '광장이 있는 도시마다 +' || (h->>'perPlaza')),
       jsonb_build_object('k', '특별 건물', 'v', adv, 'tip', '극장·통신탑·방송국'),
@@ -1260,8 +1260,9 @@ declare cfg jsonb := priv.cfg(); co record;
 begin
   update public.game set alliance = true, locked = false, banned = '{}'::jsonb, tariffs = '{}'::jsonb, fair_cap = true, phase = greatest(phase, 7) where id = 1;
   update priv.cities set def = (cfg->'REBEL'->>'weakDef')::int, max_hp = (cfg->'REBEL'->>'weakHp')::int, hp = least(hp, (cfg->'REBEL'->>'weakHp')::int) where rebel;
+  update priv.countries set import_cut = false where import_cut;   -- 무역로가 다시 열려 수입 사치품 공급도 바로 이어져요
   for co in select id from priv.countries loop perform priv.refresh_happy(co.id); end loop;
-  perform priv.notice('무역 동맹 체결! 여섯 나라가 함께 약속하자 잊힌 제국의 협박이 더는 통하지 않아요. 잊힌 제국의 영향력이 크게 줄고, 무역로가 다시 열렸어요 — 우리 반란 도시를 되찾아요!', 'market');
+  perform priv.notice('무역 동맹 체결! 여섯 나라가 함께 약속하자 잊힌 제국의 협박이 더는 통하지 않아요. 잊힌 제국의 영향력이 크게 줄고 무역로가 다시 열려, 수입 사치품 공급도 바로 이어졌어요 — 우리 반란 도시를 되찾아요!', 'market');
   perform priv.event('alliance', '무역 동맹 체결');
 end $$;
 

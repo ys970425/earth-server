@@ -896,10 +896,7 @@
       if (ally) return [
         { k: 'rebel2', kind: 'act', go: 'map', title: '잊힌 제국에게 빼앗긴 「' + (rebel ? rebel.name : '첫 도시') + '」 되찾기',
           why: rebel ? '무역 동맹 덕분에 잊힌 제국이 약해졌어요 (체력 ' + rebel.hp + '/' + rebel.max_hp + ', 회복 없음). 특수 부대로 공격해요!' : '',
-          after: '잊힌 제국 격퇴! 테러가 사라지고 행복도 +' + R.REBEL.glory + '!', done: !rebel || st.game.normalized },
-        { k: 'resupply', kind: 'lux', it: l1.it, qty: 2, from: l1.from, give: gd.myLux, title: '사치품 공급 다시 잇기: ' + tname(l1.from[0]) + '와(과) 사치품 교환',
-          why: '무역로가 다시 열렸어요! 사치품을 한 번 수입하면 끊겼던 수입 사치품 공급이 이어져 행복도가 크게 돌아와요.',
-          after: '수입 사치품 공급 재개! 행복도가 돌아왔어요.', done: !st.country.import_cut }
+          after: '잊힌 제국 격퇴! 테러가 사라지고 행복도 +' + R.REBEL.glory + '!', done: !rebel || st.game.normalized }
       ];
       return [
         { k: 'c_lux', kind: 'lux', it: lx.it, qty: 2, from: lx.from, give: gd.myLux, title: '행복도를 지켜요! 행복도 ' + R.HAPPY.rebelOpen + ' 위로 올리기',
@@ -1048,7 +1045,7 @@
           h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '관세 폭탄'), '나머지 ' + tars + '가지 물건'), h('small', {}, '사 올 때 1개마다 ' + R.CRISIS.tariffPerUnit + '코인을 더 내요'))),
         h('div', { class: 'cut-box' }, h('span', {}, '외국 사치품 공급이 끊겨 시민들의 불만이 커지고 있어요'),
           h('div', { class: 'cut-num' }, h('small', {}, '수입 사치품 행복도'), h('b', { class: 'from' }, (cut.before > 0 ? '+' : '') + cut.before), h('i', {}, '→'), h('b', { class: 'to' }, '0')),
-          h('small', {}, '창고의 물건은 그대로지만, 새로 들어오지 않아 수입 효과가 멈췄어요. 우리 나라 사치품은 그대로예요.')),
+          h('small', {}, '창고의 물건은 그대로지만, 새로 들어오지 않아 수입 효과가 멈췄어요. 무역 동맹을 맺으면 다시 이어져요.')),
         h('div', { class: 'q-box' }, '활동 1: 직접 거래해 보며, 무역이 엉망이 되면 무엇이 문제인지 학습지에 적어요!'),
         h('button', { class: 'primary big', onclick: () => { close(); go('trade'); } }, '무역해 보기')));
     } else if (ph === 6 || ph === 8) { close(); go('meeting'); }
@@ -1060,7 +1057,7 @@
         list.length ? h('div', { class: 'charter-list' }, list.map(t => { const c = st.countries.find(x => x.id === t.country) || {};
           return h('div', { class: 'charter-it', style: { '--gc': typeColor(c.type), textAlign: 'left' } }, h('b', {}, c.name + ' '), t.promise || ''); })) : null,
         h('p', {}, '함께 약속하자 잊힌 제국의 협박이 더는 통하지 않아요!'),
-        h('p', {}, '무역 동맹으로 잊힌 제국의 영향력이 크게 줄었어요 (반란 도시 체력 ' + R.REBEL.weakHp + ', 회복 없음). 무역로가 다시 열렸어요. 반란 도시를 되찾고, 사치품을 수입해 공급을 다시 이어요!'),
+        h('p', {}, '무역 동맹으로 잊힌 제국의 영향력이 크게 줄었어요 (반란 도시 체력 ' + R.REBEL.weakHp + ', 회복 없음). 무역로가 다시 열렸어요. 수입 사치품 공급도 바로 이어져 행복도가 돌아왔어요. 우리 반란 도시를 되찾아요!'),
         h('button', { class: 'danger big', onclick: () => { close(); go('map'); } }, '반란 도시 되찾으러 가기')));
     }
   }

@@ -1083,3 +1083,13 @@ td.good { color: #1E7A43; font-weight: 700; }
 .ov-clause { background: rgba(255,255,255,.12); border-left: 10px solid var(--gc); padding: 8px 16px; font-size: 24px; border-radius: 3px; }
 .ov-clause b { margin-right: 10px; }
 .b-video-head small { font-family: var(--font-ui); font-size: 16px; color: #BFA878; margin-left: auto; margin-right: 14px; }
+/* 전자칠판 정리 화면: 지도 작게, 결과 크게 */
+.board.tb.wrap-mode .tb-main { grid-template-columns: 360px minmax(0, 1fr); }
+.board.tb.wrap-mode .b-desc { font-size: 40px; color: #FFE7A6; font-family: var(--font-display); }
+.board.tb.wrap-mode .tb-right { display: grid; grid-template-columns: 1fr 1.25fr; gap: 14px; align-content: start; }
+.board.tb.wrap-mode .tb-right > .b-gauge { grid-column: 1 / -1; }
+.board.tb.wrap-mode .b-gauge-label { font-size: 40px; }
+.board.tb.wrap-mode .big-gauge { height: 46px; }
+.board.tb.wrap-mode .b-rank-title { font-size: 34px; }
+.board.tb.wrap-mode .b-wrap td, .board.tb.wrap-mode .b-wrap th { font-size: 30px; padding: 8px 12px; white-space: nowrap; }
+.board.tb.wrap-mode .b-sentence { font-size: 26px; line-height: 1.4; padding: 10px 16px; margin-bottom: 8px; }

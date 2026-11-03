@@ -374,13 +374,7 @@ for (let c = 1; c <= 5; c++) { const r = await rpc(L(c), 'treaty_submit', String
 const last = await rpc(L(6), 'treaty_submit', 'X', '', '우리가 제안한 조약은 (전략 자원을 한 나라가 독점하지 않기)입니다.', '잊힌 제국 때문에');
 const g11 = (await rpc(L(1), 'my_state')).game;
 ok(last.alliance && g11.phase === 7 && !g11.locked && Object.keys(g11.banned).length === 0 && Object.keys(g11.tariffs).length === 0, '6나라가 다 입력하자 자동으로 무역 동맹 (무역 회복)');
-ok((await one(`select import_cut from priv.countries where id = 2`)).import_cut, '무역 동맹만으로는 공급이 저절로 돌아오지 않음');
-await rpc(ADMIN, 'admin_grant', 1, { clothes: 4 }, '테스트');
-const sp0 = (await one(`select priv.refresh_happy(2) h`)).h;
-const so = await rpc(L(1), 'offer_create', 2, 'clothes', 2, 'coin', 10);
-await rpc(L(2), 'offer_respond', so.id, true);
-const sp1 = await one(`select import_cut, happy from priv.countries where id = 2`);
-ok(!sp1.import_cut && sp1.happy > sp0, '동맹 뒤 사치품을 한 번 수입하자 공급 재개, 행복도 회복 (' + sp0 + ' → ' + sp1.happy + ')');
+ok((await one(`select count(*)::int n from priv.countries where import_cut`)).n === 0, '무역 동맹과 함께 수입 사치품 공급도 바로 재개 (사치품을 사지 않아도)');
 const rb2 = await one(`select * from priv.cities where id = '${rb1.id}'`);
 ok(rb2.max_hp === 150 && rb2.hp <= 150 && rb2.def === 40, '무역 동맹: 반란 도시가 크게 약해짐 (체력 150·방어 40)');
 const h11 = (await one(`select priv.refresh_happy(1) h`)).h;
