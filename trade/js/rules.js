@@ -137,23 +137,23 @@
   // 병력: str 힘, move 한 턴 이동 칸, range 원거리(2칸 밖에서 공격, 반격을 덜 받음), sea 배, img 그림
   R.UNITS = {
     spear:     { name: '창병', era: 0, str: 14, move: 3, cost: { coin: 20, food: 1 }, img: 'spear' },
-    catapult:  { name: '투석기', era: 1, str: 16, move: 2, range: 2, tech: 'engineering', cost: { coin: 30, wood: 2 }, img: 'catapult' },
+    catapult:  { name: '투석기', era: 1, str: 16, move: 2, range: 2, tech: 'engineering', cost: { coin: 30, wood: 2, food: 1 }, img: 'catapult' },
     knight:    { name: '기사', era: 1, str: 20, move: 4, tech: 'chivalry', cost: { coin: 40, food: 2, iron: 1 }, img: 'knight' },
-    musket:    { name: '머스킷 보병', era: 2, str: 26, move: 3, tech: 'gunpowder', cost: { coin: 50, iron: 1 }, img: 'swordsman' },
-    cannon:    { name: '대포', era: 2, str: 32, move: 2, range: 2, tech: 'gunpowder', cost: { coin: 60, iron: 2, wood: 2 }, img: 'cannon' },
+    musket:    { name: '머스킷 보병', era: 2, str: 26, move: 3, tech: 'gunpowder', cost: { coin: 50, iron: 1, food: 2 }, img: 'swordsman' },
+    cannon:    { name: '대포', era: 2, str: 32, move: 2, range: 2, tech: 'gunpowder', cost: { coin: 60, iron: 2, wood: 2, food: 2 }, img: 'cannon' },
     infantry:  { name: '보병', era: 3, str: 36, move: 3, tech: 'steelmaking', cost: { coin: 70, steel: 1, food: 2 }, img: 'infantry' },
-    artillery: { name: '포병', era: 3, str: 48, move: 2, range: 3, tech: 'steelmaking', cost: { coin: 90, steel: 2 }, img: 'artillery' },
-    tank:      { name: '탱크', era: 4, str: 75, move: 5, tech: 'combustion', cost: { coin: 130, steel: 2, fuel: 2, tire: 1 }, img: 'tank' },
-    trireme:   { name: '삼단노선', era: 1, str: 10, move: 4, sea: true, tech: 'shipbuilding', cost: { coin: 30, wood: 3 }, img: 'trireme' },
-    frigate:   { name: '프리깃', era: 2, str: 24, move: 5, range: 2, sea: true, tech: 'navigation', cost: { coin: 60, wood: 3, iron: 1 }, img: 'frigate' },
-    battleship:{ name: '전함', era: 3, str: 55, move: 5, range: 2, sea: true, tech: 'warship', cost: { coin: 110, steel: 3, fuel: 1 }, img: 'warship' },
+    artillery: { name: '포병', era: 3, str: 48, move: 2, range: 3, tech: 'steelmaking', cost: { coin: 90, steel: 2, food: 2 }, img: 'artillery' },
+    tank:      { name: '탱크', era: 4, str: 75, move: 5, tech: 'combustion', cost: { coin: 130, steel: 2, fuel: 2, tire: 1, food: 3 }, img: 'tank' },
+    trireme:   { name: '삼단노선', era: 1, str: 10, move: 4, sea: true, tech: 'shipbuilding', cost: { coin: 30, wood: 3, food: 1 }, img: 'trireme' },
+    frigate:   { name: '프리깃', era: 2, str: 24, move: 5, range: 2, sea: true, tech: 'navigation', cost: { coin: 60, wood: 3, iron: 1, food: 2 }, img: 'frigate' },
+    battleship:{ name: '전함', era: 3, str: 55, move: 5, range: 2, sea: true, tech: 'warship', cost: { coin: 110, steel: 3, fuel: 1, food: 3 }, img: 'warship' },
     k_missile: { name: '장거리 미사일 부대', boss: 'K', era: 4, str: 300, move: 5, range: 3, fly: true, cost: { coin: 80, uranium: 2 }, img: 'boss_K' },
     j_patrol:  { name: '해상 초계기', boss: 'J', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, rubber: 2 }, img: 'boss_J' },
     c_jet:     { name: '대형 전투기 편대', boss: 'C', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, engine: 2 }, img: 'boss_C' },
     a_stealth: { name: '스텔스 폭격기', boss: 'A', era: 4, str: 300, move: 6, range: 3, fly: true, cost: { coin: 80, rare: 2 }, img: 'boss_A' },
     n_hyper:   { name: '극초음속 미사일', boss: 'N', era: 4, str: 300, move: 5, range: 3, fly: true, cost: { coin: 80, chip: 2 }, img: 'boss_N' },
     t_marine:  { name: '상륙 기갑부대', boss: 'T', era: 4, str: 300, move: 5, range: 2, fly: true, cost: { coin: 80, tire: 2 }, img: 'boss_T' },
-    cruiser:   { name: '미사일 순양함', era: 4, str: 90, move: 6, range: 3, sea: true, tech: 'missile', cost: { coin: 160, steel: 2, fuel: 2, chip: 2 }, img: 'cruiser' }
+    cruiser:   { name: '미사일 순양함', era: 4, str: 90, move: 6, range: 3, sea: true, tech: 'missile', cost: { coin: 160, steel: 2, fuel: 2, chip: 2, food: 3 }, img: 'cruiser' }
   };
   R.UNIT_UPKEEP = 1;
   // 기술 아이콘 (img/tech/*.png). 없는 기술은 글자만
