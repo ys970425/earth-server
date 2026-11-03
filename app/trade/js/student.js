@@ -163,7 +163,7 @@
       if (prevTurn !== undefined && st.game.turn > prevTurn) Sound.play('turn');
       if (prev && prevTurn === st.game.turn && st.country.happy > prev.happy && !S.obs) cheer(prev, st.country);
       if (st.game.market_open && !S.obs) missionCheck();
-      if (!S.obs) grantCheck(!prevTurn && prevTurn !== 0);
+      if (!S.obs) { grantCheck(!prevTurn && prevTurn !== 0); tariffCheck(!prevTurn && prevTurn !== 0); }
       const phaseChanged = prevPhase !== undefined && prevPhase !== st.game.phase && !S.obs;
       if (phaseChanged) phaseShow(st.game.phase, prevPhase);
       if (prevNorm === false && st.game.normalized && !S.obs && !(phaseChanged && st.game.phase === 7)) normalPop();
@@ -327,8 +327,26 @@
 
   // ================= 지도 =================
   function renderPage() {
-    const page = $('#page'); page.innerHTML = '';
+    const page = $('#page');
+    // 다시 그려도 쓰던 글자와 고른 값은 그대로 (실시간 새로고침 때문에 지워지지 않게)
+    const keep = S.keepView === S.view ? [...page.querySelectorAll('input[id], select[id], textarea[id]')].filter(e => e.dataset.dirty || e === document.activeElement)
+      .map(e => ({ id: e.id, v: e.value, f: e === document.activeElement, a: e.selectionStart, b: e.selectionEnd })) : [];
+    const sy = window.scrollY;
+    S.keepView = S.view;
+    page.innerHTML = '';
     page.className = 'page ' + (S.view === 'map' ? 'page-map' : '');
+    if (!page.dataset.watch) { page.dataset.watch = '1'; const mark = e => { if (e.target && e.target.id) e.target.dataset.dirty = '1'; }; page.addEventListener('input', mark, true); page.addEventListener('change', mark, true); }
+    renderView(page);
+    if (keep.length) {
+      for (const k of keep) { const e = document.getElementById(k.id); if (!e || !page.contains(e)) continue;
+        if (e.tagName === 'SELECT' && ![...e.options].some(o => o.value === k.v)) continue;
+        e.value = k.v; e.dataset.dirty = '1';
+        if (k.f) { e.focus({ preventScroll: true }); try { if (k.a != null) e.setSelectionRange(k.a, k.b); } catch (x) { } } }
+      for (const k of keep) { const e = document.getElementById(k.id); if (e) e.dispatchEvent(new CustomEvent('restore')); }
+      window.scrollTo(0, sy);
+    }
+  }
+  function renderView(page) {
     if (S.view === 'map') return mapView(page);
     if (S.view === 'nation') return nationView(page);
     if (S.view === 'tech') return techView(page);
@@ -648,6 +666,8 @@
           h('small', { class: pv.dies ? 'bad' : '' }, '예상: 도시 -' + pv.dc + ' · 우리 -' + pv.du + (pv.dies ? ' (쓰러질 수 있어요!)' : pv.capture ? ' → 점령!' : ''))),
         h('button', { class: 'danger small', disabled: !can || S.busy, onclick: () => attack(u, c) }, '공격'));
     })));
+    if (can) side.append(h('div', { class: 'row disband' }, u.kind !== 'scout' ? h('small', { class: 'muted' }, '유지비: 매 턴 코인 ' + R.UNIT_UPKEEP) : null,
+      h('button', { class: 'small ghost', disabled: S.busy, onclick: () => { if (confirm(unitName(u.kind) + '을(를) 해체할까요? 되돌릴 수 없어요. 매 턴 유지비가 줄어요.')) act('unit_disband', [u.id], () => { toast(unitName(u.kind) + '을(를) 해체했어요.'); unpick(); S.sel = null; }); } }, '부대 해체')));
     side.append(armyList(u, u.kind === 'scout'));
   }
   // 전투 미리보기 (서버와 같은 식)
@@ -983,6 +1003,26 @@
       h('div', { class: 'greed-say' }, 'GREED LINK: "' + say + '"'),
       h('div', { class: 'hint' }, '이 일은 기록돼요. 무엇이 불공정했는지 학습지에 적고, 세계 무역 회의에서 「우리 나라가 겪은 일」로 이야기해요.')));
   }
+  // 관세가 빠질 때마다 GREED LINK의 얄미운 창 (한 번만)
+  function tariffCheck(first) {
+    const st = S.st, key = 'tariff-seen-' + st.country.id;
+    const list = st.notices.filter(n => n.kind === 'crisis' && n.data && n.data.mode === 'tariff').sort((a, b) => a.id - b.id);
+    let seen = 0; try { seen = +localStorage.getItem(key) || 0; } catch (e) { return; }
+    const top = list.length ? list[list.length - 1].id : 0;
+    if (first && !seen) { try { localStorage.setItem(key, String(top)); } catch (e) { } return; }
+    const fresh = list.filter(n => n.id > seen);
+    if (!fresh.length) return;
+    try { localStorage.setItem(key, String(top)); } catch (e) { }
+    const coin = fresh.reduce((a, n) => a + (+n.data.coin || 0), 0), d = fresh[fresh.length - 1].data;
+    const say = ['관세는 저희가 정합니다~ 다음에도 잘 부탁드려요 ^^', '어머, 코인이 좀 줄었네요? 저희 주머니는 두둑해졌답니다 ^^', '억울하면 거래를 안 하시면 되죠~ 못 하시겠지만요 ^^', '관세 덕분에 저희 회사 이번 달 실적이 최고예요! 감사합니다 ^^'];
+    Sound.play('hit');
+    modal(h('div', { class: 'blocked-pop' }, h('div', { class: 'greed-head' }, Brand.logo('greed')), h('div', { class: 'stamp tariff' }, '관세 징수'),
+      d.item ? h('img', { src: itemImg(d.item), alt: itemName(d.item) }) : null,
+      h('h2', {}, '관세 ' + coin + '코인이 빠졌습니다^^'),
+      h('p', {}, (d.item ? itemName(d.item) + ' ' + d.qty + '개를 사 오면서 ' : '') + 'GREED LINK가 멋대로 올린 관세를 냈어요. 1개마다 ' + R.CRISIS.tariffPerUnit + '코인!'),
+      h('div', { class: 'greed-say' }, 'GREED LINK: "' + say[Math.floor(Math.random() * say.length)] + '"'),
+      h('div', { class: 'hint' }, '얼마를 냈는지 학습지에 적어 두어요. 이 거래는 공정했을까요?')));
+  }
   // 지구 서버 관리자의 지원·긴급 중립 상인·특수 부대 도착: 화려한 창 (한 번만)
   function grantCheck(first) {
     const st = S.st, key = 'grant-seen-' + st.country.id;
@@ -1227,16 +1267,24 @@
     // 같은 것끼리 바꾸지 않도록: 코인을 주면 물건을, 물건을 주면 코인을 기본으로
     const fixPair = () => { if (giveI.value === getI.value) getI.value = giveI.value === 'coin' ? 'food' : 'coin'; };
     getI.value = giveI.value === 'coin' ? 'food' : 'coin';
+    const prefilled = !!S.prefill;
     if (S.prefill) {   // 무역 미션에서 넘어오면 미리 채워 줘요
       const pf = S.prefill; S.prefill = null;
       if (pf.to && known.some(c => c.id === pf.to)) to.value = pf.to;
       if (pf.get) { getI.value = pf.get; getQ.value = pf.qty || 1; }
       if (pf.give && [...giveI.options].some(o => o.value === pf.give)) { giveI.value = pf.give; giveQ.value = pf.giveQty || 1; }
+      [to, getI, getQ, giveI, giveQ].forEach(e => { e.dataset.dirty = '1'; });   // 미리 채운 값도 다시 그릴 때 지켜요
       setTimeout(() => { const f = $('.offer-form'); if (f) { f.scrollIntoView({ block: 'center' }); f.classList.add('pulse'); } }, 50);
     }
+    // 코인은 기본 20개 (개수를 직접 고치지 않았을 때만)
+    const coinQty = (sel, q) => { if (!q.dataset.dirty || q.dataset.auto) { q.value = sel.value === 'coin' ? 20 : 1; q.dataset.auto = '1'; delete q.dataset.dirty; } };
     giveI.addEventListener('input', fixPair);
-    [giveI, getI, giveQ, getQ].forEach(e => e.addEventListener('input', updHelp)); updHelp();
-    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '거래 제안하기', h('small', {}, '상대 나라 무역 대표가 수락하면 바로 바뀌어요. 제안은 턴이 끝나면 사라져요.')),
+    giveI.addEventListener('change', () => coinQty(giveI, giveQ)); getI.addEventListener('change', () => coinQty(getI, getQ));
+    [giveQ, getQ].forEach(q => q.addEventListener('input', () => { delete q.dataset.auto; }));
+    if (!prefilled) { if (giveI.value === 'coin') giveQ.value = 20; if (getI.value === 'coin') getQ.value = 20; }
+    const again = () => { coinQty(giveI, giveQ); coinQty(getI, getQ); updHelp(); };
+    [giveI, getI, giveQ, getQ].forEach(e => { e.addEventListener('input', updHelp); e.addEventListener('restore', again); }); updHelp();
+    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '거래 제안하기', h('small', {}, '상대 나라 무역 대표가 수락하면 바로 바뀌어요. 제안은 다음 턴이 끝날 때까지 남아 있어요.')),
       known.length ? h('div', { class: 'offer-form' },
         h('label', {}, '어느 나라와', to),
         h('label', {}, '우리가 주는 것', giveI, giveQ),
@@ -1305,15 +1353,20 @@
         h('button', { class: 'primary', onclick: () => act('expert_submit', [role, exIn.value], () => toast('전문가 문장을 저장했어요. 활동 3에서 모둠 친구들에게 보여요.')) }, '저장')) : null,
       mine ? h('small', { class: 'good' }, '저장한 문장: ' + mine.body) : null));
     // 활동 3: 모둠 회의
-    let picks = (tr.reason || '').split(' / ').filter(Boolean);
+    // 고른 두 의견은 다시 그려도 그대로
+    if (!S.picks || S.picksFor !== tr.reason) { S.picks = (tr.reason || '').split(' / ').filter(Boolean); S.picksFor = tr.reason; }
+    let picks = S.picks;
+    // 활동 3이 밝아지는 때: 선생님이 활동 3을 열었거나, 우리 모둠 친구들이 모두 전문가 문장을 저장했을 때
+    const bound = st.members.filter(m => m.bound).length, ready3 = step === 3 || (ex.length >= 2 && ex.length >= bound);
     const clause = h('textarea', { id: 't-clause', rows: 2, placeholder: '「틀 넣기」를 누르고 괄호 안에 두 의견을 살린 약속을 직접 써요', disabled: !lead }, tr.promise || '');
     const exList = h('div', { class: 'ex-list' });
     const drawEx = () => { exList.innerHTML = ''; exList.append(...(ex.length ? ex.map(e => { const on = picks.includes(e.body);
-      const toggle = () => { if (!lead) return; picks = on ? picks.filter(x => x !== e.body) : picks.concat(e.body).slice(-2); drawEx(); };
+      const toggle = () => { if (!lead) return; picks = S.picks = on ? picks.filter(x => x !== e.body) : picks.concat(e.body).slice(-2); drawEx(); };
       return h('div', { class: 'ex-it' + (on ? ' on' : ''), onclick: toggle }, h('span', { class: 'ex-check' }, on ? '✓' : ''),
         h('b', {}, e.role), h('span', {}, e.body), h('small', {}, e.nick)); }) : [h('p', { class: 'muted' }, '아직 저장된 전문가 문장이 없어요. 활동 2에서 각자 저장해요.')])); };
     drawEx();
-    page.append(h('div', { class: 'panel treaty' + (step === 3 ? ' now-step' : ' dim-step') }, h('div', { class: 'panel-title' }, '활동 3 · 모둠 회의', h('small', {}, '전문가 문장을 나누고, 중요한 두 의견을 골라 그 뜻을 살려요')),
+    page.append(h('div', { class: 'panel treaty' + (ready3 ? ' now-step' : ' dim-step') }, h('div', { class: 'panel-title' }, '활동 3 · 모둠 회의', h('small', {}, '전문가 문장을 나누고, 중요한 두 의견을 골라 그 뜻을 살려요')),
+      !ready3 ? h('div', { class: 'hint' }, '우리 모둠 친구들이 모두 전문가 문장을 저장하면 밝아져요 (지금 ' + ex.length + '/' + bound + '명). 여섯 모둠이 모두 저장하면 활동 3으로 저절로 넘어가요.') : null,
       h('b', {}, '① 우리 모둠의 전문가 문장'), exList,
       h('b', {}, '② 두 의견의 뜻을 살린 우리 나라 무역 약속'),
       h('div', { class: 'row' }, lead ? h('button', { class: 'small', onclick: () => { clause.value = R.CLAUSE_FRAME; clause.focus(); clause.setSelectionRange(clause.value.indexOf('(') + 1, clause.value.indexOf(')')); } }, '틀 넣기') : null, clause),

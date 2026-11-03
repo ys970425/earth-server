@@ -807,6 +807,20 @@ language sql stable as $$
   select case when u.attacked_turn >= priv.turn() then 0 when u.moves_turn >= priv.turn() then u.moves_left else priv.unit_max_moves(u) end
 $$;
 
+-- 부대 해체: 필요 없는 병력을 없애면 매 턴 유지비(코인·식량)가 줄어요
+create or replace function public.unit_disband(p_unit int) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+declare me priv.students := priv.act_start(1); cfg jsonb := priv.cfg(); u priv.units;
+begin
+  select * into u from priv.units where id = p_unit and country = me.country_id for update;
+  if not found then perform priv.err('NO_UNIT', '우리 나라 부대가 아니에요.'); end if;
+  perform priv.need_role(me, case when u.kind = 'scout' then cfg->'ROLE_KEY'->>'explore' when u.kind = 'worker' then cfg->'ROLE_KEY'->>'land' else cfg->'ROLE_KEY'->>'army' end);
+  delete from priv.units where id = u.id;
+  perform priv.notice(coalesce(cfg->'UNITS'->u.kind->>'name', '부대') || '을(를) 해체했어요. 매 턴 유지비가 줄어요.', 'info', me.country_id);
+  perform priv.bump(me.country_id); perform priv.bump_game();
+  return jsonb_build_object('ok', true);
+end $$;
+
 create or replace function public.unit_move(p_unit int, p_path int[]) returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
 declare me priv.students := priv.act_start(1); cfg jsonb := priv.cfg(); u priv.units; tn int := priv.turn();
@@ -1219,8 +1233,12 @@ begin
   end if;
   perform priv.add(o.from_c, o.give_item, -o.give_qty); perform priv.add(o.to_c, o.give_item, o.give_qty);
   perform priv.add(o.to_c, o.get_item, -o.get_qty);     perform priv.add(o.from_c, o.get_item, o.get_qty);
-  if tar_to > 0 then perform priv.add(o.to_c, 'coin', -tar_to); end if;
-  if tar_from > 0 then perform priv.add(o.from_c, 'coin', -tar_from); end if;
+  if tar_to > 0 then perform priv.add(o.to_c, 'coin', -tar_to);
+    perform priv.notice_d('GREED LINK: 관세 ' || tar_to || '코인이 빠졌습니다^^ (' || priv.iname(o.give_item) || ' ' || o.give_qty || '개)', 'crisis', o.to_c,
+      jsonb_build_object('mode', 'tariff', 'coin', tar_to, 'item', o.give_item, 'qty', o.give_qty)); end if;
+  if tar_from > 0 then perform priv.add(o.from_c, 'coin', -tar_from);
+    perform priv.notice_d('GREED LINK: 관세 ' || tar_from || '코인이 빠졌습니다^^ (' || priv.iname(o.get_item) || ' ' || o.get_qty || '개)', 'crisis', o.from_c,
+      jsonb_build_object('mode', 'tariff', 'coin', tar_from, 'item', o.get_item, 'qty', o.get_qty)); end if;
   tar := tar_to + tar_from;
   if o.give_item <> 'coin' then perform priv.record_trade(o.from_c, o.to_c, o.give_item, o.give_qty, case when o.get_item = 'coin' then o.get_qty end, false, tar_to); end if;
   if o.get_item <> 'coin' then perform priv.record_trade(o.to_c, o.from_c, o.get_item, o.get_qty, case when o.give_item = 'coin' then o.give_qty end, false, tar_from); end if;
@@ -1283,6 +1301,14 @@ begin
   insert into priv.expert_notes(student_id, country, role, body, updated_at) values (me.id, me.country_id, p_role, left(trim(p_body), 120), now())
     on conflict (student_id) do update set role = excluded.role, body = excluded.body, updated_at = now();
   perform priv.bump(me.country_id);
+  -- 여섯 모둠 모두 (들어온 친구 모두) 저장하면 활동 3 모둠 회의로 저절로
+  if (select meet_step from public.game where id = 1) <> 3 and not exists (
+       select 1 from priv.countries c
+        where (select count(*) from priv.expert_notes e where e.country = c.id) < greatest(1, (select count(*) from priv.students s where s.country_id = c.id and s.uid is not null))) then
+    update public.game set meet_step = 3 where id = 1;
+    perform priv.notice('여섯 모둠 모두 전문가 문장을 저장했어요! 활동 3: 우리 모둠으로 돌아가 무역 약속을 만들어요.', 'phase');
+    perform priv.bump_game(); perform priv.bump_all();
+  end if;
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -1612,7 +1638,7 @@ begin
   update priv.cities set hp = least(max_hp, hp + case when final then (cfg->'FINAL_CS'->>'heal')::int else coalesce((cfg->'CS_TIERS'->tier->>'heal')::int, 10) end)
    where kind = 'cs' and country is null and hp < max_hp and not rebel;
   if not g.alliance then update priv.cities set hp = max_hp where rebel; end if;   -- 메가팩토리: 병력으로는 깎이지 않아요
-  update priv.offers set status = 'expired', decided_at = now() where status = 'pending';
+  update priv.offers set status = 'expired', decided_at = now() where status = 'pending' and turn < g.turn;   -- 받은 제안은 한 턴 더 남아 있어요 (다음 턴이 끝나면 사라져요)
   update public.game set turn = turn + 1, turn_end = case when auto_turn > 0 then now() + make_interval(secs => auto_turn) end,
     cold_snap = null where id = 1;
   perform priv.notice('턴 ' || (g.turn + 1) || ' 시작! 생산한 자원이 창고에 들어왔어요.', 'turn');

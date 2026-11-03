@@ -329,6 +329,9 @@ await db.query(`insert into priv.units(country, kind, tile_id) values (1, 'k_mis
 const ku2 = await one(`select id from priv.units where country = 1 and kind = 'k_missile' order by id desc limit 1`);
 await db.query(`update priv.countries set happy = 10 where id = 1`);
 ok(await fail(rpc(L(1), 'unit_attack', ku2.id, rb1.id), 'PROTECTED'), '우리 메가팩토리도 병력으로는 공격 못 함 (WTO로 돌려받아요)');
+// 부대 해체
+ok((await rpc(L(1), 'unit_disband', ku2.id)).ok && !(await one(`select id from priv.units where id = ${ku2.id}`)), '부대 해체');
+ok(Object.entries((await one(`select data from priv.config where id = 1`)).data.UNITS).filter(([k, u]) => !u.boss).every(([k, u]) => u.cost.food > 0), '모든 병력은 훈련할 때 식량이 들어요 (특수 부대 빼고)');
 // 불공정 무역: GREED LINK의 관세 폭탄·독점
 await rpc(ADMIN, 'admin_set_phase', 5);
 const g9 = (await rpc(L(1), 'my_state')).game;
@@ -349,6 +352,12 @@ const k0b = (await one(`select coin from priv.countries where id = 1`)).coin;
 const tof = await rpc(L(1), 'offer_create', 5, 'coin', 30, 'aluminum', 2);
 ok(tof.ok && tof.tariff === 200, '알루미늄 2개 제안: 관세 200코인 예고');
 ok((await rpc(L(5), 'offer_respond', tof.id, true)).accepted && k0b - (await one(`select coin from priv.countries where id = 1`)).coin === 230, '관세 폭탄: 30코인 + 관세 200코인');
+const tn1 = await one(`select message, data from public.notices where country = 1 and kind = 'crisis' and data->>'mode' = 'tariff' order by id desc limit 1`);
+ok(tn1 && tn1.data.coin === 200 && tn1.message.includes('빠졌습니다^^'), '관세를 낸 나라에 얄미운 창: ' + (tn1 || {}).message);
+// 받은 제안은 턴이 한 번 끝나도 남아 있어요
+const keepO = await rpc(L(2), 'offer_create', 3, 'coin', 5, 'iron', 1);
+await rpc(ADMIN, 'admin_next_turn');
+ok((await one(`select status from priv.offers where id = ${keepO.id}`)).status === 'pending', '받은 제안은 턴이 끝나도 한 턴 더 남아 있음');
 await db.query(`update priv.countries set coin = 0 where id = 6`);
 const tof3 = await rpc(L(5), 'offer_create', 6, 'uranium', 2, 'gold', 1).catch(e => ({ err: e.message }));
 const tof4 = await rpc(L(5), 'offer_create', 6, 'aluminum', 1, 'copper', 1);
