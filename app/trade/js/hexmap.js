@@ -129,6 +129,15 @@
       ctx.fillStyle = '#3A2A20'; ctx.fillRect(px, py, w, hh);
       ctx.fillStyle = k > 0.6 ? '#4FD06A' : k > 0.3 ? '#F2B530' : '#E8443C'; ctx.fillRect(px, py, w * k, hh);
     }
+    // 공장 매연 (메가팩토리 위로 피어오르는 잿빛 구름)
+    function smoke(cx, cy) {
+      const puffs = [[-34, -118, 22], [-20, -142, 28], [4, -166, 34], [30, -128, 24], [44, -154, 30], [22, -190, 38]];
+      for (const [dx, dy, r] of puffs) {
+        const g = ctx.createRadialGradient(cx + dx, cy + dy, 2, cx + dx, cy + dy, r);
+        g.addColorStop(0, 'rgba(70,64,60,.78)'); g.addColorStop(1, 'rgba(70,64,60,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
     function drawImgAnchor(im, cx, cy, w) {
       if (!im) return;
       const h = im.height * w / im.width;
@@ -210,12 +219,17 @@
         if (city) {
           const big = city.kind === 'capital';
           const im = IMG['c:' + city.art] || IMG[big ? 'b:capital' : (t.terrain === 'coast' || city.sea ? 'b:port' : 'b:capital')];
+          const fac = city.art === 'factory';   // 그리드 링크의 메가팩토리 (그림이 없으면 성채 그림을 잿빛으로)
+          const fim = fac ? (IMG['c:factory'] || IMG['c:boss']) : null;
           ctx.save();
-          if (!city.country) ctx.filter = 'saturate(.55) brightness(.95)';
+          if (fac) { if (!IMG['c:factory']) ctx.filter = 'grayscale(.7) sepia(.6) hue-rotate(35deg) brightness(.72) contrast(1.2)'; }
+          else if (!city.country) ctx.filter = 'saturate(.55) brightness(.95)';
           else if (city.unrest) ctx.filter = 'sepia(1) saturate(4) hue-rotate(-40deg) brightness(.85)';   // 행정 마비: 붉게
-          if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, city.boss ? 230 : city.rebel ? 200 : city.art === 'final' ? 190 : big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
+          if (fac) drawImgAnchor(fim, x, y, 210);
+          else if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, city.boss ? 230 : city.rebel ? 200 : city.art === 'final' ? 190 : big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
           else drawImgBottom(im, x, y + HALF_H * 0.75, big ? 132 : 104);
           ctx.restore();
+          if (fac) smoke(x, y);
           if (city.country) drawFlag(city.country, x + 26, y - 30, big ? 1.2 : 0.9);
           // 이름표
           const label = big ? (st.countries[city.country] ? st.countries[city.country].name : city.name) : city.name;
@@ -226,11 +240,15 @@
             ctx.fillStyle = '#FFF4D6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(label, x, ly + th / 2 + 1); ctx.fillText(label, x, ly + th / 2 + 1);
           }
-          if (!far && !city.country && city.def != null) {
+          if (fac && !far) {   // 메가팩토리 이름판
+            plate(x - 74, y - 112, 148, 26, '#3B2F3A', true);
+            ctx.fillStyle = '#FFB3B3'; ctx.font = '700 15px Galmuri11, Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('GREED 메가팩토리', x, y - 98);
+          } else if (!far && !city.country && city.def != null) {
             const bw = city.boss || city.rebel ? 120 : 76;
             plate(x - bw / 2, y - 112, bw, 24, city.boss ? '#4A0E5C' : city.tier >= 4 ? '#5A0F18' : '#8E1F2F', city.tier >= 4);
             ctx.fillStyle = '#FFE9C2'; ctx.font = '700 14px Galmuri11, Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText((city.boss ? '최종 보스 · ' : city.rebel ? '잊힌 제국 · ' : '') + '방어 ' + city.def, x, y - 99);
+            ctx.fillText((city.boss ? '최종 보스 · ' : '') + '방어 ' + city.def, x, y - 99);
             if (city.max_hp) hpBar(x - bw / 2, y - 86, bw, 7, city.hp / city.max_hp);
           }
           if (city.unrest && !far) {   // 행정 마비 표시

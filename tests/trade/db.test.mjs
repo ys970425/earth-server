@@ -45,7 +45,7 @@ ok(m.inventory.clothes === 4 && !m.inventory.gold && m.country.happy_detail.leng
 ok(m.units.length === 7 && m.units.filter(u => u.kind === 'scout').length === 3 && m.targets.filter(t => t.mine).length === 5, '시작 병력 5(노동자·정찰병·창병2·투석기), 우리 쪽 도시국가 5곳');
 ok(m.country.techs.length === 0, '처음엔 고대 기술만 (핵심 기술은 튜토리얼 도시국가에서)');
 ok((await one(`select count(*)::int n from priv.tiles t join priv.cities c on c.tile_id = t.id where c.kind = 'cs' and t.owner is not null`)).n === 0, '처음엔 어떤 도시국가도 국경 안에 없음');
-ok((await one(`select count(*)::int n from priv.cities where boss`)).n === 0 && (await one(`select count(*)::int n from priv.cities where kind = 'cs'`)).n >= 45, '도시국가 45곳 이상 (잊힌 제국 섬 없음)');
+ok((await one(`select count(*)::int n from priv.cities where boss`)).n === 0 && (await one(`select count(*)::int n from priv.cities where kind = 'cs'`)).n >= 45, '도시국가 45곳 이상 (보스 섬 없음)');
 // 역할
 ok(m.me.roles.includes('국가 대표'), '선생님이 정한 대표는 국가 대표 역할');
 ok(await fail(rpc(of(1)[1].uid, 'set_role', '국가 대표'), 'LEADER_TAKEN'), '국가 대표는 한 명만');
@@ -306,95 +306,88 @@ ok(mr.coin === 40 && coin3 - (await one(`select coin from priv.countries where i
 await db.query(`update priv.countries set coin = 5 where id = 4`);
 ok(await fail(rpc(ADMIN, 'admin_merchant', 4, { rare: 1 }), 'NO_MONEY'), '코인이 모자라면 중립 상인도 못 삼');
 await db.query(`update priv.countries set coin = 500 where id = 4`);
-// ===== 17차시: 잊힌 제국 등장 =====
+// ===== 17차시: 그리드 링크의 폭주 =====
 const nextTo = async cid => (await one(`select t.id from priv.tiles t, priv.tiles ct, priv.cities c where c.id = '${cid}' and ct.id = c.tile_id and priv.hdist(t.c, t.r, ct.c, ct.r) = 1
   and t.terrain not in ('ocean', 'coast') and t.id not in (select tile_id from priv.cities) order by t.id limit 1`)).id;
 const h0 = (await one(`select priv.refresh_happy(1) h`)).h;
+const gauge0 = (await rpc(randomUUID(), 'get_board')).gauge;
 await rpc(ADMIN, 'admin_set_phase', 4);
 const rb1 = await one(`select * from priv.cities where tutorial and type = 'K'`);
-ok(rb1.rebel && rb1.country === null && rb1.hp === 1000 && rb1.def === 200, '잊힌 제국 등장: 반도의 첫 도시가 반란 도시로 (체력 1000·방어 200)');
-ok((await one(`select count(*)::int n from priv.cities where rebel`)).n === 6, '여섯 나라 모두 반란 도시 1곳씩');
+ok(rb1.rebel && rb1.country === null, '그리드 링크의 폭주: 반도의 첫 도시가 메가팩토리로');
+ok((await one(`select count(*)::int n from priv.cities where rebel`)).n === 6, '여섯 나라 모두 메가팩토리 1곳씩');
+ok((await one(`select priv.city_art('${rb1.id}') a`)).a === 'factory', '메가팩토리 그림');
 const hd1 = (await one(`select happy, happy_detail from priv.countries where id = 1`));
-ok(hd1.happy_detail.some(x => x.k === '잊힌 제국의 테러' && x.v === -15) && hd1.happy_detail.some(x => x.k === '사치품에 싫증' && x.v === -10) && hd1.happy < h0, '행복도 하락: 테러 -15 · 사치품 싫증 -10 (' + h0 + ' → ' + hd1.happy + ')');
-ok((await one(`select count(*)::int n from priv.units u join priv.cities c on c.tile_id = u.tile_id where c.rebel`)).n === 0, '반란 도시 안에 있던 병력은 수도로 피신');
+ok(hd1.happy_detail.some(x => x.k === '메가팩토리 오염' && x.v === -15) && hd1.happy_detail.some(x => x.k === '사치품에 싫증' && x.v === -10) && hd1.happy < h0, '행복도 하락: 공장 오염 -15 · 광고 폭탄(사치품 싫증) -10 (' + h0 + ' → ' + hd1.happy + ')');
+const gauge4 = (await rpc(randomUUID(), 'get_board')).gauge;
+ok(gauge4 <= gauge0 - 30 || gauge4 === 0, '메가팩토리 오염으로 지구 서버 안정도 뚝 (' + gauge0 + ' → ' + gauge4 + ')');
+ok((await one(`select count(*)::int n from priv.units u join priv.cities c on c.tile_id = u.tile_id where c.rebel`)).n === 0, '메가팩토리 안에 있던 병력은 수도로 피신');
 const m8 = await rpc(L(1), 'my_state');
-ok(m8.targets.some(t => t.rebel && t.id === rb1.id) && m8.report.rebel.hp === 1000, '학생 화면에 반란 도시 정보');
-// 다른 나라 반란 도시는 공격 못 함
-await db.query(`insert into priv.units(country, kind, tile_id) values (1, 'k_missile', ${await nextTo((await one(`select id from priv.cities where tutorial and type = 'N'`)).id)})`);
+ok(m8.targets.some(t => t.rebel && t.id === rb1.id) && m8.report.rebel, '학생 화면에 메가팩토리 정보');
+ok((await one(`select count(*)::int n from public.notices where message like '%GREED LINK%메가팩토리%'`)).n >= 6, '나라마다 긴급속보 (GREED LINK·메가팩토리)');
+// 메가팩토리는 병력으로 공격 못 함 (우리 것도, 다른 나라 것도)
+await db.query(`insert into priv.units(country, kind, tile_id) values (1, 'k_missile', ${await nextTo(rb1.id)})`);
 const ku2 = await one(`select id from priv.units where country = 1 and kind = 'k_missile' order by id desc limit 1`);
-ok(await fail(rpc(L(1), 'unit_attack', ku2.id, (await one(`select id from priv.cities where tutorial and type = 'N'`)).id), 'PROTECTED'), '다른 나라 반란 도시는 공격 못 함 (싸움 방지)');
-// 우리 반란 도시: 동맹 전엔 매 턴 다 회복
-await db.query(`update priv.units set tile_id = ${await nextTo(rb1.id)}, attacked_turn = -1 where id = ${ku2.id}`);
 await db.query(`update priv.countries set happy = 10 where id = 1`);
-const ra = await rpc(L(1), 'unit_attack', ku2.id, rb1.id);
-ok(!ra.captured && ra.city_dmg < 60, '동맹 전 반란 도시: 특수 부대로도 조금만 깎임 (-' + ra.city_dmg + ')');
-await rpc(ADMIN, 'admin_next_turn');
-ok((await one(`select hp from priv.cities where id = '${rb1.id}'`)).hp === 1000, '동맹 전 반란 도시는 매 턴 체력을 모두 회복');
-// 협정 만료: 잊힌 제국의 무역 파괴
+ok(await fail(rpc(L(1), 'unit_attack', ku2.id, rb1.id), 'PROTECTED'), '우리 메가팩토리도 병력으로는 공격 못 함 (WTO로 돌려받아요)');
+// 불공정 무역: GREED LINK의 관세 폭탄·독점
 await rpc(ADMIN, 'admin_set_phase', 5);
 const g9 = (await rpc(L(1), 'my_state')).game;
-ok(!g9.fair_cap && g9.banned['1'].includes('gold') && g9.banned['5'].includes('uranium') && g9.tariffs.steel === 30 && !g9.tariffs.gold && !g9.tariffs.chip, '협정 만료: 사치품·핵심 전략 자원 거래 불가, 나머지 1개마다 관세 30코인');
+ok(!g9.fair_cap && g9.banned['1'].includes('gold') && g9.banned['5'].includes('uranium') && g9.tariffs.steel === 100 && !g9.tariffs.gold && !g9.tariffs.chip, '불공정 무역: 사치품·핵심 전략 자원 독점(거래 금지), 나머지 1개마다 관세 100코인');
+const spite = await one(`select message from public.notices where country = 1 and message like 'GREED LINK 공지:%' order by id desc limit 1`);
+ok(spite && spite.message.includes('협상 태도') && spite.message.includes('우라늄'), '얄미운 공지: 짝꿍 나라 탓 — ' + (spite || {}).message);
 const cut4 = await one(`select import_cut, happy_detail from priv.countries where id = 4`);
 ok(cut4.import_cut && cut4.happy_detail.find(x => x.k.startsWith('수입 사치품')).v === 0 && (await one(`select data from public.notices where country = 4 and kind = 'crisis' and data->>'mode' = 'cut' order by id desc limit 1`)).data.before >= 0,
-  '무역 파괴: 수입 사치품 공급 끊김 → 수입 효과 0 (창고 물건은 그대로)');
+  '불공정 무역: 수입 사치품 공급 끊김 → 수입 효과 0 (창고 물건은 그대로)');
 await rpc(ADMIN, 'admin_grant', 5, { jewelry: 2, uranium: 4 }, '테스트');
 const bl = await rpc(L(1), 'offer_create', 5, 'coin', 40, 'jewelry', 2);
-ok(bl.ok === false && bl.blocked === 'ban' && bl.message.includes('잊힌 제국'), '사치품을 사려 하자 「잊힌 제국의 무역로 공격」으로 막힘');
+ok(bl.ok === false && bl.blocked === 'ban' && bl.message.includes('GREED LINK') && bl.message.includes('협상 태도'), '사치품을 사려 하자 GREED LINK가 막음: ' + bl.message);
 ok((await one(`select count(*)::int n from priv.trade_fails where buyer = 1 and item = 'jewelry'`)).n === 1, '막힌 거래 기록');
-const k0 = (await one(`select coin from priv.countries where id = 1`)).coin;
-ok((await rpc(L(1), 'offer_create', 5, 'coin', 30, 'uranium', 2)).blocked === 'ban', '전략 자원(우라늄)도 거래 불가');
+ok((await rpc(L(1), 'offer_create', 5, 'coin', 30, 'uranium', 2)).blocked === 'ban', '전략 자원(우라늄)도 거래 금지');
 await rpc(ADMIN, 'admin_grant', 5, { aluminum: 4 }, '테스트');
+await db.query(`update priv.countries set coin = 500 where id = 1`);
 const k0b = (await one(`select coin from priv.countries where id = 1`)).coin;
 const tof = await rpc(L(1), 'offer_create', 5, 'coin', 30, 'aluminum', 2);
-ok(tof.ok && tof.tariff === 60, '알루미늄 2개 제안: 관세 60코인 예고');
-ok((await rpc(L(5), 'offer_respond', tof.id, true)).accepted && k0b - (await one(`select coin from priv.countries where id = 1`)).coin === 90, '관세 폭탄: 30코인 + 관세 60코인');
+ok(tof.ok && tof.tariff === 200, '알루미늄 2개 제안: 관세 200코인 예고');
+ok((await rpc(L(5), 'offer_respond', tof.id, true)).accepted && k0b - (await one(`select coin from priv.countries where id = 1`)).coin === 230, '관세 폭탄: 30코인 + 관세 200코인');
 await db.query(`update priv.countries set coin = 0 where id = 6`);
 const tof3 = await rpc(L(5), 'offer_create', 6, 'uranium', 2, 'gold', 1).catch(e => ({ err: e.message }));
 const tof4 = await rpc(L(5), 'offer_create', 6, 'aluminum', 1, 'copper', 1);
 await rpc(ADMIN, 'admin_grant', 6, { copper: 2 }, '테스트');
 const tr4 = await rpc(L(6), 'offer_respond', tof4.id, true);
-ok(tr4.ok === false && tr4.blocked === 'tariff', '관세 낼 코인이 없으면 막힘');
+ok(tr4.ok === false && tr4.blocked === 'tariff' && tr4.message.includes('GREED LINK'), '관세 낼 코인이 없으면 막힘');
 const rep1 = (await rpc(L(1), 'my_state')).report;
-ok(rep1.fails.length === 2 && rep1.tariff_paid === 60, '우리 나라가 겪은 일: 막힌 거래 2번, 낸 관세 60 (실제 기록)');
-ok((await rpc(randomUUID(), 'get_board')).countries[0].rebel === true, '전자칠판에 반란 도시 표시');
-// 세계 무역 회의 → 6나라 입력 → 무역 동맹
+ok(rep1.fails.length === 2 && rep1.tariff_paid === 200, '우리 나라가 겪은 일: 막힌 거래 2번, 낸 관세 200 (실제 기록)');
+ok((await rpc(randomUUID(), 'get_board')).countries[0].rebel === true, '전자칠판에 메가팩토리 표시');
+// 세계 무역 회의 → 6나라 입력 → 세계무역기구(WTO) 탄생 → 공정한 무역 회복
 await rpc(ADMIN, 'admin_set_phase', 6);
 ok(await fail(rpc(L(1), 'offer_create', 2, 'coin', 10, 'iron', 1), 'LOCKED'), '세계 무역 회의 시간엔 게임 멈춤');
 // 활동 2 전문가 회의: 역할 문장 (틀만 넣으면 안 됨)
 const ex = of(1)[1];
 ok(await fail(rpc(ex.uid, 'expert_submit', '국방부 장관', '올바른 무역을 위해 (                    ).'), 'SHORT'), '전문가 문장: 틀만 있으면 안 됨, 직접 써야 함');
 ok(await fail(rpc(ex.uid, 'expert_submit', '국가 대표', '올바른 무역을 위해 (약속을 꼭 지켜야 한다).'), 'ROLE_ONLY'), '전문가 문장: 내 역할만');
-await rpc(ex.uid, 'expert_submit', '국방부 장관', '올바른 무역을 위해 (무역로를 여러 나라가 함께 지켜야 한다).');
-await rpc(L(1), 'expert_submit', '국가 대표', '올바른 무역을 위해 (약속을 바꿀 때는 미리 알려야 한다).');
+await rpc(ex.uid, 'expert_submit', '국방부 장관', '올바른 무역을 위해 (다툼은 대화와 타협으로 풀어야 한다).');
+await rpc(L(1), 'expert_submit', '국가 대표', '올바른 무역을 위해 (중립적인 기관에 조정을 요청해야 한다).');
 const exs = (await rpc(L(1), 'my_state')).experts;
-ok(exs.length === 2 && exs.some(e => e.role === '국방부 장관' && e.body.includes('무역로')), '활동 3: 우리 모둠의 전문가 문장이 한곳에 모임');
-ok(await fail(rpc(of(1)[1].uid, 'treaty_submit', '1', '', '우리가 제안한 조약은 (무역로를 함께 지키기)입니다.', ''), 'LEADER_ONLY'), '조항 등록은 국가 대표만');
-ok(await fail(rpc(L(1), 'treaty_submit', '1', '', '우리가 제안한 조약은 (          )입니다.', ''), 'SHORT'), '조항: 괄호 안을 직접 써야 함');
-for (let c = 1; c <= 5; c++) { const r = await rpc(L(c), 'treaty_submit', String(c), '', '우리가 제안한 조약은 (약속을 바꿀 때 미리 알리고 무역로를 함께 지키기)입니다.', '두 문장 합침'); if (c === 5) ok(!r.alliance && r.count === 5, '5나라까지는 아직 동맹 전'); }
-const last = await rpc(L(6), 'treaty_submit', 'X', '', '우리가 제안한 조약은 (전략 자원을 한 나라가 독점하지 않기)입니다.', '잊힌 제국 때문에');
-const g11 = (await rpc(L(1), 'my_state')).game;
-ok(last.alliance && g11.phase === 7 && !g11.locked && Object.keys(g11.banned).length === 0 && Object.keys(g11.tariffs).length === 0, '6나라가 다 입력하자 자동으로 무역 동맹 (무역 회복)');
-ok((await one(`select count(*)::int n from priv.countries where import_cut`)).n === 0, '무역 동맹과 함께 수입 사치품 공급도 바로 재개 (사치품을 사지 않아도)');
-const rb2 = await one(`select * from priv.cities where id = '${rb1.id}'`);
-ok(rb2.max_hp === 150 && rb2.hp <= 150 && rb2.def === 40, '무역 동맹: 반란 도시가 크게 약해짐 (체력 150·방어 40)');
-const h11 = (await one(`select priv.refresh_happy(1) h`)).h;
-// 반란 도시 탈환
-await db.query(`update priv.units set attacked_turn = -1 where id = ${ku2.id}`);
-await db.query(`update priv.countries set happy = 10 where id = 1`);
-let rr = await rpc(L(1), 'unit_attack', ku2.id, rb1.id);
-if (!rr.captured) { await db.query(`update priv.units set attacked_turn = -1 where id = ${ku2.id}`); rr = await rpc(L(1), 'unit_attack', ku2.id, rb1.id); }
-const rb3 = await one(`select * from priv.cities where id = '${rb1.id}'`);
-ok(rr.captured && !rb3.rebel && rb3.country === 1 && rb3.def === 5, '특수 부대로 반란 도시 탈환 → 원래 도시로');
-const h12 = (await one(`select priv.refresh_happy(1) h`)).h;
-ok(h12 >= h11 + 40, '잊힌 제국 격퇴: 테러 사라지고 행복도 +40 (' + h11 + ' → ' + h12 + ')');
-ok(!(await one(`select normalized from public.game`)).normalized, '한 나라만 되찾으면 아직 정상화 전');
-// 시간이 없을 때: 국가 정상화 버튼
+ok(exs.length === 2 && exs.some(e => e.role === '국방부 장관' && e.body.includes('대화')), '활동 3: 우리 모둠의 전문가 문장이 한곳에 모임');
+ok(await fail(rpc(of(1)[1].uid, 'treaty_submit', '1', '', '우리가 제안한 약속은 (대화로 풀기)입니다.', ''), 'LEADER_ONLY'), '약속 등록은 국가 대표만');
+ok(await fail(rpc(L(1), 'treaty_submit', '1', '', '우리가 제안한 약속은 (          )입니다.', ''), 'SHORT'), '약속: 괄호 안을 직접 써야 함');
+ok(await fail(rpc(L(1), 'treaty_submit', '1', '', '우리가 제안한 조약은 (          )입니다.', ''), 'SHORT'), '예전 틀(조약)도 괄호 안을 직접 써야 함');
 const vs0 = (await one(`select video_seq from public.game`)).video_seq;
+for (let c = 1; c <= 5; c++) { const r = await rpc(L(c), 'treaty_submit', String(c), '', '우리가 제안한 약속은 (관세를 바꿀 때 미리 알리고 중립 기관에 조정을 요청하기)입니다.', '두 의견'); if (c === 5) ok(!r.alliance && r.count === 5, '5나라까지는 아직 WTO 전'); }
+const last = await rpc(L(6), 'treaty_submit', 'X', '', '우리가 제안한 약속은 (환경을 파괴하지 않는 거래를 하기)입니다.', '두 의견');
+const g11 = await one(`select * from public.game where id = 1`);
+ok(last.alliance && g11.phase === 7 && !g11.locked && Object.keys(g11.banned).length === 0 && Object.keys(g11.tariffs).length === 0, '6나라가 다 입력하자 자동으로 세계무역기구(WTO) 탄생 (관세·독점 해제)');
+ok((await one(`select count(*)::int n from priv.countries where import_cut`)).n === 0, 'WTO와 함께 수입 사치품 공급도 바로 재개');
+ok((await one(`select count(*)::int n from priv.cities where rebel`)).n === 0 && (await one(`select count(*)::int n from priv.cities where tutorial and not final and country is null`)).n === 0, '메가팩토리가 문을 닫고 각 나라 첫 도시가 그 나라로 돌아옴');
+ok(g11.normalized && g11.video_seq === vs0 + 1, 'WTO 탄생과 함께 바로 정상화 → 영상 신호');
+const hd2 = (await one(`select happy, happy_detail from priv.countries where id = 1`));
+ok(hd2.happy_detail.find(x => x.k === '메가팩토리 오염').v === 0, '공장 오염 사라짐 (행복도 ' + hd1.happy + ' → ' + hd2.happy + ')');
+ok((await one(`select count(*)::int n from public.notices where message like '세계무역기구(WTO)가 탄생했습니다%'`)).n === 1 && (await one(`select count(*)::int n from public.notices where message like '세계무역기구(WTO)의 분쟁 조정과 개입으로 공정한 무역이 돌아왔습니다%'`)).n === 1, 'WTO 탄생 → 공정한 무역 회복 알림');
+const gauge7 = (await rpc(randomUUID(), 'get_board')).gauge;
+ok(gauge7 > gauge4, '지구 서버 안정도 회복 (' + gauge4 + ' → ' + gauge7 + ')');
+// 시간이 없을 때 버튼은 이미 정상화면 아무 일 없음
 await rpc(ADMIN, 'admin_normalize');
-const gN = await one(`select normalized, video_seq from public.game`);
-ok((await one(`select count(*)::int n from priv.cities where rebel`)).n === 0 && gN.normalized && gN.video_seq === vs0 + 1, '국가 정상화: 반란 도시가 모두 돌아오고 영상 신호');
-ok((await one(`select count(*)::int n from priv.cities where tutorial and not final and country is null`)).n === 0, '각 나라 첫 도시가 그 나라로 돌아옴');
-ok((await one(`select count(*)::int n from priv.countries where import_cut`)).n === 0, '국가 정상화: 모든 나라 사치품 공급 재개');
+ok((await one(`select video_seq from public.game`)).video_seq === vs0 + 1, '이미 정상화했으면 정상화 버튼을 눌러도 영상이 또 뜨지 않음');
 await rpc(ADMIN, 'admin_video');
 ok((await one(`select video_seq from public.game`)).video_seq === vs0 + 2, '영상 다시 틀기');
 await rpc(ADMIN, 'admin_flags', { meet_step: 3, video_url: 'https://youtu.be/abc' });
