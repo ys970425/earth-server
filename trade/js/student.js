@@ -164,8 +164,9 @@
       if (prev && prevTurn === st.game.turn && st.country.happy > prev.happy && !S.obs) cheer(prev, st.country);
       if (st.game.market_open && !S.obs) missionCheck();
       if (!S.obs) grantCheck(!prevTurn && prevTurn !== 0);
-      if (prevPhase !== undefined && prevPhase !== st.game.phase && !S.obs) phaseShow(st.game.phase);
-      if (prevNorm === false && st.game.normalized && !S.obs) normalPop();
+      const phaseChanged = prevPhase !== undefined && prevPhase !== st.game.phase && !S.obs;
+      if (phaseChanged) phaseShow(st.game.phase, prevPhase);
+      if (prevNorm === false && st.game.normalized && !S.obs && !(phaseChanged && st.game.phase === 7)) normalPop();
       if (st.now) S.offset = new Date(st.now).getTime() - Date.now();
       if (first || !$('.topbar')) shell(); else { renderTop(); renderNav(); }
       updateMap();
@@ -301,11 +302,11 @@
     const bar = $('#actbar'); if (!bar) return;
     const g = S.st.game, ph = g.phase;
     const T = {
-      4: ['활동 1', '잊힌 제국 등장! 우리 나라에 어떤 일이 생겼는지 살펴봐요. (빼앗긴 도시 · 떨어진 행복도)'],
-      5: ['활동 1', '무역이 엉망이 됐어요! 직접 거래해 보고, 무엇이 문제인지 학습지에 적어요.'],
-      6: g.meet_step === 3 ? ['활동 3 · 모둠 회의', '우리 모둠으로 돌아와 전문가 문장을 나눠요. 대표를 중심으로 두 문장을 골라 하나로 합쳐 우리 나라 무역 조항을 등록해요.']
+      4: ['활동 1', '그리드 링크가 폭주했어요! 우리 나라에 어떤 일이 생겼는지 살펴봐요. (메가팩토리가 된 첫 도시 · 떨어진 행복도 · 지구 환경)'],
+      5: ['활동 1', 'GREED LINK의 불공정 무역! 직접 거래해 보고, 무엇이 불공정한지 학습지에 적어요.'],
+      6: g.meet_step === 3 ? ['활동 3 · 모둠 회의', '우리 모둠으로 돌아와 전문가 문장을 나눠요. 중요한 두 의견을 골라 우리 나라 무역 약속을 등록해요.']
                            : ['활동 2 · 전문가 회의', '같은 역할끼리 모여 「올바른 무역을 위해 중요한 것」을 한 문장으로 만들어요.'],
-      7: g.normalized ? ['국가 정상화 성공!', '전자칠판 영상을 함께 봐요. 현실에서 무역 약속이 깨지면 어떤 일이 생길까요?'] : ['무역 동맹', '잊힌 제국의 영향력이 크게 줄었어요. 우리 반란 도시를 되찾아요!'],
+      7: ['세계무역기구(WTO) 탄생!', '공정한 무역이 돌아왔어요. 전자칠판 영상을 함께 봐요. 현실에서도 무역 다툼이 생기면 어떻게 할까요?'],
       8: ['정리', '무역을 할 때 필요한 노력을 학습지에 적고 발표해요.']
     }[ph];
     bar.className = T ? 'act-bar' : '';
@@ -483,6 +484,8 @@
 
   // 도시 그림: GPT 도시 그림(img/city)이 있으면 그것, 없으면 예전 건물 그림
   const cityArt = (c, fb) => R.CITY_ART[c.art] ? 'img/city/' + R.CITY_ART[c.art] + '.png' : 'img/bld/' + fb + '.png';
+  // 메가팩토리 그림 (새 그림이 아직 없으면 성채 그림을 잿빛으로)
+  const factoryImg = cls => h('img', { src: 'img/city/factory_city.png', class: cls || '', alt: '메가팩토리', onerror: e => { const im = e.target; if (im.dataset.fb) return; im.dataset.fb = '1'; im.src = 'img/city/boss.png'; im.classList.add('factory-img'); } });
 
   // ---------- 도시 창 ----------
   function cityWindow(side, c) {
@@ -577,9 +580,9 @@
   function attackable(u) {
     if (u.kind === 'scout' || u.kind === 'worker' || u.attacked) return [];
     const rng = (R.UNITS[u.kind] || {}).range || 1;
-    return S.mv.cities.filter(c => c.kind === 'cs' && !c.country && !(c.tutorial && !mineCs(c)) && canHit(u, c) && HexMap.hexDist(u.tile, c.tile) <= rng);
+    return S.mv.cities.filter(c => c.kind === 'cs' && !c.country && !c.rebel && !(c.tutorial && !mineCs(c)) && canHit(u, c) && HexMap.hexDist(u.tile, c.tile) <= rng);
   }
-  // 최종 도시국가는 그 나라 특수 부대만, 잊힌 제국은 어느 나라든 특수 부대만
+  // 최종 도시국가는 그 나라 특수 부대만 (메가팩토리는 공격할 수 없어요)
   const canHit = (u, c) => { const ud = R.UNITS[u.kind] || {}; return c.final ? !!(ud.boss && c.mine) : c.boss ? !!ud.boss : true; };
   const mineCs = c => (S.st.targets.find(t => t.id === c.id) || {}).mine;
   function showUnitHints(u) {
@@ -721,22 +724,24 @@
   function csWindow(side, city) {
     const st = S.st, tg = st.targets.find(t => t.id === city.id) || city;
     const tier = R.CS_TIERS[city.tier || 0];
-    side.append(sideHead(city.name, city.rebel ? '잊힌 제국의 반란 도시' + (tg.mine ? ' · 우리 나라의 첫 도시' : '') : (city.boss ? '최종 보스 · ' : '') + tier.name + (tg.mine ? ' · 우리 나라 쪽' : ' · 누구나 차지할 수 있어요'), back));
+    side.append(sideHead(city.name, city.rebel ? 'GREED LINK 메가팩토리' + (tg.mine ? ' · 우리 나라의 첫 도시였어요' : '') : (city.boss ? '최종 보스 · ' : '') + tier.name + (tg.mine ? ' · 우리 나라 쪽' : ' · 누구나 차지할 수 있어요'), back));
+    if (city.rebel) {
+      side.append(h('div', { class: 'city-pic' }, factoryImg()));
+      side.append(h('div', { class: 'warn-box final' }, tg.mine ? '그리드 링크가 우리 첫 도시를 헐값에 사들여 오염 공장으로 만들었어요. 환경 규칙을 무시한 공장에서 매연과 폐수가 쏟아져 행복도 -' + R.REBEL.terror + ', 지구 서버 안정도도 뚝 떨어져요.' : '다른 나라의 첫 도시였던 메가팩토리예요. 매연이 우리 하늘까지 번져요.'));
+      side.append(h('div', { class: 'hint' }, '메가팩토리는 병력으로는 되찾을 수 없어요. 여섯 나라가 무역 약속을 모두 등록해 「세계무역기구(WTO)」를 만들면, 환경 규칙에 따라 공장이 문을 닫고 도시가 돌아와요.'));
+      return;
+    }
     side.append(h('div', { class: 'city-pic' }, h('img', { src: cityArt(city, 'capital'), class: 'neutral' })));
     side.append(h('div', { class: 'vs' }, h('div', {}, h('small', {}, '방어력'), h('b', {}, city.def)), h('span', {}, '성벽'), h('div', {}, h('small', {}, '체력'), h('b', {}, city.hp + '/' + city.max_hp))));
     const gain = [];
     if (tg.res && tg.res.length) gain.push(h('div', { class: 'res-line' }, '주변 자원: ', tg.res.map(r => h('span', { class: 'res-chip' }, h('img', { src: itemImg(r) }), itemName(r)))));
-    if (city.rebel) gain.length = 0, gain.push(h('div', {}, '잊힌 제국의 테러가 사라져요'), h('div', {}, '격퇴 환호: 행복도 +' + R.REBEL.glory));
-    else if (tg.tech) gain.push(h('div', {}, '기술자 합류: ', tg.tech.split(',').map(t => h('span', { class: 'chip tech' }, R.TECHS[t]))));
+    if (tg.tech) gain.push(h('div', {}, '기술자 합류: ', tg.tech.split(',').map(t => h('span', { class: 'chip tech' }, R.TECHS[t]))));
     if (tg.bonus) gain.push(h('div', {}, '보물 창고 코인 +' + tg.bonus));
     gain.push(h('div', {}, '매 턴 코인 +' + R.INCOME.city + ', 주변 땅이 우리 영토로'));
     side.append(h('div', { class: 'gain' }, h('b', {}, '차지하면'), ...gain));
     if (city.tutorial && !tg.mine) side.append(h('div', { class: 'warn-box' }, '각 나라의 첫 도시국가는 그 나라만 차지할 수 있어요.'));
     if (city.final) side.append(h('div', { class: 'warn-box final' }, tg.mine ? '최종 도전! 평범한 병력으로는 꿈쩍도 안 해요. 「' + R.UNITS[R.BOSS_UNIT[S.st.country.type].unit].name + '」을(를) 만들어야 해요. 재료는 「우리 나라」 탭의 무역 안내를 봐요.' : '다른 나라의 최종 도전이에요. 그 나라의 특수 부대만 무너뜨릴 수 있어요.'));
-    if (city.boss) side.append(h('div', { class: 'warn-box final' }, '잊힌 제국! 여러 나라의 특수 부대가 힘을 합쳐야 무너뜨릴 수 있어요.'));
-    if (city.rebel) side.append(h('div', { class: 'warn-box final' }, !tg.mine ? '다른 나라의 반란 도시예요. 그 나라가 되찾도록 응원해요!'
-      : S.st.alliance ? '무역 동맹 덕분에 잊힌 제국이 약해졌어요! 이제 회복도 못 해요. 특수 부대로 공격해 되찾아요.'
-      : '잊힌 제국이 우리 첫 도시를 빼앗았어요. 지금은 너무 강해서(매 턴 체력을 모두 회복) 이길 수 없어요. 여섯 나라가 「무역 동맹」을 맺으면 크게 약해져요!'));
+    if (city.boss) side.append(h('div', { class: 'warn-box final' }, '최종 보스! 여러 나라의 특수 부대가 힘을 합쳐야 무너뜨릴 수 있어요.'));
     side.append(h('small', { class: 'muted' }, '병력을 골라 바로 옆 칸까지 움직인 뒤 공격해요. 도시는 반격하고, 한 턴마다 성벽이 ' + tier.heal + ' 회복돼요. 여러 병력으로 한 턴에 몰아쳐요!'));
     const near = st.units.filter(u => attackable(u).some(c => c.id === city.id));
     if (near.length) side.append(h('div', { class: 'row' }, near.map(u => h('button', { class: 'danger small', onclick: () => pickUnit(u) }, unitName(u.kind) + '로 공격'))));
@@ -889,23 +894,18 @@
     const st = S.st, gd = guide(), inv = st.inventory;
     const hasBoss = st.units.some(u => u.kind === gd.bu.unit), finDone = gd.fin.owner === st.country.id;
     const n = gd.needs[0], [l1, l2] = gd.lux, imp = R.HAPPY.importLux;
-    // 17차시: 잊힌 제국이 나타나면 → ① 행복도 지키기 (무역이 막히는 걸 겪어요) → ② 반란 도시 되찾기
+    // 17차시: 그리드 링크가 폭주하면 → ① 행복도 지키기 (불공정 무역을 겪어요) → ② WTO를 만들어 메가팩토리가 된 첫 도시 돌려받기
     const rep = st.report;
     if (st.game.phase >= 4 && rep) {
       const rebel = rep.rebel, ally = st.alliance, lx = gd.lux.find(l => !(inv[l.it] > 0)) || l1;
-      if (ally) return [
-        { k: 'rebel2', kind: 'act', go: 'map', title: '잊힌 제국에게 빼앗긴 「' + (rebel ? rebel.name : '첫 도시') + '」 되찾기',
-          why: rebel ? '무역 동맹 덕분에 잊힌 제국이 약해졌어요 (체력 ' + rebel.hp + '/' + rebel.max_hp + ', 회복 없음). 특수 부대로 공격해요!' : '',
-          after: '잊힌 제국 격퇴! 테러가 사라지고 행복도 +' + R.REBEL.glory + '!', done: !rebel || st.game.normalized }
-      ];
+      const banned = Object.keys(st.game.banned || {}).length;
       return [
         { k: 'c_lux', kind: 'lux', it: lx.it, qty: 2, from: lx.from, give: gd.myLux, title: '행복도를 지켜요! 행복도 ' + R.HAPPY.rebelOpen + ' 위로 올리기',
-          why: '잊힌 제국의 테러와 사치품 싫증으로 행복도가 뚝 떨어졌어요. 사치품 「' + itemName(lx.it) + '」을(를) 사 오면 올라요.' + (Object.keys(st.game.banned || {}).length ? ' 그런데… 지금 거래가 될까요? 제안을 보내 봐요.' : ''),
+          why: '메가팩토리 오염과 광고 폭탄으로 행복도가 뚝 떨어졌어요. 사치품 「' + itemName(lx.it) + '」을(를) 사 오면 올라요.' + (banned ? ' 그런데… GREED LINK가 거래를 허락할까요? 제안을 보내 봐요.' : ''),
           after: '행복도를 지켰어요!', done: st.country.happy >= R.HAPPY.rebelOpen || ally || !rebel },
-        { k: 'rebel', kind: 'act', go: 'map', title: '잊힌 제국에게 빼앗긴 「' + (rebel ? rebel.name : '첫 도시') + '」 되찾기',
-          why: !rebel ? '' : ally ? '무역 동맹 덕분에 잊힌 제국이 약해졌어요 (체력 ' + rebel.hp + '/' + rebel.max_hp + ', 회복 없음). 특수 부대로 공격해요!'
-            : '지금은 잊힌 제국이 너무 강해요 (체력 ' + rebel.hp + ', 매 턴 모두 회복). 여섯 나라가 무역 조항을 모두 등록해 「무역 동맹」을 맺으면 약해져요!',
-          after: '잊힌 제국 격퇴! 테러가 사라지고 행복도 +' + R.REBEL.glory + '!', done: !rebel }
+        { k: 'rebel', kind: 'act', title: '세계무역기구(WTO)를 만들어 「' + (rebel ? rebel.name : '첫 도시') + '」 돌려받기',
+          why: '메가팩토리는 병력으로는 되찾을 수 없어요. 선생님 신호에 맞춰 세계 무역 회의를 열고, 여섯 나라가 무역 약속을 모두 등록하면 세계무역기구(WTO)가 탄생해요!',
+          after: 'WTO 탄생! 공정한 무역이 돌아오고 우리 도시도 돌아왔어요.', done: !rebel || ally }
       ];
     }
     const L = [];
@@ -942,14 +942,14 @@
           h('div', { class: 'm-say' }, '이렇게 말해 봐요: "우리 ' + itemName(m.give || 'coin') + ' ' + m.qty + '개를 줄 테니, ' + itemName(m.it) + ' ' + m.qty + '개를 주세요!"'),
           h('div', { class: 'row' }, sellers.filter(c => c.known).map(c => h('button', { class: 'primary small', disabled: !g.market_open || g.locked, onclick: () => { S.prefill = { to: c.id, get: m.it, qty: m.qty, give: m.give || wantsFrom(c.type)[0], giveQty: m.qty }; go('trade'); } }, c.name + '에게 제안 쓰기'))));
       }
-      if (state === 'now' && m.go && !(m.k === 'rebel' && !st.alliance)) card.querySelector('.m-body').append(h('button', { class: 'danger small', onclick: () => go(m.go) }, '지도로 가기'));
-      if (state === 'now' && m.k === 'rebel' && !st.alliance) card.querySelector('.m-body').append(h('div', { class: 'hint' }, '선생님 신호에 맞춰 「세계 무역 회의」를 열어요. 6나라가 무역 조항을 모두 등록하면 무역 동맹!'));
+      if (state === 'now' && m.go) card.querySelector('.m-body').append(h('button', { class: 'danger small', onclick: () => go(m.go) }, '지도로 가기'));
       if (m.done) card.querySelector('.m-body').append(h('small', { class: 'good' }, m.after));
       return card;
     })));
   }
   // 미션을 끝내면 축하 창 (한 번만)
   function missionCheck() {
+    if (S.st.game.phase >= 7) return;   // WTO 탄생 창과 겹치지 않게
     const L = missions(), key = 'mission-' + S.st.country.id + '-';
     for (const m of L) {
       if (!m.done) break;
@@ -976,9 +976,12 @@
   // 거래가 막혔을 때: 큰 도장
   function blockedPop(r) {
     Sound.play('hit');
-    modal(h('div', { class: 'blocked-pop' }, h('div', { class: 'stamp ' + (r.blocked === 'tariff' ? 'tariff' : '') }, r.blocked === 'tariff' ? '관세 폭탄!' : '무역로 공격!'),
+    const say = R.GREED_LINES[Math.floor(Math.random() * R.GREED_LINES.length)];
+    modal(h('div', { class: 'blocked-pop' }, h('div', { class: 'greed-head' }, Brand.logo('greed')),
+      h('div', { class: 'stamp ' + (r.blocked === 'tariff' ? 'tariff' : '') }, r.blocked === 'tariff' ? '관세 폭탄!' : '거래 금지!'),
       r.item ? h('img', { src: itemImg(r.item), alt: itemName(r.item) }) : null, h('h2', {}, '거래가 이루어지지 않았어요'), h('p', {}, r.message),
-      h('div', { class: 'hint' }, '이 일은 기록돼요. 세계 무역 회의에서 「우리 나라가 겪은 일」로 이야기해요.')));
+      h('div', { class: 'greed-say' }, 'GREED LINK: "' + say + '"'),
+      h('div', { class: 'hint' }, '이 일은 기록돼요. 무엇이 불공정했는지 학습지에 적고, 세계 무역 회의에서 「우리 나라가 겪은 일」로 이야기해요.')));
   }
   // 지구 서버 관리자의 지원·긴급 중립 상인·특수 부대 도착: 화려한 창 (한 번만)
   function grantCheck(first) {
@@ -993,72 +996,78 @@
     fresh.forEach(grantPop);
   }
   function grantPop(n) {
-    const d = n.data || {}, items = Object.entries(d.items || {});
-    const merchant = d.mode === 'merchant', boss = d.mode === 'boss';
+    const st = S.st, d = n.data || {}, items = Object.entries(d.items || {});
+    const merchant = d.mode === 'merchant', boss = d.mode === 'boss', greed = merchant && st.game.phase >= 4 && !st.alliance;
     Sound.play('win');
     const it = ([k, v]) => h('div', { class: 'grant-it' }, k === 'coin' ? h('span', { class: 'ico coin coin-big' }, 'C') : h('img', { src: itemImg(k), alt: '' }), h('b', {}, itemName(k)), h('span', {}, (k === 'coin' ? '+' : '×') + v));
     modal(h('div', { class: 'grant-pop' + (merchant ? ' merchant' : '') }, h('div', { class: 'burst' + (merchant ? '' : ' blue') }),
-      h('span', { class: 'grant-badge' }, merchant ? '긴급 중립 상인' : '지구 서버 관리자'),
-      h('h2', {}, boss ? '특수 부대 도착!' : merchant ? '중립 상인이 물건을 팔았어요' : '관리자의 지원이 도착했어요!'),
+      h('span', { class: 'grant-badge' }, greed ? 'GREED LINK 특별 판매' : merchant ? '긴급 중립 상인' : '지구 서버 관리자'),
+      h('h2', {}, boss ? '특수 부대 도착!' : greed ? 'GREED LINK가 두 배 값에 팔았어요' : merchant ? '중립 상인이 물건을 팔았어요' : '관리자의 지원이 도착했어요!'),
       boss ? h('div', { class: 'grant-items' }, h('div', { class: 'grant-it' }, h('img', { src: unitImg(d.unit), alt: '' }), h('b', {}, unitName(d.unit)), h('span', {}, d.city + ' 근처'))) : h('div', { class: 'grant-items' }, items.map(it)),
       merchant ? h('p', { class: 'bad' }, '코인 -' + d.coin + ' (기준가의 ' + R.CRISIS.merchantMult + '배)') : null,
       d.reason ? h('p', {}, d.reason) : null,
-      h('p', { class: 'muted' }, boss ? '지도에서 특수 부대를 눌러 최종 도시국가를 공격해요!' : merchant ? '나라끼리 거래가 막혔을 때만 오는 비싼 상인이에요.' : '창고에 바로 들어갔어요.'),
+      h('p', { class: 'muted' }, boss ? '지도에서 특수 부대를 눌러 최종 도시국가를 공격해요!' : greed ? '"독점이니까 값은 저희 마음이죠 ^^" 나라끼리 거래가 막히자 GREED LINK만 비싸게 팔아요.' : merchant ? '나라끼리 거래가 막혔을 때만 오는 비싼 상인이에요.' : '창고에 바로 들어갔어요.'),
       h('button', { class: 'primary big', onclick: () => { const b = $$('.modal-back'); b.length && b[b.length - 1].remove(); if (boss) go('map'); } }, boss ? '지도로 가기' : '좋아요!')));
   }
   // 국가 정상화: 무역이 돌아오면 무엇이 회복되는지 → 3초 뒤 전자칠판 영상 안내
   function normalPop() {
     const co = S.st.country;
     Sound.play('win');
-    const later = h('div', { class: 'q-box', style: { visibility: 'hidden' } }, '이제 전자칠판을 봐요! 현실에서 나라들이 무역 약속을 지키지 않으면 어떤 일이 생길까요?');
-    modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('h2', {}, '국가 정상화에 성공했습니다!'), h('p', { class: 'big-joy' }, '축하합니다! 잊힌 제국의 영향력이 사라지고 무역이 정상으로 돌아왔어요.'),
-      h('div', { class: 'recover' }, h('b', {}, '무역이 다시 이어지자…'),
-        h('div', {}, '수입 사치품 공급 재개 → 행복도 회복 (지금 ' + co.happy + ', ' + happyWord(co.happy) + ')'),
-        h('div', {}, '관세 폭탄이 사라짐 → 물건값이 다시 정상'),
-        h('div', {}, '전략 자원을 다시 거래 → 군대와 공장이 다시 움직여요'),
+    const later = h('div', { class: 'q-box', style: { visibility: 'hidden' } }, '이제 전자칠판을 봐요! 현실에서도 나라 사이에 무역 다툼이 생기면 어떻게 할까요?');
+    modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('div', { class: 'greed-head', style: { width: '300px', margin: '0 auto' } }, Brand.logo('wto')),
+      h('h2', {}, '공정한 무역이 돌아왔습니다!'), h('p', { class: 'big-joy' }, '세계무역기구(WTO)의 분쟁 조정과 개입으로 GREED LINK의 횡포가 멈췄어요.'),
+      h('div', { class: 'recover' }, h('b', {}, '공정한 무역이 다시 이어지자…'),
+        h('div', {}, '사치품 독점이 풀림 → 수입 사치품이 다시 들어와 행복도 회복 (지금 ' + co.happy + ', ' + happyWord(co.happy) + ')'),
+        h('div', {}, '멋대로 올린 관세가 사라짐 → 물건값이 다시 정상'),
+        h('div', {}, '메가팩토리가 환경 규칙에 따라 문을 닫음 → 우리 도시가 돌아오고 지구가 회복되기 시작'),
         h('div', {}, '행정 마비가 풀림 → 건물과 병력을 다시 만들 수 있어요')),
       later));
     setTimeout(() => { later.style.visibility = 'visible'; }, 3000);
   }
   // 17차시 단계가 바뀔 때: 긴급속보
-  function phaseShow(ph) {
+  function phaseShow(ph, prev) {
     const st = S.st, rep = st.report || {};
     const close = () => $$('.modal-back').forEach(b => b.remove());
     if (ph === 4) {
       Sound.play('hit');
-      modal(h('div', { class: 'blocked-pop news-flash' }, h('div', { class: 'stamp' }, '긴급속보'), h('img', { class: 'flash-img', src: 'img/city/boss.png', alt: '' }),
-        h('h2', {}, '잊힌 제국 등장!'),
-        h('p', {}, '잊힌 제국이 우리 첫 도시 「' + ((rep.rebel || {}).name || '') + '」을(를) 빼앗아 반란 도시로 만들었어요!'),
+      const news = () => modal(h('div', { class: 'blocked-pop news-flash' }, h('div', { class: 'stamp' }, '긴급속보'), h('div', { class: 'greed-head' }, Brand.logo('greed')),
+        h('h2', {}, '그리드 링크의 폭주!'),
+        h('p', {}, '나라들이 무역으로 크게 성장하자, 세계의 거래를 모두 이어 주던 그리드 링크가 "이제 우리 없이는 아무도 거래 못 해!"라며 이윤을 끝까지 짜내기 시작했어요.'),
+        h('p', {}, '우리 첫 도시 「' + ((rep.rebel || {}).name || '') + '」을(를) 헐값에 사들여 오염 공장 「메가팩토리」로 바꿨어요!'),
+        factoryImg('flash-img'),
         h('div', { class: 'report-grid' },
-          h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '-' + R.REBEL.terror), '잊힌 제국의 테러'), h('small', {}, '반란 도시가 남아 있는 동안 시민들이 불안해해요')),
-          h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '-' + R.REBEL.boredom), '사치품에 싫증'), h('small', {}, '인터넷으로 다른 나라 물건을 보게 된 시민들이 더 다양한 사치품을 원해요'))),
-        h('div', { class: 'q-box' }, '반란 도시는 너무 강해서 지금은 이길 수 없어요. 행복도를 지키려면 사치품이 필요해요!'),
+          h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '-' + R.REBEL.terror), '메가팩토리 오염'), h('small', {}, '환경 규칙을 무시한 공장에서 매연과 폐수가 쏟아져요. 지구 서버 안정도도 뚝!')),
+          h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '-' + R.REBEL.boredom), '광고 폭탄'), h('small', {}, '그리드 링크의 광고 때문에 사람들이 더 다양한 사치품을 원해요'))),
+        h('div', { class: 'q-box' }, '메가팩토리는 병력으로 되찾을 수 없어요. 행복도를 지키려면 사치품이 필요해요!'),
         h('button', { class: 'primary big', onclick: () => { close(); go('mission'); } }, '무역 미션 보기')));
+      if (prev !== undefined && prev < 4) Brand.glitch(news); else news();
     } else if (ph === 5) {
       Sound.play('hit');
       const tars = Object.keys(st.game.tariffs || {}).length;
       const cut = (st.notices.find(n => n.kind === 'crisis' && n.data && n.data.mode === 'cut') || {}).data || { before: 0 };
-      modal(h('div', { class: 'blocked-pop news-flash' }, h('div', { class: 'stamp' }, '긴급속보'), h('h2', {}, '국제 무역망 마비!'),
-        h('p', {}, '잊힌 제국이 여섯 나라를 협박했어요: "관세를 말도 안 되게 올려라! 그렇지 않으면 무역선과 수송기를 공격하겠다!" 겁먹은 나라들이 관세를 크게 올렸어요.'),
+      const me = st.country, pt = R.PARTNER[me.type], ptc = st.countries.find(c => c.type === pt) || {};
+      modal(h('div', { class: 'blocked-pop news-flash' }, h('div', { class: 'stamp' }, '긴급속보'), h('div', { class: 'greed-head' }, Brand.logo('greed')), h('h2', {}, '불공정 무역!'),
+        h('p', {}, 'GREED LINK가 무역 처리 시스템의 관세를 멋대로 올리고, 사치품과 핵심 전략 자원을 "저희 독점 상품"이라며 나라끼리 거래를 막았어요.'),
+        h('div', { class: 'greed-say' }, 'GREED LINK 공지: "' + (ptc.name || '짝꿍 나라') + '의 협상 태도가 마음에 들지 않아 ' + itemName(R.STRAT_OF[pt]) + ' 수출을 금지했습니다. 불만은 ' + (ptc.name || '그 나라') + '에 말씀하세요 ^^"'),
         h('div', { class: 'report-grid' },
-          h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '거래 불가'), '사치품 · 핵심 전략 자원'), h('small', {}, R.LUX.concat(R.BANNED_STRAT).map(itemName).join(' · ') + ' — 실어 나를 수 없어요')),
-          h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '관세 폭탄'), '나머지 ' + tars + '가지 물건'), h('small', {}, '사 올 때 1개마다 ' + R.CRISIS.tariffPerUnit + '코인을 더 내요'))),
+          h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '거래 금지'), '사치품 · 핵심 전략 자원'), h('small', {}, R.LUX.concat(R.BANNED_STRAT).map(itemName).join(' · ') + ' — GREED LINK 독점')),
+          h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '관세 폭탄'), '나머지 ' + tars + '가지 물건'), h('small', {}, '사 올 때 1개마다 ' + R.CRISIS.tariffPerUnit + '코인을 더 내요 ("싫으면 안 사시면 되죠 ^^")'))),
         h('div', { class: 'cut-box' }, h('span', {}, '외국 사치품 공급이 끊겨 시민들의 불만이 커지고 있어요'),
           h('div', { class: 'cut-num' }, h('small', {}, '수입 사치품 행복도'), h('b', { class: 'from' }, (cut.before > 0 ? '+' : '') + cut.before), h('i', {}, '→'), h('b', { class: 'to' }, '0')),
-          h('small', {}, '창고의 물건은 그대로지만, 새로 들어오지 않아 수입 효과가 멈췄어요. 무역 동맹을 맺으면 다시 이어져요.')),
-        h('div', { class: 'q-box' }, '활동 1: 직접 거래해 보며, 무역이 엉망이 되면 무엇이 문제인지 학습지에 적어요!'),
+          h('small', {}, '창고의 물건은 그대로지만, 새로 들어오지 않아 수입 효과가 멈췄어요.')),
+        h('div', { class: 'q-box' }, '활동 1: 직접 거래해 보며, 무엇이 불공정한지 학습지에 적어요!'),
         h('button', { class: 'primary big', onclick: () => { close(); go('trade'); } }, '무역해 보기')));
     } else if (ph === 6 || ph === 8) { close(); go('meeting'); }
     else if (ph === 7) {
       Sound.play('win');
+      close();
       const list = st.treaties || [];
-      modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('h2', {}, '무역 동맹 체결!'),
-        h('p', { class: 'big-joy' }, '여섯 나라는 서로의 조항을 함께 지키기로 약속했습니다.'),
+      modal(h('div', { class: 'center celebrate' }, h('div', { class: 'burst' }), h('h2', {}, '세계무역기구(WTO)가 탄생했습니다!'),
+        h('p', { class: 'big-joy' }, '여섯 나라가 함께 정한 무역 약속을 모두가 지키기로 했어요.'),
         list.length ? h('div', { class: 'charter-list' }, list.map(t => { const c = st.countries.find(x => x.id === t.country) || {};
           return h('div', { class: 'charter-it', style: { '--gc': typeColor(c.type), textAlign: 'left' } }, h('b', {}, c.name + ' '), t.promise || ''); })) : null,
-        h('p', {}, '함께 약속하자 잊힌 제국의 협박이 더는 통하지 않아요!'),
-        h('p', {}, '무역 동맹으로 잊힌 제국의 영향력이 크게 줄었어요 (반란 도시 체력 ' + R.REBEL.weakHp + ', 회복 없음). 무역로가 다시 열렸어요. 수입 사치품 공급도 바로 이어져 행복도가 돌아왔어요. 우리 반란 도시를 되찾아요!'),
-        h('button', { class: 'danger big', onclick: () => { close(); go('map'); } }, '반란 도시 되찾으러 가기')));
+        h('p', {}, '이제 나라 사이에 무역 다툼이 생기면 WTO가 조정해요. 한 회사가 마음대로 관세를 올리거나 거래를 막을 수 없어요.'),
+        h('button', { class: 'primary big', onclick: () => { close(); if (st.game.normalized) normalPop(); } }, '다음')));
     }
   }
   // ================= 기술 계통도 =================
@@ -1194,6 +1203,7 @@
   function tradeView(page) {
     const st = S.st, g = st.game, me = st.country.id;
     if (!g.market_open) { page.append(h('div', { class: 'panel center' }, h('h3', {}, '세계 시장이 아직 열리지 않았어요'), h('p', {}, '선생님이 세계 시장을 열면 다른 나라와 물건을 사고팔 수 있어요.'))); return; }
+    page.append(Brand.bar(g, g.phase >= 4 && !st.alliance ? '관세 1개마다 +' + R.CRISIS.tariffPerUnit + '코인 · 사치품과 핵심 전략 자원은 GREED LINK 독점 (나라끼리 거래 금지)' : null));
     page.append(tradeGuidePanel());
     const known = st.countries.filter(c => c.id !== me && c.known);
     const items = ['coin', ...Object.keys(R.ITEMS)];
@@ -1210,9 +1220,9 @@
       if (gi === 'coin' && ti !== 'coin') msg = itemName(ti) + ' 기준가 ' + R.ITEMS[ti].ref + '코인 → ' + tq + '개는 최대 ' + R.ITEMS[ti].ref * R.FAIR_CAP * tq + '코인';
       help.textContent = g.fair_cap ? (msg ? '지구 서버 공정 거래 규칙: ' + msg : '물건끼리 바꾸기도 할 수 있어요.') : '공정 거래 규칙이 없어졌어요.';
       const tu = it => g.tariffs && g.tariffs[it] ? +g.tariffs[it] : 0;   // 1개마다 붙는 관세 (코인)
-      if (ti !== 'coin' && tu(ti)) help.textContent += ' · 관세 폭탄: ' + itemName(ti) + '을(를) 사 오면 1개마다 ' + tu(ti) + '코인을 더 내요 (' + tq + '개면 ' + tu(ti) * tq + '코인).';
+      if (ti !== 'coin' && tu(ti)) help.textContent += ' · GREED LINK 관세 폭탄: ' + itemName(ti) + '을(를) 사 오면 1개마다 ' + tu(ti) + '코인을 더 내요 (' + tq + '개면 ' + tu(ti) * tq + '코인).';
       const bans = [...new Set(Object.values(g.banned || {}).flat())];
-      if (bans.length) help.textContent += ' · 잊힌 제국의 무역로 공격으로 거래 불가: ' + bans.map(itemName).join(', ');
+      if (bans.length) help.textContent += ' · GREED LINK 독점으로 거래 금지: ' + bans.map(itemName).join(', ');
     };
     // 같은 것끼리 바꾸지 않도록: 코인을 주면 물건을, 물건을 주면 코인을 기본으로
     const fixPair = () => { if (giveI.value === getI.value) getI.value = giveI.value === 'coin' ? 'food' : 'coin'; };
@@ -1231,7 +1241,7 @@
         h('label', {}, '어느 나라와', to),
         h('label', {}, '우리가 주는 것', giveI, giveQ),
         h('label', {}, '우리가 받는 것', getI, getQ),
-        h('button', { class: 'primary', onclick: () => act('offer_create', [+to.value, giveI.value, +giveQ.value, getI.value, +getQ.value], r => r.blocked ? blockedPop(r) : toast('거래를 제안했어요.' + (r.tariff ? ' 성사되면 관세 ' + r.tariff + '코인을 더 내요.' : ''))) }, '제안 보내기')) : h('p', {}, '아직 아는 나라가 없어요.'),
+        h('button', { class: 'primary', onclick: () => act('offer_create', [+to.value, giveI.value, +giveQ.value, getI.value, +getQ.value], r => r.blocked ? blockedPop(r) : toast('거래를 제안했어요.' + (r.tariff ? ' 성사되면 관세 ' + r.tariff + '코인을 더 내요.' : g.phase < 4 ? ' (그리드 링크가 안전하게 전달했어요 · 수수료 0코인)' : ''))) }, '제안 보내기')) : h('p', {}, '아직 아는 나라가 없어요.'),
       help));
     const name = id => id ? (st.countries.find(c => c.id === id) || {}).name : '중립 상인';
     const inc = st.offers.filter(o => o.to_c === me && o.status === 'pending');
@@ -1274,14 +1284,14 @@
     if (g.phase >= 8) page.append(wrapPanel());
     // 우리 나라가 겪은 일 (실제 기록)
     const myF = rep.fails.filter(f => f.buyer === me);
-    const told = [rep.rebel ? '잊힌 제국에게 「' + rep.rebel.name + '」을(를) 빼앗겼어요' : null,
+    const told = [rep.rebel ? 'GREED LINK가 「' + rep.rebel.name + '」을(를) 사들여 메가팩토리로 만들었어요' : null,
       myF.length ? '거래가 ' + myF.length + '번 막혔어요 (' + [...new Set(myF.map(f => itemName(f.item)))].join(', ') + ')' : null,
-      rep.tariff_paid ? '관세로 ' + rep.tariff_paid + '코인을 더 냈어요' : null, '지금 행복도 ' + st.country.happy].filter(Boolean);
-    page.append(h('div', { class: 'panel meet-head' }, h('div', { class: 'panel-title' }, '세계 무역 회의', h('small', {}, '잊힌 제국을 물리칠 무역 조항을 만들어요')),
+      rep.tariff_paid ? 'GREED LINK가 올린 관세로 ' + rep.tariff_paid + '코인을 더 냈어요' : null, '지금 행복도 ' + st.country.happy].filter(Boolean);
+    page.append(h('div', { class: 'panel meet-head' }, h('div', { class: 'panel-title' }, '세계 무역 회의', h('small', {}, '불공정한 무역을 끝낼 무역 약속을 만들어요')),
       h('div', { class: 'meet-steps' },
         h('div', { class: 'ms' + (step === 2 ? ' gold' : '') }, h('b', {}, '활동 2'), h('span', {}, '전문가 회의: 같은 역할끼리 한 문장')),
-        h('div', { class: 'ms' + (step === 3 ? ' gold' : '') }, h('b', {}, '활동 3'), h('span', {}, '모둠 회의: 두 문장을 합쳐 우리 나라 조항')),
-        h('div', { class: 'ms' }, h('b', {}, list.length + '/6'), h('span', {}, '여섯 나라가 다 등록하면 무역 동맹!'))),
+        h('div', { class: 'ms' + (step === 3 ? ' gold' : '') }, h('b', {}, '활동 3'), h('span', {}, '모둠 회의: 두 의견을 살려 우리 나라 약속')),
+        h('div', { class: 'ms' }, h('b', {}, list.length + '/6'), h('span', {}, '여섯 나라가 다 등록하면 세계무역기구(WTO) 탄생!'))),
       h('div', { class: 'told' }, h('b', {}, '우리 나라가 겪은 일: '), told.join(' · '))));
     // 활동 2: 전문가 회의
     if (!S.expertRole || !roles.includes(S.expertRole)) S.expertRole = roles[0];
@@ -1296,24 +1306,24 @@
       mine ? h('small', { class: 'good' }, '저장한 문장: ' + mine.body) : null));
     // 활동 3: 모둠 회의
     let picks = (tr.reason || '').split(' / ').filter(Boolean);
-    const clause = h('textarea', { id: 't-clause', rows: 2, placeholder: '「틀 넣기」를 누르고 괄호 안에 두 문장을 합친 내용을 직접 써요', disabled: !lead }, tr.promise || '');
+    const clause = h('textarea', { id: 't-clause', rows: 2, placeholder: '「틀 넣기」를 누르고 괄호 안에 두 의견을 살린 약속을 직접 써요', disabled: !lead }, tr.promise || '');
     const exList = h('div', { class: 'ex-list' });
     const drawEx = () => { exList.innerHTML = ''; exList.append(...(ex.length ? ex.map(e => { const on = picks.includes(e.body);
       const toggle = () => { if (!lead) return; picks = on ? picks.filter(x => x !== e.body) : picks.concat(e.body).slice(-2); drawEx(); };
       return h('div', { class: 'ex-it' + (on ? ' on' : ''), onclick: toggle }, h('span', { class: 'ex-check' }, on ? '✓' : ''),
         h('b', {}, e.role), h('span', {}, e.body), h('small', {}, e.nick)); }) : [h('p', { class: 'muted' }, '아직 저장된 전문가 문장이 없어요. 활동 2에서 각자 저장해요.')])); };
     drawEx();
-    page.append(h('div', { class: 'panel treaty' + (step === 3 ? ' now-step' : ' dim-step') }, h('div', { class: 'panel-title' }, '활동 3 · 모둠 회의', h('small', {}, '전문가 문장을 나누고, 대표를 중심으로 가장 중요한 두 문장을 골라 하나로 합쳐요')),
+    page.append(h('div', { class: 'panel treaty' + (step === 3 ? ' now-step' : ' dim-step') }, h('div', { class: 'panel-title' }, '활동 3 · 모둠 회의', h('small', {}, '전문가 문장을 나누고, 중요한 두 의견을 골라 그 뜻을 살려요')),
       h('b', {}, '① 우리 모둠의 전문가 문장'), exList,
-      h('b', {}, '② 두 문장을 하나로 합친 우리 나라 무역 조항'),
+      h('b', {}, '② 두 의견의 뜻을 살린 우리 나라 무역 약속'),
       h('div', { class: 'row' }, lead ? h('button', { class: 'small', onclick: () => { clause.value = R.CLAUSE_FRAME; clause.focus(); clause.setSelectionRange(clause.value.indexOf('(') + 1, clause.value.indexOf(')')); } }, '틀 넣기') : null, clause),
       lead ? h('button', { class: 'primary big', disabled: g.phase !== 6 && !tr.promise, onclick: () => {
         if (picks.length < 2 && ex.length >= 2) return toast('전문가 문장 두 개를 골라 주세요.', 'error');
-        act('treaty_submit', [step === 3 ? 'merge' : 'X', '', clause.value, picks.join(' / ')], r => { Sound.play('win'); toast(r.alliance ? '무역 동맹 체결!' : '무역 조항을 등록했어요! (' + r.count + '/6)', 'long'); });
-      } }, tr.promise ? '조항 고쳐 등록하기' : '우리 나라 무역 조항 등록') : h('p', { class: 'muted' }, '등록은 국가 대표가 해요. 모두 함께 문장을 정해요.')));
+        act('treaty_submit', [step === 3 ? 'merge' : 'X', '', clause.value, picks.join(' / ')], r => { Sound.play('win'); toast(r.alliance ? '세계무역기구(WTO) 탄생!' : '무역 약속을 등록했어요! (' + r.count + '/6)', 'long'); });
+      } }, tr.promise ? '약속 고쳐 등록하기' : '우리 나라 무역 약속 등록') : h('p', { class: 'muted' }, '등록은 국가 대표가 해요. 모두 함께 문장을 정해요.')));
     // 여섯 나라의 무역 조항
-    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '여섯 나라의 무역 조항', h('small', {}, list.length + '/6 나라')),
-      h('div', { class: 'ally-bar' }, h('i', { style: { width: (list.length / 6 * 100) + '%' } }), h('span', {}, list.length >= 6 ? '무역 동맹 체결!' : '무역 동맹까지 ' + (6 - list.length) + '나라')),
+    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '여섯 나라의 무역 약속', h('small', {}, list.length + '/6 나라')),
+      h('div', { class: 'ally-bar' }, h('i', { style: { width: (list.length / 6 * 100) + '%' } }), h('span', {}, list.length >= 6 ? '세계무역기구(WTO) 탄생!' : 'WTO 탄생까지 ' + (6 - list.length) + '나라')),
       list.length ? h('div', { class: 'charter-list' }, list.map(t => { const c = st.countries.find(x => x.id === t.country) || {};
         return h('div', { class: 'charter-it', style: { '--gc': typeColor(c.type) } }, h('b', {}, c.name + ' '), t.promise || ''); }))
         : h('p', { class: 'muted' }, '아직 등록한 나라가 없어요.')));
@@ -1330,7 +1340,7 @@
     return h('div', { class: 'panel wrap-panel' }, h('div', { class: 'panel-title' }, '정리', h('small', {}, '학습지에 적고, 모둠별로 가볍게 발표해요')),
       h('h2', { class: 'wrap-q' }, '무역을 할 때 필요한 노력을 적어 봅시다'),
       h('div', { class: 'wrap-stats' }, h('div', {}, h('small', {}, '행복도'), h('b', {}, co.happy)), h('div', {}, h('small', {}, '코인'), h('b', {}, fmt(co.coin))), h('div', {}, h('small', {}, '병력'), h('b', {}, mil + '부대')),
-        h('div', {}, h('small', {}, '우리 나라 무역 조항'), h('span', {}, (st.treaty || {}).promise || '-'))),
+        h('div', {}, h('small', {}, '우리 나라 무역 약속'), h('span', {}, (st.treaty || {}).promise || '-'))),
       reflectPanel());
   }
 

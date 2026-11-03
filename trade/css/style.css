@@ -1093,3 +1093,58 @@ td.good { color: #1E7A43; font-weight: 700; }
 .board.tb.wrap-mode .b-rank-title { font-size: 34px; }
 .board.tb.wrap-mode .b-wrap td, .board.tb.wrap-mode .b-wrap th { font-size: 30px; padding: 8px 12px; white-space: nowrap; }
 .board.tb.wrap-mode .b-sentence { font-size: 26px; line-height: 1.4; padding: 10px 16px; margin-bottom: 8px; }
+
+/* v18: 그리드 링크 세계무역중계 · GREED LINK 폭주 · 메가팩토리 · WTO */
+.gl-logo { display: block; width: 100%; height: auto; overflow: visible; }
+.gl-drips path { transform-box: fill-box; transform-origin: top; animation: gl-drip 3.2s ease-in infinite; }
+@keyframes gl-drip { 0% { transform: scaleY(.15); } 70% { transform: scaleY(1); } 100% { transform: scaleY(1.08); opacity: .85; } }
+.gl-bar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-radius: 14px; margin-bottom: 12px; border: 3px solid #BBD3F2; background: linear-gradient(180deg, #F4F9FF, #E3EEFB); color: #123F7A; }
+.gl-bar .gl-logo { width: 230px; flex: none; }
+.gl-bar-text { display: flex; flex-direction: column; gap: 4px; }
+.gl-bar-text b { font-size: 17px; }
+.gl-bar-text small { font-size: 14px; opacity: .8; }
+.gl-bar-greed { background: repeating-linear-gradient(-45deg, #1A0B0E 0 14px, #26101A 14px 28px); border-color: #C21E32; color: #FFD9DD; box-shadow: 0 0 0 2px #1A0B0E inset, 0 0 18px rgba(226,38,61,.35); animation: gl-throb 2.4s ease-in-out infinite; }
+.gl-bar-greed .gl-bar-text b { color: #FF5A6E; font-size: 18px; }
+.gl-bar-wto { background: linear-gradient(180deg, #F2FBF5, #E1F4E8); border-color: #9ED7B4; color: #24553A; }
+@keyframes gl-throb { 50% { box-shadow: 0 0 0 2px #1A0B0E inset, 0 0 30px rgba(226,38,61,.6); } }
+.b-brand { width: 210px; margin-right: 10px; }
+.b-brand .gl-logo { width: 100%; }
+
+/* 폭주 연출: 치지직 */
+.gl-ov { position: fixed; inset: 0; z-index: 9999; background: radial-gradient(circle at 50% 45%, #0E1A2C, #04070C 70%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; overflow: hidden; cursor: default; animation: gl-in .35s ease-out; }
+.gl-ov.out { opacity: 0; transition: opacity .45s; }
+@keyframes gl-in { from { opacity: 0; } }
+.gl-stage { position: relative; width: min(78vw, 760px); aspect-ratio: 440 / 130; }
+.gl-ov.big .gl-stage { width: min(80vw, 1100px); }
+.gl-layer { position: absolute; inset: 0; }
+.gl-layer .gl-logo { width: 100%; }
+.gl-layer.gl-r, .gl-layer.gl-c { opacity: 0; mix-blend-mode: screen; }
+.gl-ov.on .gl-layer.gl-r { opacity: .85; filter: drop-shadow(0 0 0 #f00) hue-rotate(-30deg) saturate(3); animation: gl-r .18s steps(2) infinite; }
+.gl-ov.on .gl-layer.gl-c { opacity: .85; filter: hue-rotate(160deg) saturate(3); animation: gl-c .22s steps(2) infinite; }
+.gl-ov.on .gl-layer.gl-main { animation: gl-slice .3s steps(3) infinite; }
+.gl-ov.on { animation: gl-shake .12s steps(2) infinite; }
+@keyframes gl-r { 0% { transform: translate(-8px, 2px); clip-path: inset(10% 0 55% 0); } 50% { transform: translate(10px, -3px); clip-path: inset(60% 0 8% 0); } 100% { transform: translate(-4px, 0); clip-path: inset(30% 0 30% 0); } }
+@keyframes gl-c { 0% { transform: translate(9px, -2px); clip-path: inset(45% 0 20% 0); } 50% { transform: translate(-12px, 3px); clip-path: inset(5% 0 70% 0); } 100% { transform: translate(5px, 1px); clip-path: inset(70% 0 0 0); } }
+@keyframes gl-slice { 0% { clip-path: inset(0 0 0 0); transform: none; } 33% { clip-path: inset(20% 0 40% 0); transform: translateX(14px) skewX(8deg); } 66% { clip-path: inset(55% 0 5% 0); transform: translateX(-18px); } 100% { clip-path: inset(0 0 0 0); transform: none; } }
+@keyframes gl-shake { 50% { transform: translate(3px, -2px); } }
+.gl-noise { position: absolute; inset: -50%; opacity: 0; pointer-events: none; background-image: repeating-radial-gradient(circle at 17% 32%, rgba(255,255,255,.18) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 2px, transparent 2px 5px); }
+.gl-ov.on .gl-noise { opacity: 1; animation: gl-noise .1s steps(3) infinite; }
+@keyframes gl-noise { 0% { transform: translate(0, 0); } 33% { transform: translate(-3%, 2%); } 66% { transform: translate(2%, -3%); } }
+.gl-scan { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.28) 0 2px, transparent 2px 4px); opacity: .35; }
+.gl-ov.swap { background: radial-gradient(circle at 50% 45%, #3A0A12, #0B0204 70%); }
+.gl-ov.evil { background: radial-gradient(circle at 50% 45%, #3A0A12, #0B0204 70%); animation: gl-pulse 1.6s ease-in-out infinite; cursor: pointer; }
+@keyframes gl-pulse { 50% { box-shadow: inset 0 0 160px rgba(226,38,61,.45); } }
+.gl-ov.evil .gl-layer.gl-r, .gl-ov.evil .gl-layer.gl-c { opacity: 0; }
+.gl-cap { word-break: keep-all; position: relative; font-family: var(--font-display); font-size: clamp(22px, 3vw, 38px); color: #CFE2FF; text-align: center; padding: 0 20px; max-width: 1000px; }
+.gl-ov.evil .gl-cap { color: #FF8A95; text-shadow: 0 0 12px rgba(226,38,61,.7); }
+
+/* 거래가 막혔을 때: GREED LINK 도장 */
+.blocked-pop .greed-head { width: min(360px, 80%); margin: 0 auto 6px; }
+.blocked-pop .greed-say { background: #1A0B0E; color: #FFB3BC; border: 2px solid #C21E32; border-radius: 12px; padding: 10px 14px; font-size: 18px; margin: 10px 0; }
+.news-flash .greed-head { width: min(420px, 86%); margin: 4px auto 8px; }
+.factory-img { filter: grayscale(.7) sepia(.6) hue-rotate(35deg) brightness(.72) contrast(1.2); }
+/* 전자칠판: 메가팩토리가 돌아가는 동안 화면에 스모그 */
+.board.smog::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 5; background: radial-gradient(ellipse at 30% 20%, rgba(90,80,70,.28), transparent 60%), radial-gradient(ellipse at 75% 70%, rgba(80,72,66,.3), transparent 55%); animation: smog-move 12s ease-in-out infinite alternate; }
+@keyframes smog-move { to { transform: translate(-3%, 2%) scale(1.06); } }
+.b-env { margin-top: 8px; font-size: 18px; padding: 8px 12px; border-radius: 10px; background: #3B2F3A; color: #FFD0D0; }
+.b-env.ok { background: #E1F4E8; color: #24553A; }

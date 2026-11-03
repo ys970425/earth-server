@@ -9,11 +9,11 @@
   const NEXT = {
     1: { title: '나라 키우기 시작 (턴 1)', desc: '노동자·건물·병력·점령·정찰을 할 수 있어요. 13차시 시작.' },
     2: { title: '성장의 한계', desc: '시민들이 사치품·강철·연료를 원하기 시작해요. 다음 턴 정산부터 행복도가 떨어져요. (14차시 시작)' },
-    3: { title: '세계 시장 개방 (14차시 끝~16차시)', desc: '외교 창과 무역이 열려요. 무역 미션으로 특수 부대 재료와 사치품을 모아요. 16차시 끝에 특수 부대를 최종 도시국가 근처에 세워 두기!' },
-    4: { title: '긴급속보: 잊힌 제국 등장 (17차시 7분쯤 · 활동 1)', desc: '각 나라의 첫 도시가 반란 도시로(체력 1000, 매 턴 모두 회복). 테러 -15, 사치품 싫증 -10. 최종 도시국가 정복이 끝난 뒤 눌러요.' },
-    5: { title: '긴급속보: 무역 파괴 (9분쯤 · 활동 1)', desc: '잊힌 제국의 협박으로 관세가 1개마다 +30코인, 사치품·핵심 전략 자원은 거래 불가. 학생들이 거래해 보며 문제점을 학습지에 적어요.' },
-    6: { title: '세계 무역 회의 (14분쯤, 게임 멈춤 · 활동 2·3)', desc: '아래 진행판의 「활동 2 → 활동 3」 버튼으로 넘겨요. 6나라가 무역 조항을 모두 등록하면 자동으로 무역 동맹!' },
-    7: { title: '무역 동맹 체결 (강제)', desc: '6나라가 다 등록하면 저절로 넘어가요. 시간이 없을 때만 눌러요. 무역 회복 + 반란 도시 체력 150·회복 없음.' },
+    3: { title: '세계 시장 개방 (14차시 끝~16차시)', desc: '외교 창과 무역이 열려요. 무역 탭 위에 「그리드 링크 세계무역중계」 로고가 떠요(복선). 무역 미션으로 특수 부대 재료와 사치품을 모아요. 16차시 끝에 특수 부대를 최종 도시국가 근처에 세워 두기!' },
+    4: { title: '긴급속보: 그리드 링크의 폭주 (17차시 7분쯤 · 활동 1)', desc: '로고가 치지직 GREED LINK로 바뀌는 연출 → 각 나라의 첫 도시가 오염 공장 「메가팩토리」로. 공장 오염 -' + R.REBEL.terror + ', 광고 폭탄(사치품 싫증) -' + R.REBEL.boredom + ', 메가팩토리마다 지구 안정도 -' + R.REBEL.pollution + '. 최종 도시국가 정복이 끝난 뒤 눌러요.' },
+    5: { title: '긴급속보: 불공정 무역 (9분쯤 · 활동 1)', desc: 'GREED LINK가 관세를 1개마다 +' + R.CRISIS.tariffPerUnit + '코인으로 올리고, 사치품·핵심 전략 자원은 독점해 거래 금지. 짝꿍 나라 탓으로 돌리는 얄미운 공지가 떠요. 학생들이 거래해 보며 무엇이 불공정한지 학습지에 적어요.' },
+    6: { title: '세계 무역 회의 (14분쯤, 게임 멈춤 · 활동 2·3)', desc: '아래 진행판의 「활동 2 → 활동 3」 버튼으로 넘겨요. 6나라가 무역 약속을 모두 등록하면 자동으로 세계무역기구(WTO) 탄생!' },
+    7: { title: '세계무역기구(WTO) 탄생 (강제)', desc: '6나라가 다 등록하면 저절로 넘어가요. 시간이 없을 때만 눌러요. WTO 탄생 → 공정한 무역 회복(관세·독점 해제, 수입 사치품 재개) → 메가팩토리 폐쇄, 도시 반환 → 영상.' },
     8: { title: '정리 (35분쯤)', desc: '전자칠판에 「무역을 할 때 필요한 노력을 적어 봅시다」와 나라별 행복도·군사력·코인이 떠요. 게임 멈춤.' }
   };
 
@@ -191,9 +191,9 @@
   // ---------- 16·17차시 진행판 ----------
   function lessonPanel() {
     const st = A.st, g = st.game, n = (st.treaties || []).length, ex = st.experts || [];
-    const steps = [['0~7분', '최종 도시국가 정복·발전', g.phase <= 3], ['7분', '▶ 잊힌 제국 등장 (활동 1)', g.phase === 4], ['9분', '▶ 무역 파괴: 거래해 보며 문제점 적기', g.phase === 5],
-      ['14분', '▶ 세계 무역 회의 · 활동 2 전문가 회의', g.phase === 6 && g.meet_step !== 3], ['20분', '활동 3 모둠 회의 → 조항 등록', g.phase === 6 && g.meet_step === 3],
-      ['28분', '무역 동맹 → 반란 도시 되찾기', g.phase === 7 && !g.normalized], ['33분', '국가 정상화 → 영상', g.phase === 7 && g.normalized], ['35분', '▶ 정리', g.phase === 8]];
+    const steps = [['0~7분', '최종 도시국가 정복·발전', g.phase <= 3], ['7분', '▶ 그리드 링크의 폭주 (활동 1)', g.phase === 4], ['9분', '▶ 불공정 무역: 거래해 보며 문제점 적기', g.phase === 5],
+      ['14분', '▶ 세계 무역 회의 · 활동 2 전문가 회의', g.phase === 6 && g.meet_step !== 3], ['20분', '활동 3 모둠 회의 → 약속 등록', g.phase === 6 && g.meet_step === 3],
+      ['28분', 'WTO 탄생', g.phase === 7 && !g.normalized], ['29분', '공정한 무역 회복 → 영상', g.phase === 7 && g.normalized], ['35분', '▶ 정리', g.phase === 8]];
     const url = h('input', { type: 'text', value: g.video_url || '', placeholder: '유튜브 영상 주소를 붙여 넣어요', style: { flex: 1 } });
     return h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '17차시 진행판', h('small', {}, '정복이 7분 안에 안 끝나도 넘어가요. 회의 시간은 줄이지 않기!')),
       h('div', { class: 'timeline', style: { gridTemplateColumns: 'repeat(8, 1fr)' } }, steps.map(([t, l, on]) => h('div', { class: 'tl' + (on ? ' on' : '') }, h('small', {}, t), h('span', {}, l)))),
@@ -201,19 +201,19 @@
         h('button', { class: g.meet_step !== 3 ? 'gold' : '', onclick: () => act('admin_flags', [{ meet_step: 2 }], '활동 2: 전문가 회의') }, '활동 2: 전문가 회의'),
         h('button', { class: g.meet_step === 3 ? 'gold' : '', onclick: () => act('admin_flags', [{ meet_step: 3 }], '활동 3: 모둠 회의') }, '활동 3: 모둠 회의'),
         h('small', { class: 'muted' }, '전문가 문장 ' + ex.length + '개 저장됨 · ' + R.ROLES.map(r => r.replace(' 장관', '') + ' ' + ex.filter(e => e.role === r).length).join(' · '))) : null,
-      g.phase >= 6 ? h('div', { class: 'ally-bar' }, h('i', { style: { width: (n / 6 * 100) + '%' } }), h('span', {}, '무역 조항 ' + n + '/6' + (g.alliance ? ' · 무역 동맹 체결!' : ''))) : null,
+      g.phase >= 6 ? h('div', { class: 'ally-bar' }, h('i', { style: { width: (n / 6 * 100) + '%' } }), h('span', {}, '무역 약속 ' + n + '/6' + (g.alliance ? ' · 세계무역기구(WTO) 탄생!' : ''))) : null,
       g.phase >= 4 ? h('div', { class: 'row' },
-        h('button', { class: 'danger', disabled: g.normalized, onclick: () => confirm('시간이 없을 때 써요. 아직 되찾지 못한 반란 도시를 모두 그 나라로 돌려주고, 「국가 정상화 성공」 창과 영상을 띄울까요?') && act('admin_normalize', [], '국가 정상화!') }, g.normalized ? '국가 정상화 완료' : '국가 정상화 (시간이 없을 때)'),
+        h('button', { class: 'danger', disabled: g.normalized, onclick: () => confirm('시간이 없을 때 써요. 등록하지 않은 나라가 있어도 WTO를 탄생시키고, 메가팩토리를 모두 돌려준 뒤 「공정한 무역이 돌아왔습니다」 창과 영상을 띄울까요?') && act('admin_normalize', [], '공정한 무역 회복!') }, g.normalized ? '공정한 무역 회복 완료' : 'WTO 탄생 + 정상화 (시간이 없을 때)'),
         h('button', { onclick: () => act('admin_video', [], '전자칠판에서 영상을 틀어요') }, '영상 다시 틀기')) : null,
       h('div', { class: 'row' }, h('b', {}, '정상화 뒤 영상'), url, h('button', { class: 'small', onclick: () => act('admin_flags', [{ video_url: url.value }], '영상 주소 저장') }, '저장'),
-        h('small', { class: 'muted' }, g.video_url ? '국가 정상화 3초 뒤 전자칠판에서 재생돼요' : '아직 영상이 없어요')),
-      h('table', { class: 'tbl' }, h('tr', {}, ['나라', '최종 도시국가', '특수 부대', '반란 도시', '막힌 거래', '전문가 문장', '무역 조항', ''].map(x => h('th', {}, x))),
+        h('small', { class: 'muted' }, g.video_url ? 'WTO 탄생 → 「공정한 무역 회복」 창 4초 뒤 전자칠판에서 재생돼요' : '아직 영상이 없어요')),
+      h('table', { class: 'tbl' }, h('tr', {}, ['나라', '최종 도시국가', '특수 부대', '메가팩토리', '막힌 거래', '전문가 문장', '무역 약속', ''].map(x => h('th', {}, x))),
         st.countries.map(c => {
           const bu = R.BOSS_UNIT[c.type].unit, nb = (c.units || {})[bu] || 0, f = c.final || {}, t = (st.treaties || []).find(x => x.country === c.id);
           return h('tr', {}, h('td', {}, h('b', { style: { color: typeColor(c.type) } }, c.name)),
             h('td', { class: f.taken ? 'good' : '' }, f.taken ? '정복 완료' : f.name ? f.name + ' (체력 ' + f.hp + '/' + f.max_hp + ')' : '-'),
             h('td', { class: !f.taken && !nb ? 'bad' : '' }, nb ? R.UNITS[bu].name + ' ' + nb : '없음'),
-            h('td', { class: c.rebel ? 'bad' : g.phase >= 4 ? 'good' : '' }, c.rebel ? c.rebel.name + ' (체력 ' + c.rebel.hp + '/' + c.rebel.max_hp + ')' : g.phase >= 4 ? '되찾음' : '-'),
+            h('td', { class: c.rebel ? 'bad' : g.phase >= 4 ? 'good' : '' }, c.rebel ? c.rebel.name + ' (가동 중)' : g.phase >= 4 ? '돌아옴' : '-'),
             h('td', {}, c.report ? c.report.fails.length + '번' : '-'), h('td', {}, ex.filter(e => e.country === c.id).length + '개'),
             h('td', {}, t ? t.promise : '-'),
             h('td', {}, !f.taken && f.name ? h('button', { class: 'small', onclick: () => confirm(c.name + '에 특수 부대를 보낼까요?') && act('admin_boss_help', [c.id], '특수 부대 지원') }, '특수 부대 지원') : null));
