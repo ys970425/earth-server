@@ -229,7 +229,7 @@
           else if (IMG['c:' + city.art]) drawImgAnchor(im, x, y, city.boss ? 230 : city.rebel ? 200 : city.art === 'final' ? 190 : big ? 150 : 140);   // GPT 도시 그림: 기준점(가로 50%, 세로 83%)을 칸 중심에
           else drawImgBottom(im, x, y + HALF_H * 0.75, big ? 132 : 104);
           ctx.restore();
-          if (fac) smoke(x, y);
+          if (fac && !IMG['c:factory']) smoke(x, y);   // 새 그림에는 매연이 이미 있어요
           if (city.country) drawFlag(city.country, x + 26, y - 30, big ? 1.2 : 0.9);
           // 이름표
           const label = big ? (st.countries[city.country] ? st.countries[city.country].name : city.name) : city.name;
