@@ -47,6 +47,9 @@
       map = HexMap.create(document.getElementById('tb-canvas'), {});
       setTimeout(() => map.fitAll(), 50);
     }
+    // 정리 단계: 지도는 작게, 행복도·안정도·무역 조항을 크게
+    const wrap = g.phase >= 8;
+    if (root.classList.contains('wrap-mode') !== wrap) { root.classList.toggle('wrap-mode', wrap); setTimeout(() => map && map.fitAll(), 80); }
     document.getElementById('b-title').textContent = PHASES[g.phase].name;
     document.getElementById('b-desc').textContent = PHASES[g.phase].desc;
     document.getElementById('b-turn').textContent = g.turn ? '턴 ' + g.turn : '';
