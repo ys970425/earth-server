@@ -311,6 +311,7 @@
   // ---------- 백업·복구 ----------
   function backup(page) {
     const conf = h('input', { type: 'text', placeholder: '초기화' });
+    const confAll = h('input', { type: 'text', placeholder: '전체 초기화' }), unbind = h('input', { type: 'checkbox', checked: true });
     const ph = h('select', {}, PHASES.map(p => h('option', { value: p.n, selected: p.n === A.st.game.phase }, p.n + '. ' + p.name)));
     page.appendChild(h('div', { class: 'grid2' },
       h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '백업 내려받기', h('small', {}, '수업이 끝날 때마다 받아 두세요')),
@@ -322,7 +323,10 @@
       h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '단계 강제 이동', h('small', {}, '실수로 넘겼을 때만 (사건은 다시 실행되지 않아요)')),
         h('div', { class: 'row' }, ph, h('button', { onclick: () => confirm('강제로 옮길까요?') && act('admin_force_phase', [+ph.value], '옮겼어요') }, '옮기기'))),
       h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '게임 초기화', h('small', {}, '명단·기기 연결·나라 이름은 그대로, 게임판만 처음으로')),
-        h('div', { class: 'row' }, conf, h('button', { class: 'danger', onclick: () => act('admin_reset_game', [conf.value], '초기화했어요') }, '초기화')))));
+        h('div', { class: 'row' }, conf, h('button', { class: 'danger', onclick: () => act('admin_reset_game', [conf.value], '초기화했어요') }, '초기화'))),
+      h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '전체 초기화', h('small', {}, '학생들에게 나눠 주기 전에! 게임판 + 나라 이름·국기·왕실 문양·칭호 + 역할·대표·별명까지 처음으로 (학생 명단은 그대로)')),
+        h('label', { class: 'row' }, unbind, '기기 연결도 모두 끊기 (테스트한 기기 연결을 지워요)'),
+        h('div', { class: 'row' }, confAll, h('button', { class: 'danger', onclick: () => confirm('정말 전체 초기화할까요? 먼저 백업 파일을 받아 두면 안전해요.') && act('admin_reset_all', [confAll.value, unbind.checked], '전체 초기화했어요') }, '전체 초기화')))));
   }
 
   start();
