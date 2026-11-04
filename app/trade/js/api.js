@@ -36,7 +36,7 @@
     admin_flags: ['p'], admin_set_type: ['p_country', 'p_type'], admin_roster_import: ['p_rows'], admin_set_leader: ['p_student', 'p_on'],
     admin_reset_binding: ['p_student'], admin_approve: ['p_request'], admin_approve_group: ['p_country'], admin_reject: ['p_request'],
     admin_grant: ['p_country', 'p_items', 'p_reason'], admin_relief: ['p_country'], admin_turn_help: ['p_country'], admin_explore_help: ['p_country'],
-    admin_broker_trade: ['p_country', 'p_item', 'p_qty', 'p_coin'], admin_notice: ['p_message'], admin_reset_game: ['p_confirm'],
+    admin_broker_trade: ['p_country', 'p_item', 'p_qty', 'p_coin'], admin_notice: ['p_message'], admin_reset_game: ['p_confirm'], admin_reset_all: ['p_confirm', 'p_unbind'], unit_disband: ['p_unit'],
     admin_event: ['p_kind', 'p_args'], admin_preview_event: ['p_kind', 'p_args'],
     admin_merchant: ['p_country', 'p_items'], admin_boss_help: ['p_country'], expert_submit: ['p_role', 'p_body'], admin_normalize: [], admin_video: []
   };
