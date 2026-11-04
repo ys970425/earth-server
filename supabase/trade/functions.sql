@@ -1970,6 +1970,24 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- 전체 초기화: 게임판 + 나라 이름·국기·왕실 문양·칭호 + 역할·대표·별명 (+ 기기 연결). 학생 명단은 그대로
+create or replace function public.admin_reset_all(p_confirm text, p_unbind boolean default true) returns jsonb
+language plpgsql security definer set search_path = public, priv as $$
+begin
+  perform priv.need_admin();
+  if p_confirm <> '전체 초기화' then perform priv.err('CONFIRM', '「전체 초기화」라고 입력해야 해요.'); end if;
+  perform priv.init_world();
+  update priv.countries set name = null, flag_url = null, emblem_url = null, title = null where true;
+  update priv.students set roles = '{}', role = null, is_leader = false, nickname = null where true;
+  if p_unbind then
+    update priv.students set uid = null, bound_at = null, last_seen = null where true;
+    delete from priv.pairing_requests where true;
+  end if;
+  delete from public.notices where true;
+  perform priv.bump_game(); perform priv.bump_all();
+  return jsonb_build_object('ok', true);
+end $$;
+
 create or replace function public.admin_export() returns jsonb
 language plpgsql security definer set search_path = public, priv as $$
 begin

@@ -421,6 +421,14 @@ ok((await rpc(ADMIN, 'admin_export')).trades.length >= 1, '백업');
 await rpc(ADMIN, 'admin_reset_game', '초기화');
 ok((await rpc(L(1), 'my_state')).game.turn === 0 && (await one(`select count(*)::int n from priv.trades`)).n === 0, '초기화');
 ok((await one(`select count(*)::int n from priv.students where uid is not null`)).n === 25, '초기화해도 기기 연결 유지');
+// 전체 초기화: 나라 이름·국기·문양·역할·기기 연결까지
+await db.query(`update priv.countries set name = '테스트왕국', flag_url = 'data:x', emblem_url = 'data:y' where id = 1`);
+ok(await fail(rpc(ADMIN, 'admin_reset_all', '초기화', true), 'CONFIRM'), '전체 초기화는 「전체 초기화」라고 써야 함');
+await rpc(ADMIN, 'admin_reset_all', '전체 초기화', true);
+const c1 = await one(`select name, flag_url, emblem_url from priv.countries where id = 1`);
+ok(!c1.name && !c1.flag_url && !c1.emblem_url, '전체 초기화: 나라 이름·국기·왕실 문양 지움');
+ok((await one(`select count(*)::int n from priv.students where uid is not null or is_leader or roles <> '{}'`)).n === 0 && (await one(`select count(*)::int n from priv.students`)).n === 25, '전체 초기화: 역할·대표·기기 연결 지움, 학생 명단은 그대로');
+ok((await one(`select turn from public.game`)).turn === 0, '전체 초기화: 게임판도 처음으로');
 } catch (e) { console.log('  ✘ 예외: ' + e.message); fails++; }
 console.log(fails ? `실패 ${fails}개` : '전체 통과');
 process.exit(fails ? 1 : 0);
