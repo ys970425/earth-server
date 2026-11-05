@@ -44,7 +44,7 @@
     admin_flags: ['p'], admin_set_type: ['p_country', 'p_type'], admin_roster_import: ['p_rows'], admin_set_leader: ['p_student', 'p_on'],
     admin_reset_binding: ['p_student'], admin_approve: ['p_request'], admin_approve_group: ['p_country'], admin_reject: ['p_request'],
     admin_grant: ['p_country', 'p_items', 'p_reason'], admin_relief: ['p_country'], admin_turn_help: ['p_country'], admin_explore_help: ['p_country'],
-    admin_broker_trade: ['p_country', 'p_item', 'p_qty', 'p_coin'], admin_notice: ['p_message'], admin_reset_game: ['p_confirm'], admin_reset_all: ['p_confirm', 'p_unbind'], unit_disband: ['p_unit'],
+    admin_broker_trade: ['p_country', 'p_item', 'p_qty', 'p_coin'], admin_notice: ['p_message'], admin_reset_game: ['p_confirm'], admin_reset_all: ['p_confirm', 'p_unbind'], unit_disband: ['p_unit'], poll_state: ['p_after'],
     admin_event: ['p_kind', 'p_args'], admin_preview_event: ['p_kind', 'p_args'],
     admin_merchant: ['p_country', 'p_items'], admin_boss_help: ['p_country'], expert_submit: ['p_role', 'p_body'], admin_normalize: [], admin_video: []
   };
@@ -86,13 +86,25 @@
   }
 
   // 실시간 구독: game·country_ticks·notices 변경 시 콜백
+  // 바뀐 것이 있는지 3초마다 가볍게 확인해요 (실시간 연결은 무료 서버를 멈추게 해서 쓰지 않아요)
   function subscribe(handlers) {
-    const ch = sb.channel('et-' + Math.random().toString(36).slice(2));
-    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'game' }, p => handlers.game && handlers.game(p.new));
-    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'country_ticks' }, p => handlers.tick && handlers.tick(p.new));
-    ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notices' }, p => handlers.notice && handlers.notice(p.new));
-    ch.subscribe();
-    return ch;
+    let last = null, busy = false, timer = null;
+    async function tick() {
+      if (busy) return; busy = true;
+      try {
+        const r = await rpc('poll_state', last ? last.top : 0);
+        if (last) {
+          if (r.game !== last.game && handlers.game) handlers.game({ ver: r.game });
+          for (const [k, v] of Object.entries(r.ticks || {})) if ((last.ticks || {})[k] !== v && handlers.tick) handlers.tick({ country_id: +k, ver: v });
+          for (const n of r.notices || []) if (handlers.notice) handlers.notice(n);
+        }
+        last = { game: r.game, ticks: r.ticks, top: Math.max(r.top || 0, (last && last.top) || 0) };
+      } catch (e) { /* 잠깐 실패하면 다음에 다시 */ }
+      busy = false;
+    }
+    const loop = () => { timer = setTimeout(async () => { await tick(); loop(); }, (document.hidden ? 10000 : 3000) + Math.random() * 800); };
+    tick().then(loop);
+    return { unsubscribe: () => clearTimeout(timer) };
   }
 
   // 화면 도우미
