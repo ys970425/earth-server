@@ -153,7 +153,7 @@
     root.innerHTML = '';
     await refresh(true);
     subscribe({ game: refreshSoon, tick: t => { if (S.obs || !S.st || t.country_id === S.st.country.id) refreshSoon(); }, notice: n => { if (!n.country || S.obs || (S.st && n.country === S.st.country.id)) noticeToast(n); } });
-    setInterval(() => refresh(false), 15000);
+    setInterval(refreshSoon, 15000);
     setInterval(tickClock, 1000);
   }
   const refreshSoon = calm(() => refresh(false), 2000);   // 한 번에 하나만, 2초에 한 번까지만
