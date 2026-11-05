@@ -212,7 +212,10 @@
     terror: 15, terrorWeak: 5,    // 메가팩토리가 남아 있는 동안: 공장 오염으로 행복도 감소
     boredom: 10,                  // 그리드 링크의 광고 폭탄으로 사치품에 싫증 (17차시 동안)
     glory: 40, coin: 200,         // 돌려받으면
-    pollution: 7                  // 메가팩토리 한 곳마다 지구 서버 안정도 -7
+    pollution: 7,                 // 메가팩토리 한 곳마다 지구 서버 안정도 -7
+    distrust: 5, distrustMax: 30, // 무역 불신: 거래가 막히거나 관세를 낼 때마다 -5
+    lockFloor: -20,               // 불공정 무역 동안 행복도는 이보다 높을 수 없어요 (GREED LINK 독점 가격)
+    fairBonus: 20                 // WTO 탄생 뒤 공정 무역 회복 +20
   };
   R.COMPANY = { name: '그리드 링크', en: 'GRID LINK', bad: 'GREED LINK', sub: '세계무역중계', city: '메가팩토리' };
   R.CRISIS = {
