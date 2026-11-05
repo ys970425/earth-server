@@ -289,14 +289,15 @@ $$;
 -- 행복도 계산 (턴이 끝날 때 + 무역·점령·건설 직후 바로). 사치품은 이번 턴에 즐긴 것 + 창고에 있는 것
 create or replace function priv.refresh_happy(p_c int, p_turn int default null) returns int
 language plpgsql as $$
-declare cfg jsonb := priv.cfg(); h jsonb := cfg->'HAPPY'; co priv.countries; g public.game; tn int; types int; own text; ownv int; nimp int; impv int; plz int; adv int; gl int; press int; ncity int; cityv int; tarv int; bore int; hung int; v int;
+declare cfg jsonb := priv.cfg(); h jsonb := cfg->'HAPPY'; rb jsonb := cfg->'REBEL'; co priv.countries; g public.game; tn int; types int; own text; ownv int; nimp int; impv int; plz int; adv int; gl int; press int; ncity int; cityv int; tarv int; bore int; hung int; v int;
+  crisis boolean; lockv int := 0; dist int := 0; greed int := 0; fair int := 0;
 begin
   select * into co from priv.countries where id = p_c;
   tn := coalesce(p_turn, priv.turn());
   own := cfg->'LUX_OF'->>co.type;
   ownv := case when own = any(co.lux_used) or priv.inv(p_c, own) >= 1 then (h->>'ownLux')::int else 0 end;
   select count(*) into nimp from jsonb_array_elements_text(cfg->'LUX') x where x <> own and (x = any(co.lux_used) or priv.inv(p_c, x) >= 1);
-  impv := case when co.import_cut then 0 else (h->'importLux'->>least(nimp, 3))::int end;   -- 무역로가 끊기면 수입 효과가 멈춰요
+  impv := (h->'importLux'->>least(nimp, 3))::int;   -- 공급이 끊기면 아래 「그리드 링크의 잠금」에서 잠가요
   types := nimp + case when ownv > 0 then 1 else 0 end;
   select count(*) into ncity from priv.cities where country = p_c;
   plz := (select count(*) from priv.cities where country = p_c and 'plaza' = any(buildings))::int * (h->>'perPlaza')::int;
@@ -310,11 +311,27 @@ begin
                then (cfg->'REBEL'->>(case when g.alliance then 'terrorWeak' else 'terror' end))::int else 0 end;
   bore := case when g.phase >= 4 then (cfg->'REBEL'->>'boredom')::int else 0 end;
   hung := case when '식량' = any(co.short) then (h->>'hunger')::int else 0 end;
-  v := greatest(-100, least(100, (h->>'base')::int + ownv + impv + plz + adv + gl - press + cityv - tarv - bore + hung));
+  -- 그리드 링크의 잠금: 폭주(4)부터 광장·특별 건물 효과, 불공정 무역(5)부터 우리 사치품·수입 사치품 효과까지 잠가요 (건물·물건은 그대로)
+  crisis := g.phase >= 4 and not g.alliance;
+  if crisis then
+    lockv := plz + adv;
+    if g.phase >= 5 then lockv := lockv + ownv; end if;
+    if co.import_cut then lockv := lockv + impv; end if;
+    -- 무역 불신: 거래가 막히거나 관세를 낼 때마다 -5 (최대 -30)
+    if g.phase >= 5 then
+      dist := least((rb->>'distrustMax')::int, (rb->>'distrust')::int * (
+        (select count(*) from priv.trade_fails where buyer = p_c and phase >= 5)::int + (select count(*) from priv.trades where to_c = p_c and tariff > 0 and phase >= 5)::int));
+    end if;
+  end if;
+  if g.alliance then fair := (rb->>'fairBonus')::int; end if;   -- WTO 뒤: 공정 무역 회복
+  v := (h->>'base')::int + ownv + impv + plz + adv + gl - press + cityv - tarv - bore + hung - lockv - dist + fair;
+  -- 그래도 높으면 GREED LINK 독점 가격으로 끝까지 끌어내려요
+  if crisis and g.phase >= 5 and v > (rb->>'lockFloor')::int then greed := v - (rb->>'lockFloor')::int; v := v - greed; end if;
+  v := greatest(-100, least(100, v));
   update priv.countries set happy = v, happy_detail = jsonb_build_array(
       jsonb_build_object('k', '우리 사치품', 'v', ownv, 'tip', '우리 나라 사치품(' || priv.iname(own) || ')은 수도에서 매 턴 ' || (cfg->>'LUX_PER_TURN') || '개씩 생겨요 +' || (h->>'ownLux')),
-      jsonb_build_object('k', '수입 사치품 ' || nimp || '종' || case when co.import_cut then ' (공급 끊김)' else '' end, 'v', impv,
-        'tip', case when co.import_cut then 'GREED LINK가 사치품을 독점해 수입 사치품 공급이 끊겼어요. 세계무역기구(WTO)가 생기면 다시 이어져요.'
+      jsonb_build_object('k', '수입 사치품 ' || nimp || '종', 'v', impv,
+        'tip', case when co.import_cut then 'GREED LINK가 수입 사치품 효과를 잠갔어요.'
           else '다른 나라 사치품을 수입할수록 크게 올라요: 1종 +' || (h->'importLux'->>1) || ' · 2종 +' || (h->'importLux'->>2) || ' (목표!) · 3종 +' || (h->'importLux'->>3) || ' (다른 팀과도 거래하면 보너스) · 사치품은 2턴에 1개씩 써요' end),
       jsonb_build_object('k', '광장', 'v', plz, 'tip', '광장이 있는 도시마다 +' || (h->>'perPlaza')),
       jsonb_build_object('k', '특별 건물', 'v', adv, 'tip', '극장·통신탑·방송국'),
@@ -323,7 +340,11 @@ begin
       jsonb_build_object('k', '도시 관리', 'v', cityv, 'tip', '수도 말고 도시마다 ' || (h->>'perCity')),
       jsonb_build_object('k', '메가팩토리 오염', 'v', -tarv, 'tip', '그리드 링크가 사들인 우리 첫 도시의 공장에서 매연과 폐수가 쏟아져요. 도시를 돌려받으면 사라져요'),
       jsonb_build_object('k', '사치품에 싫증', 'v', -bore, 'tip', '그리드 링크의 광고 폭탄으로 사람들이 더 다양한 사치품을 원해요'),
-      jsonb_build_object('k', '식량 부족', 'v', hung, 'tip', '식량이 모자라면 ' || (h->>'hunger')))
+      jsonb_build_object('k', '식량 부족', 'v', hung, 'tip', '식량이 모자라면 ' || (h->>'hunger')),
+      jsonb_build_object('k', '그리드 링크의 잠금', 'v', -lockv, 'tip', '그리드 링크의 효과로 행복도가 잠겼습니다! GREED LINK: "광장·특별 건물·사치품의 행복은 이제 저희 유료 서비스입니다 ^^"'),
+      jsonb_build_object('k', '무역 불신', 'v', -dist, 'tip', '거래가 막히거나 관세를 낼 때마다 시민들이 무역을 믿지 못해요 (-' || (rb->>'distrust') || '씩)'),
+      jsonb_build_object('k', 'GREED LINK 독점 가격', 'v', -greed, 'tip', 'GREED LINK: "행복도가 너무 높으시네요? 독점 가격을 매겨 드렸어요 ^^"'),
+      jsonb_build_object('k', '공정 무역 회복', 'v', fair, 'tip', '공정한 무역이 돌아와 시민들이 기뻐해요'))
    where id = p_c;
   update priv.countries set lux_types = types where id = p_c;
   -- 행정 마비: 행복도가 -20보다 낮으면 모든 도시가 붉게 (병력 훈련·건물 짓기 멈춤, 생산은 그대로)
@@ -1152,11 +1173,14 @@ language sql stable as $$
 $$;
 
 -- 막힌 거래 기록 (피해 보고서에 그대로 씀)
+drop function if exists priv.fail(int, int, text, int, text);
 create or replace function priv.fail(p_buyer int, p_seller int, p_item text, p_qty int, p_reason text) returns void
-language sql as $$
+language plpgsql as $$
+begin
   insert into priv.trade_fails(turn, phase, buyer, seller, item, qty, reason)
-  select g.turn, g.phase, p_buyer, p_seller, p_item, p_qty, p_reason from public.game g where g.id = 1
-$$;
+  select g.turn, g.phase, p_buyer, p_seller, p_item, p_qty, p_reason from public.game g where g.id = 1;
+  perform priv.refresh_happy(p_buyer);   -- 무역 불신이 바로 쌓여요
+end $$;
 
 -- 한 방향 기록 (판 나라 → 산 나라)
 drop function if exists priv.record_trade(int, int, text, int, int, boolean);

@@ -339,8 +339,11 @@ ok(!g9.fair_cap && g9.banned['1'].includes('gold') && g9.banned['5'].includes('u
 const spite = await one(`select message from public.notices where country = 1 and message like 'GREED LINK 공지:%' order by id desc limit 1`);
 ok(spite && spite.message.includes('협상 태도') && spite.message.includes('우라늄'), '얄미운 공지: 짝꿍 나라 탓 — ' + (spite || {}).message);
 const cut4 = await one(`select import_cut, happy_detail from priv.countries where id = 4`);
-ok(cut4.import_cut && cut4.happy_detail.find(x => x.k.startsWith('수입 사치품')).v === 0 && (await one(`select data from public.notices where country = 4 and kind = 'crisis' and data->>'mode' = 'cut' order by id desc limit 1`)).data.before >= 0,
-  '불공정 무역: 수입 사치품 공급 끊김 → 수입 효과 0 (창고 물건은 그대로)');
+const lk4 = cut4.happy_detail.find(x => x.k === '그리드 링크의 잠금');
+ok(cut4.import_cut && lk4.v <= -(cut4.happy_detail.find(x => x.k.startsWith('수입 사치품')).v) && (await one(`select data from public.notices where country = 4 and kind = 'crisis' and data->>'mode' = 'cut' order by id desc limit 1`)).data.before >= 0,
+  '불공정 무역: 수입 사치품 효과가 「그리드 링크의 잠금」으로 잠김 (잠금 ' + lk4.v + ')');
+ok((await one(`select max(happy)::int m from priv.countries`)).m <= -20, '불공정 무역 동안 모든 나라 행복도 -20 이하 (GREED LINK 독점 가격)');
+ok(cut4.happy_detail.reduce((a, x) => a + x.v, 0) === (await one(`select happy from priv.countries where id = 4`)).happy || (await one(`select happy from priv.countries where id = 4`)).happy === -100, '잠김 내역의 합 = 행복도');
 await rpc(ADMIN, 'admin_grant', 5, { jewelry: 2, uranium: 4 }, '테스트');
 const bl = await rpc(L(1), 'offer_create', 5, 'coin', 40, 'jewelry', 2);
 ok(bl.ok === false && bl.blocked === 'ban' && bl.message.includes('GREED LINK') && bl.message.includes('협상 태도'), '사치품을 사려 하자 GREED LINK가 막음: ' + bl.message);
@@ -391,6 +394,7 @@ ok((await one(`select count(*)::int n from priv.cities where rebel`)).n === 0 &&
 ok(g11.normalized && g11.video_seq === vs0 + 1, 'WTO 탄생과 함께 바로 정상화 → 영상 신호');
 const hd2 = (await one(`select happy, happy_detail from priv.countries where id = 1`));
 ok(hd2.happy_detail.find(x => x.k === '메가팩토리 오염').v === 0, '공장 오염 사라짐 (행복도 ' + hd1.happy + ' → ' + hd2.happy + ')');
+ok(hd2.happy_detail.find(x => x.k === '공정 무역 회복').v === 20 && hd2.happy_detail.find(x => x.k === '그리드 링크의 잠금').v === 0, 'WTO 뒤: 잠금이 모두 풀리고 공정 무역 회복 +20');
 ok((await one(`select count(*)::int n from public.notices where message like '세계무역기구(WTO)가 탄생했습니다%'`)).n === 1 && (await one(`select count(*)::int n from public.notices where message like '세계무역기구(WTO)의 분쟁 조정과 개입으로 공정한 무역이 돌아왔습니다%'`)).n === 1, 'WTO 탄생 → 공정한 무역 회복 알림');
 const gauge7 = (await rpc(randomUUID(), 'get_board')).gauge;
 ok(gauge7 > gauge4, '지구 서버 안정도 회복 (' + gauge4 + ' → ' + gauge7 + ')');

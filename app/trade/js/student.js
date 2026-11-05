@@ -166,6 +166,7 @@
       S.st = st; S.mv = mv;
       if (prevTurn !== undefined && st.game.turn > prevTurn) Sound.play('turn');
       if (prev && prevTurn === st.game.turn && st.country.happy > prev.happy && !S.obs) cheer(prev, st.country);
+      if (prev && st.country.happy < prev.happy - 3 && st.game.phase >= 4 && !st.alliance && !S.obs) lockPop(prev, st.country);
       if (st.game.market_open && !S.obs) missionCheck();
       if (!S.obs) { grantCheck(!prevTurn && prevTurn !== 0); tariffCheck(!prevTurn && prevTurn !== 0); }
       const phaseChanged = prevPhase !== undefined && prevPhase !== st.game.phase && !S.obs;
@@ -228,6 +229,7 @@
       S.obs ? null : stat('res', '철광석', fmt(inv.iron || 0), 'iron'),
       h('span', { class: 'stat happy ' + happyClass(co.happy), tabindex: 0, onclick: () => happyModal() }, h('span', { class: 'ico face' }), '행복도', h('b', {}, (co.happy > 0 ? '+' : '') + co.happy), h('small', {}, happyWord(co.happy)),
         h('div', { class: 'happy-tip' }, happyList(co))),
+      lockedOf(co) ? h('span', { class: 'stat lock-chip', onclick: () => happyModal(), title: '그리드 링크의 효과로 행복도가 잠겼습니다!' }, '잠긴 행복도', h('b', {}, lockedOf(co))) : null,
       S.obs ? obsChip() : h('span', { class: 'me-chip' }, S.st.me.name, myRoles().length ? myRoles().map(r => h('span', { class: 'lead' + (r === R.ROLES[0] ? '' : ' role') }, r)) : h('span', { class: 'lead role nohold', onclick: () => go('nation') }, '역할 고르기 →')),
       readyBtn(),
       h('button', { class: 'small ghost snd', title: '효과음 켜기/끄기', onclick: e => { const on = Sound.toggle(); e.target.textContent = on ? '소리 켬' : '소리 끔'; } }, Sound.on ? '소리 켬' : '소리 끔'),
@@ -988,6 +990,24 @@
       }
     }
   }
+  // 그리드 링크가 잠근 행복도 (잠금 + 무역 불신 + 독점 가격)
+  function lockedOf(co) {
+    const d = co.happy_detail || [];
+    return d.filter(x => ['그리드 링크의 잠금', '무역 불신', 'GREED LINK 독점 가격'].includes(x.k)).reduce((a, x) => a - x.v, 0);
+  }
+  // 행복도가 뚝 떨어질 때: GREED LINK의 얄미운 알림 (화면을 막지 않고 잠깐)
+  function lockPop(prev, co) {
+    const lines = ['행복도 이용료를 안 내셨네요? 잠가 드렸어요 ^^', '여러분의 행복은 이제 저희 회사 거예요~', '광장이요? 극장이요? 이제 다 유료랍니다 ^^',
+      '행복해지고 싶으면 저희한테 비싸게 사 가세요~', '어머, 행복도가 또 떨어졌네요? 저희는 신나요 ^^', '잠금 해제 방법이요? 글쎄요~ 알려 드릴 리가요 ^^'];
+    Sound.play('hit');
+    document.querySelectorAll('.lock-pop').forEach(x => x.remove());
+    const box = h('div', { class: 'lock-pop' }, h('div', { class: 'lp-logo' }, Brand.logo('greed')),
+      h('b', {}, '그리드 링크의 효과로 행복도가 잠겼습니다!'),
+      h('div', { class: 'lp-num' }, h('span', {}, prev.happy), h('i', {}, '→'), h('strong', {}, co.happy)),
+      h('small', {}, '잠긴 행복도 ' + lockedOf(co)),
+      h('em', {}, 'GREED LINK: "' + lines[Math.floor(Math.random() * lines.length)] + '"'));
+    document.body.appendChild(box); setTimeout(() => box.classList.add('out'), 4200); setTimeout(() => box.remove(), 5000);
+  }
   // 행복도가 오르면 화려하게
   function cheer(prev, co) {
     const d = co.happy - prev.happy;
@@ -1081,7 +1101,8 @@
         factoryImg('flash-img'),
         h('div', { class: 'report-grid' },
           h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '-' + R.REBEL.terror), '메가팩토리 오염'), h('small', {}, '환경 규칙을 무시한 공장에서 매연과 폐수가 쏟아져요. 지구 서버 안정도도 뚝!')),
-          h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '-' + R.REBEL.boredom), '광고 폭탄'), h('small', {}, '그리드 링크의 광고 때문에 사람들이 더 다양한 사치품을 원해요'))),
+          h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '-' + R.REBEL.boredom), '광고 폭탄'), h('small', {}, '그리드 링크의 광고 때문에 사람들이 더 다양한 사치품을 원해요')),
+          h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '잠김'), '광장 · 특별 건물'), h('small', {}, 'GREED LINK가 사들여 유료화! 행복 효과가 잠겼어요 ("행복도 이용료를 내세요 ^^")'))),
         h('div', { class: 'q-box' }, '메가팩토리는 병력으로 되찾을 수 없어요. 행복도를 지키려면 사치품이 필요해요!'),
         h('button', { class: 'primary big', onclick: () => { close(); go('mission'); } }, '무역 미션 보기')));
       if (prev !== undefined && prev < 4) Brand.glitch(news); else news();
@@ -1096,6 +1117,7 @@
         h('div', { class: 'report-grid' },
           h('div', { class: 'rcard ban' }, h('h3', {}, h('span', { class: 'rbadge' }, '거래 금지'), '사치품 · 핵심 전략 자원'), h('small', {}, R.LUX.concat(R.BANNED_STRAT).map(itemName).join(' · ') + ' — GREED LINK 독점')),
           h('div', { class: 'rcard tariff' }, h('h3', {}, h('span', { class: 'rbadge tariff' }, '관세 폭탄'), '나머지 ' + tars + '가지 물건'), h('small', {}, '사 올 때 1개마다 ' + R.CRISIS.tariffPerUnit + '코인을 더 내요 ("싫으면 안 사시면 되죠 ^^")'))),
+        h('div', { class: 'greed-say' }, '그리드 링크의 효과로 행복도가 잠겼습니다! 우리 사치품과 수입 사치품의 행복 효과까지 잠겼어요. 거래가 막히거나 관세를 낼 때마다 「무역 불신」도 쌓여요.'),
         h('div', { class: 'cut-box' }, h('span', {}, '외국 사치품 공급이 끊겨 시민들의 불만이 커지고 있어요'),
           h('div', { class: 'cut-num' }, h('small', {}, '수입 사치품 행복도'), h('b', { class: 'from' }, (cut.before > 0 ? '+' : '') + cut.before), h('i', {}, '→'), h('b', { class: 'to' }, '0')),
           h('small', {}, '창고의 물건은 그대로지만, 새로 들어오지 않아 수입 효과가 멈췄어요.')),

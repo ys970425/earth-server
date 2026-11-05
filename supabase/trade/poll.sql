@@ -12,7 +12,7 @@ begin
     'notices', case when p_after <= 0 then '[]'::jsonb else (select coalesce(jsonb_agg(jsonb_build_object('id', n.id, 'country', n.country, 'kind', n.kind, 'message', n.message, 'data', n.data) order by n.id), '[]')
       from (select * from public.notices where id > p_after and (country is null or country = my or adm) order by id limit 30) n) end);
 end $$;
-grant execute on function public.poll_state(bigint) to anon, authenticated;
+do $$ begin execute 'grant execute on function public.poll_state(bigint) to anon, authenticated'; exception when others then null; end $$;
 -- 실시간 복제에서 빼기 (서버 부담 줄이기)
 do $$ begin
   begin execute 'alter publication supabase_realtime drop table public.game'; exception when others then null; end;

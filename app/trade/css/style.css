@@ -1148,3 +1148,17 @@ td.good { color: #1E7A43; font-weight: 700; }
 @keyframes smog-move { to { transform: translate(-3%, 2%) scale(1.06); } }
 .b-env { margin-top: 8px; font-size: 18px; padding: 8px 12px; border-radius: 10px; background: #3B2F3A; color: #FFD0D0; }
 .b-env.ok { background: #E1F4E8; color: #24553A; }
+
+/* v19: 그리드 링크의 잠금 */
+.stat.lock-chip { background: #1A0B0E; color: #FFB3BC; border: 2px solid #C21E32; cursor: pointer; animation: gl-throb 2.4s ease-in-out infinite; }
+.stat.lock-chip b { color: #FF5A6E; margin-left: 6px; }
+.lock-pop { position: fixed; left: 50%; top: 18%; transform: translate(-50%, 0); z-index: 120; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: radial-gradient(circle at 50% 30%, #3A0A12, #12060A); color: #FFD9DD; border: 3px solid #E3263D; border-radius: 18px; padding: 16px 28px 18px;
+  box-shadow: 0 0 0 4px #1A0B0E, 0 18px 50px rgba(0,0,0,.6), 0 0 40px rgba(226,38,61,.45); animation: lp-in .35s cubic-bezier(.2,1.4,.4,1), gl-shake .12s steps(2) 3; text-align: center; max-width: 92vw; }
+.lock-pop.out { opacity: 0; transform: translate(-50%, -12px); transition: all .6s; }
+.lock-pop .lp-logo { width: 220px; }
+.lock-pop b { font-family: var(--font-display); font-size: 26px; color: #FF6B7D; }
+.lock-pop .lp-num { display: flex; align-items: center; gap: 14px; font-family: var(--font-display); font-size: 40px; }
+.lock-pop .lp-num span { color: #9FE7B5; text-decoration: line-through; opacity: .8; } .lock-pop .lp-num strong { color: #FF4A5E; } .lock-pop .lp-num i { font-style: normal; color: #FFB3BC; }
+.lock-pop small { font-size: 15px; } .lock-pop em { font-size: 15px; color: #FFB3BC; }
+@keyframes lp-in { from { opacity: 0; transform: translate(-50%, -20px) scale(.85); } }
