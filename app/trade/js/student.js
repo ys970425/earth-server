@@ -44,7 +44,8 @@
   // ================= 입장 =================
   async function start() {
     root.innerHTML = '<div class="entry"><p>지구 서버에 접속하는 중…</p></div>';
-    try { await ensureSession(); } catch (e) { root.innerHTML = ''; root.appendChild(h('div', { class: 'entry' }, h('p', {}, e.message))); return; }
+    try { await Promise.race([ensureSession(), new Promise((_, rej) => setTimeout(() => rej(new Error('로그인 서버가 15초 동안 답하지 않아요 (Supabase가 느리거나 멈췄어요)')), 15000))]); }
+    catch (e) { root.innerHTML = ''; root.appendChild(h('div', { class: 'entry' }, h('p', {}, e.message), h('button', { class: 'primary', onclick: () => location.reload() }, '다시 접속'))); console.error(e); return; }
     // 선생님 관전 모드: index.html?observe (관제실에서 로그인한 기기만)
     const q = new URLSearchParams(location.search);
     if (q.has('observe')) {
@@ -55,7 +56,10 @@
       document.body.classList.add('observer');
       return main();
     }
-    const me = await rpc('get_me');
+    // 서버가 답하지 않거나 오류가 나면 화면에 이유를 보여 줘요 (멈춘 채로 두지 않게)
+    let me;
+    try { me = await Promise.race([rpc('get_me'), new Promise((_, rej) => setTimeout(() => rej(new Error('서버가 15초 동안 답하지 않아요 (Supabase가 느리거나 멈췄어요)')), 15000))]); }
+    catch (e) { root.innerHTML = ''; root.appendChild(h('div', { class: 'entry' }, h('p', {}, '지구 서버 접속 실패: ' + (e.message || e)), h('button', { class: 'primary', onclick: () => location.reload() }, '다시 접속'))); console.error(e); return; }
     if (me.status === 'joined') { S.me = me; return main(); }
     if (me.status === 'pending') return waiting();
     pickCountry();
