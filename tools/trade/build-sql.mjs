@@ -30,7 +30,7 @@ lines.push(`delete from priv.cities where id not in (${cv.map(v => v.slice(1, v.
 lines.push(`delete from priv.tiles where id >= ${RULES.W * RULES.H};`);
 lines.push(`insert into priv.cities(id, tile_id, kind, type, name, def, sea, tech, tier, max_hp, bonus, tutorial, boss, final) values\n${cv.join(',\n')}\n  on conflict (id) do update set tile_id = excluded.tile_id, kind = excluded.kind, type = excluded.type, name = excluded.name, def = excluded.def, sea = excluded.sea, tech = excluded.tech, tier = excluded.tier, max_hp = excluded.max_hp, bonus = excluded.bonus, tutorial = excluded.tutorial, boss = excluded.boss, final = excluded.final;`);
 
-const out = [readFileSync(root + 'supabase/trade/schema.sql', 'utf8'), lines.join('\n\n'), readFileSync(root + 'supabase/trade/functions.sql', 'utf8')].join('\n\n');
+const out = [readFileSync(root + 'supabase/trade/schema.sql', 'utf8'), lines.join('\n\n'), readFileSync(root + 'supabase/trade/functions.sql', 'utf8'), readFileSync(root + 'supabase/trade/poll.sql', 'utf8')].join('\n\n');
 writeFileSync(root + 'supabase/trade_setup.sql', out);
 // 화면용 지도 데이터 (지형·자원·도시 위치는 공개 정보가 아니므로 서버에서 받음. 여기선 크기만)
 console.log('written supabase/trade_setup.sql', (out.length / 1024).toFixed(0) + 'KB', Object.keys(tiles).length, 'tiles', cv.length, 'cities');

@@ -280,7 +280,4 @@ do $$ begin
 exception when others then null; end $$;
 
 do $$ begin
-  begin execute 'alter publication supabase_realtime add table public.game'; exception when others then null; end;
-  begin execute 'alter publication supabase_realtime add table public.notices'; exception when others then null; end;
-  begin execute 'alter publication supabase_realtime add table public.country_ticks'; exception when others then null; end;
 end $$;
