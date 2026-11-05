@@ -2,7 +2,7 @@
 (function () {
   const R = window.RULES;
   const { rpc, ensureSession, subscribe, uploadImage, PHASES } = window.API;
-  const { $, $$, h, toast, modal, fmt, debounce, typeColor, itemName, itemImg, costText, happyWord } = window.UI;
+  const { $, $$, h, toast, modal, fmt, debounce, calm, typeColor, itemName, itemImg, costText, happyWord } = window.UI;
   const root = document.getElementById('app');
   const S = { me: null, st: null, mv: null, view: 'map', sel: null, mode: null, scout: null, busy: false, offset: 0, cityTab: 'build' };
   const MIL = Object.keys(R.UNITS);
@@ -156,7 +156,7 @@
     setInterval(() => refresh(false), 15000);
     setInterval(tickClock, 1000);
   }
-  const refreshSoon = debounce(() => refresh(false), 350);
+  const refreshSoon = calm(() => refresh(false), 2000);   // 한 번에 하나만, 2초에 한 번까지만
   async function refresh(first) {
     try {
       let st, mv;

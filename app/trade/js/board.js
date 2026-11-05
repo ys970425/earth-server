@@ -2,7 +2,7 @@
 (function () {
   const R = window.RULES;
   const { rpc, ensureSession, subscribe, PHASES } = window.API;
-  const { h, fmt, debounce, typeColor, gaugeColor, happyWord } = window.UI;
+  const { h, fmt, debounce, calm, typeColor, gaugeColor, happyWord } = window.UI;
   const root = document.getElementById('app');
   let last = null, map = null, offset = 0;
 
@@ -36,7 +36,7 @@
       });
     }
   }
-  const loadSoon = debounce(load, 500);
+  const loadSoon = calm(load, 6000);   // 전자칠판은 6초에 한 번까지만 (서버 보호)
   const name = (b, id) => (b.countries.find(c => c.id === id) || {}).name;
 
   function render(b) {
@@ -149,7 +149,7 @@
     try { await ensureSession(); } catch (e) { root.textContent = e.message; return; }
     await load();
     subscribe({ game: loadSoon, tick: loadSoon });
-    setInterval(load, 8000);
+    setInterval(loadSoon, 10000);
     document.addEventListener('keydown', e => { if (e.key === 'f' && map) map.fitAll(); if (e.key === 'Escape') document.querySelectorAll('.alarm').forEach(x => x.remove()); });
   })();
 })();
