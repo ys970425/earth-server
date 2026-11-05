@@ -2,16 +2,24 @@
 (function () {
   const cfg = window.APP_CONFIG;
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'earth-trade-auth' },
+    // lock: 여러 탭(학생·관제실·전자칠판)이 서로 기다리다 멈추지 않게 브라우저 잠금을 쓰지 않아요
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'earth-trade-auth', lock: async (name, timeout, fn) => await fn() },
     realtime: { params: { eventsPerSecond: 5 } }
   });
 
   const PHASES = window.RULES.PHASES;
 
+  const within = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
   async function ensureSession() {
-    const { data } = await sb.auth.getSession();
-    if (data && data.session) return data.session;
-    const r = await sb.auth.signInAnonymously();
+    // 저장된 접속 정보가 만료돼 다시 받는 데 막히면(학교 전체가 한꺼번에 접속할 때) 버리고 새로 로그인해요
+    try {
+      const { data, error } = await within(sb.auth.getSession(), 6000);
+      if (!error && data && data.session) return data.session;
+    } catch (e) {
+      try { localStorage.removeItem('earth-trade-auth'); } catch (x) { }
+      try { await within(sb.auth.signOut({ scope: 'local' }), 3000); } catch (x) { }
+    }
+    const r = await within(sb.auth.signInAnonymously(), 12000);
     if (r.error) throw new Error('접속에 실패했어요. 인터넷 연결을 확인해 주세요. (' + r.error.message + ')');
     return r.data.session;
   }
