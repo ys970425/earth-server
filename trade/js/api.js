@@ -153,6 +153,13 @@
 
   const fmt = n => (n === null || n === undefined) ? '???' : Number(n).toLocaleString('ko-KR');
   const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  // 서버를 쉬게: 한 번에 하나만, 앞의 요청이 시작되고 gap 밀리초가 지나야 다음 요청 (그 사이 부탁은 하나로 모아요)
+  const calm = (fn, gap) => { let running = false, want = false, lastStart = 0, t = null;
+    const go = async () => { t = null; if (running) { want = true; return; }
+      const wait = lastStart + gap - Date.now(); if (wait > 0) { t = setTimeout(go, wait); return; }
+      running = true; want = false; lastStart = Date.now();
+      try { await fn(); } catch (e) { console.warn(e); } finally { running = false; if (want && !t) t = setTimeout(go, Math.max(0, lastStart + gap - Date.now())); } };
+    return () => { if (running) { want = true; return; } if (!t) go(); }; };
 
   // 나라 색은 유형별 (rules.js)
   const typeColor = t => (window.RULES.TYPES[t] || {}).color || '#3B6FE0';
@@ -177,5 +184,5 @@
   }, true);
 
   window.API = { sb, rpc, ensureSession, uploadImage, subscribe, PHASES };
-  window.UI = { $, $$, h, toast, modal, fmt, debounce, typeColor, gaugeColor, itemName, itemImg, costText, happyWord };
+  window.UI = { $, $$, h, toast, modal, fmt, debounce, calm, typeColor, gaugeColor, itemName, itemImg, costText, happyWord };
 })();

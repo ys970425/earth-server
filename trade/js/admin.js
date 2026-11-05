@@ -2,7 +2,7 @@
 (function () {
   const R = window.RULES;
   const { rpc, ensureSession, subscribe, PHASES } = window.API;
-  const { $, h, toast, modal, fmt, debounce, typeColor, itemName, happyWord } = window.UI;
+  const { $, h, toast, modal, fmt, debounce, calm, typeColor, itemName, happyWord } = window.UI;
   const root = document.getElementById('app');
   const A = { st: null, tab: 'progress', timer: null, offset: 0, turning: false };
 
@@ -42,13 +42,15 @@
   async function dashboard() {
     await load();
     subscribe({ game: () => loadSoon(), tick: () => loadSoon() });
-    A.timer = setInterval(load, 5000);
+    A.timer = setInterval(loadSoon, 10000);
     setInterval(autoTurn, 1000);
   }
-  const loadSoon = debounce(() => load(), 500);
+  const loadSoon = calm(() => load(), 5000);   // 관제실은 5초에 한 번까지만 (서버 보호)
   async function load() {
     try { A.st = await rpc('admin_state'); A.offset = new Date(A.st.now).getTime() - Date.now(); }
-    catch (e) { if (e.code === 'NOT_ADMIN') { clearInterval(A.timer); start(); } return; }
+    catch (e) { if (e.code === 'NOT_ADMIN') { clearInterval(A.timer); start(); return; }
+      if (!A.st) { root.innerHTML = ''; root.appendChild(h('div', { class: 'entry' }, h('p', {}, '관제실 정보를 받지 못했어요: ' + (e.message || e)), h('p', { class: 'sub' }, '잠시 뒤 저절로 다시 시도해요.'))); }
+      return; }
     const ae = document.activeElement;
     if (ae && ['INPUT', 'TEXTAREA', 'SELECT'].includes(ae.tagName) && root.contains(ae)) { header(); return; }
     render();
