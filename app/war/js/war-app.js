@@ -118,7 +118,7 @@
         .catch(e => { console.error(e); S.msg = friendly(e); renderTabs(); });
       return;
     }
-    const mine = S.units.find(u => u.tile === id && u.country === S.me.country.id && u.commander === actingRole());
+    const mine = S.units.find(u => u.tile === id && W.isMyUnit(u, S.me.country.id, actingRole()));
     if (mine) { selectUnit(mine); return; }
     S.sel = S.sel === id ? null : id;
     S.map.select(S.sel); clearUnit(); renderTabs();
@@ -148,12 +148,13 @@
     const active = S.tab && tabs.some(t => t.key === S.tab) ? S.tab : tabs[0].key;
     side.append(h('div', { class: 'war-tabs' }, tabs.map(t =>
       h('button', { class: 'war-tab' + (active === t.key ? ' on' : ''), onclick: () => { S.tab = t.key; S.selUnit = null; S.reach = null; S.map.selectUnit(null); S.map.setHint([]); renderTabs(); } }, t.label))));
+    if (S.sel != null && !S.selUnit) side.append(tileInfo(S.sel));
     const label = (tabs.find(t => t.key === active) || {}).label || '';
     const body = h('div', { class: 'panel war-tab-body' });
     const role = actingRole();
     // 병력 이동 탭: 내 병력(참모총장·대행) / 노동자·정찰병(공병사령관·대행)
     const unitTab = (kinds, emptyMsg) => {
-      const list = S.units.filter(u => u.commander === role && u.tile != null && kinds.includes(u.kind));
+      const list = S.units.filter(u => W.isMyUnit(u, S.me.country.id, role) && kinds.includes(u.kind));
       body.append(h('div', { class: 'panel-title' }, label, h('small', {}, list.length + '부대 · 눌러서 고르고 지도에서 갈 칸을 골라요')));
       body.append(list.length ? h('div', { class: 'war-units-list' }, list.map(u =>
         h('button', { class: 'war-unit-row' + (S.selUnit === u.id ? ' on' : ''), onclick: () => selectUnit(u) },
@@ -167,7 +168,7 @@
       else if (active === 'menu:정찰병') unitTab(['scout'], '정찰병이 없어요.');
       else unitTab(['worker', 'scout'], '노동자·정찰병이 없어요.');
     } else if (active === 'menu:지휘권 넘기기') {
-      const list = S.units.filter(u => u.commander === S.me.role && !isCivil(u.kind) && u.tile != null);
+      const list = S.units.filter(u => W.isMyUnit(u, S.me.country.id, S.me.role) && !isCivil(u.kind));
       body.append(h('div', { class: 'panel-title' }, '지휘권 넘기기', h('small', {}, '병력 종류는 그대로, 조종하는 참모총장만 바뀌어요')));
       body.append(list.length ? h('div', { class: 'war-units-list' }, list.map(u =>
         h('div', { class: 'war-unit-row' },
@@ -223,7 +224,26 @@
     const stops = [...dist.keys()].filter(id => id !== u.tile && W.canStop(u.kind, tileAt(id), infoAt(id, u)));
     return { dist, prev, stops };
   }
+  // 칸 정보: 지형·주인·도시·병력. 남의 병력은 정보만 보여 주고 고를 수 없는 까닭을 알려 줘요
+  function tileInfo(id) {
+    const t = S.tiles.get(id) || {};
+    const cname = c => ((S.me.countries || []).find(x => x.id === c) || {}).name || (c + '번 나라');
+    const city = S.cities.find(c => c.tile === id);
+    const here = S.units.filter(u => u.tile === id);
+    const why = u => u.country !== S.me.country.id ? '다른 나라 병력이라 고를 수 없어요'
+      : u.commander !== actingRole() ? '다른 참모총장이 조종하는 병력이라 고를 수 없어요' : '';
+    return h('div', { class: 'panel war-tile-info' },
+      h('div', { class: 'panel-title' }, '칸 정보'),
+      h('p', {}, (R.TERRAIN[t.terrain] || '땅') + ' · ' + (t.owner ? cname(t.owner) + ' 땅' : '빈 땅')),
+      city ? h('p', {}, '도시: ' + city.name + ' (' + (city.country ? cname(city.country) : '주인 없음') + ', 체력 ' + city.hp + '/' + city.max_hp + ')') : null,
+      here.length ? here.map(u => h('p', {}, kindLabel(u.kind) + ' · ' + cname(u.country) + ' · 체력 ' + u.hp,
+        why(u) ? h('small', { class: 'muted' }, ' — ' + why(u)) : null)) : h('p', { class: 'muted' }, '병력이 없어요.'));
+  }
   function selectUnit(u) {
+    // 남의 나라 병력·다른 참모총장 병력은 고르지 않고 그 칸 정보만 보여 줘요
+    if (!W.isMyUnit(u, S.me.country.id, actingRole())) {
+      clearUnit(); S.sel = u.tile; S.map.select(S.sel); renderTabs(); return;
+    }
     S.selUnit = u.id; S.reach = computeReach(u);
     S.map.selectUnit(u.id); S.map.setHint(S.reach.stops);
     S.map.centerOn(u.tile, Math.max(0.6, S.map.st.cam.z));

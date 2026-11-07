@@ -155,7 +155,7 @@
         if (!W.canStop(u.kind, { terrain: last[1] }, infoAt(prev, u))) {
           throw (occAt(prev).some(x => (x.kind === 'worker' || x.kind === 'scout') === (u.kind === 'worker' || u.kind === 'scout'))
             ? err('TILE_TAKEN', '먼저 온 병력이 있어요. 다른 칸을 골라 주세요.')
-            : err('BAD_STOP', '공기는 바다 위에 멈출 수 없어요. 땅으로 가요.'));
+            : err('BAD_STOP', '공군은 바다 위에 멈출 수 없어요. 땅으로 가요.'));
         }
         u.tile = prev;
         u.moves_left -= path.length;

@@ -123,6 +123,10 @@
     return !o.sameKind;                             // 같은 종류(군사/민간) 병력이 있으면 못 멈춰요 (최종 판정은 DB 유일 조건)
   };
 
+  // 내가 고르고 움직일 수 있는 병력: 우리 나라 + 지금 역할(대행 포함)이 조종하는 병력만.
+  // 화면의 「내 병력」 목록·지도 선택과 시험이 모두 이 함수를 쓴다 (2026-11-08 남의 병력이 선택되던 버그)
+  W.isMyUnit = (u, myCountry, role) => !!u && u.tile != null && u.country === myCountry && u.commander === role;
+
   if (typeof module !== 'undefined' && module.exports) module.exports = W;
   root.WAR_RULES = W;
 })(typeof window !== 'undefined' ? window : globalThis);

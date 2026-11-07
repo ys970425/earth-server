@@ -138,7 +138,7 @@ begin
   end loop;
   -- 멈추는 칸: 공군은 바다·해안에 멈출 수 없음. 같은 종류 병력 유무는 place_unit의 유일 조건이 최종 판정
   if air and t.terrain in ('ocean', 'coast') then
-    perform priv.err('BAD_STOP', '공기는 바다 위에 멈출 수 없어요. 땅으로 가요.');
+    perform priv.err('BAD_STOP', '공군은 바다 위에 멈출 수 없어요. 땅으로 가요.');
   end if;
   perform war.place_unit(u.id, prev);
   update war.units set moves_left = left_ - array_length(p_path, 1) where id = u.id;
