@@ -1,0 +1,9075 @@
+{
+ "game": {
+  "turn": 3
+ },
+ "tiles": [
+  [
+   0,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   2,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   3,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   4,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   5,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   6,
+   "forest",
+   "gold",
+   null,
+   null
+  ],
+  [
+   7,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   8,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   9,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   10,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   11,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   12,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   13,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   14,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   15,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   16,
+   "tundra",
+   null,
+   5,
+   null
+  ],
+  [
+   17,
+   "forest",
+   null,
+   5,
+   null
+  ],
+  [
+   18,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   19,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   20,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   21,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   22,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   23,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   24,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   25,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   26,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   27,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   28,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   29,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   30,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   31,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   32,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   33,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   34,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   35,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   36,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   37,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   38,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   39,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   40,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   41,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   42,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   43,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   44,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   45,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   46,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   47,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   48,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   49,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   50,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   51,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   52,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   53,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   54,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   55,
+   "tundra",
+   null,
+   5,
+   null
+  ],
+  [
+   56,
+   "forest",
+   null,
+   5,
+   null
+  ],
+  [
+   57,
+   "tundra",
+   "oil",
+   5,
+   null
+  ],
+  [
+   58,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   59,
+   "forest",
+   "gold",
+   null,
+   null
+  ],
+  [
+   60,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   61,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   62,
+   "snow",
+   "oil",
+   null,
+   null
+  ],
+  [
+   63,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   64,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   65,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   66,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   67,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   68,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   69,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   70,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   71,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   72,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   73,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   74,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   75,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   76,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   77,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   78,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   79,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   80,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   81,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   82,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   83,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   84,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   85,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   86,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   87,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   88,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   89,
+   "forest",
+   "aluminum",
+   null,
+   null
+  ],
+  [
+   90,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   91,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   92,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   93,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   94,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   95,
+   "hills",
+   "uranium",
+   5,
+   null
+  ],
+  [
+   96,
+   "plains",
+   null,
+   5,
+   null
+  ],
+  [
+   97,
+   "tundra",
+   null,
+   5,
+   null
+  ],
+  [
+   98,
+   "forest",
+   null,
+   5,
+   null
+  ],
+  [
+   99,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   100,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   101,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   102,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   103,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   104,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   105,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   106,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   107,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   108,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   109,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   110,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   111,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   112,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   113,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   114,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   115,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   116,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   117,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   118,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   119,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   120,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   121,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   122,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   123,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   124,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   125,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   126,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   127,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   128,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   129,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   130,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   131,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   132,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   133,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   134,
+   "tundra",
+   null,
+   5,
+   null
+  ],
+  [
+   135,
+   "tundra",
+   null,
+   5,
+   null
+  ],
+  [
+   136,
+   "tundra",
+   null,
+   5,
+   null
+  ],
+  [
+   137,
+   "tundra",
+   null,
+   5,
+   null
+  ],
+  [
+   138,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   139,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   140,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   141,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   142,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   143,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   144,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   145,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   146,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   147,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   148,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   149,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   150,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   151,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   152,
+   "mountain",
+   "aluminum",
+   null,
+   null
+  ],
+  [
+   153,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   154,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   155,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   156,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   157,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   158,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   159,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   160,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   161,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   162,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   163,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   164,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   165,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   166,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   167,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   168,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   169,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   170,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   171,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   172,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   173,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   174,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   175,
+   "snow",
+   null,
+   5,
+   null
+  ],
+  [
+   176,
+   "forest",
+   null,
+   5,
+   null
+  ],
+  [
+   177,
+   "forest",
+   null,
+   5,
+   null
+  ],
+  [
+   178,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   179,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   180,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   181,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   182,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   183,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   184,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   185,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   186,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   187,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   188,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   189,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   190,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   191,
+   "hills",
+   "aluminum",
+   null,
+   null
+  ],
+  [
+   192,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   193,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   194,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   195,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   196,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   197,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   198,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   199,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   200,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   201,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   202,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   203,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   204,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   205,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   206,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   207,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   208,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   209,
+   "hills",
+   "aluminum",
+   null,
+   null
+  ],
+  [
+   210,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   211,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   212,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   213,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   214,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   215,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   216,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   217,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   218,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   219,
+   "snow",
+   null,
+   null,
+   null
+  ],
+  [
+   220,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   221,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   222,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   223,
+   "hills",
+   "uranium",
+   null,
+   null
+  ],
+  [
+   224,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   225,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   226,
+   "tundra",
+   null,
+   null,
+   null
+  ],
+  [
+   227,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   228,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   229,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   230,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   231,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   232,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   233,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   234,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   235,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   236,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   237,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   238,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   239,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   240,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   241,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   242,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   243,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   244,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   245,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   246,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   247,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   248,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   249,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   250,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   251,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   252,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   253,
+   "hills",
+   "iron",
+   null,
+   null
+  ],
+  [
+   254,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   255,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   256,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   257,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   258,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   259,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   260,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   261,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   262,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   263,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   264,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   265,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   266,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   267,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   268,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   269,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   270,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   271,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   272,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   273,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   274,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   275,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   276,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   277,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   278,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   279,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   280,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   281,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   282,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   283,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   284,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   285,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   286,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   287,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   288,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   289,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   290,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   291,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   292,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   293,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   294,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   295,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   296,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   297,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   298,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   299,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   300,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   301,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   302,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   303,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   304,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   305,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   306,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   307,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   308,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   309,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   310,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   311,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   312,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   313,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   314,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   315,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   316,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   317,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   318,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   319,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   320,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   321,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   322,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   323,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   324,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   325,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   326,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   327,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   328,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   329,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   330,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   331,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   332,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   333,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   334,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   335,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   336,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   337,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   338,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   339,
+   "forest",
+   null,
+   1,
+   null
+  ],
+  [
+   340,
+   "hills",
+   null,
+   1,
+   null
+  ],
+  [
+   341,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   342,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   343,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   344,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   345,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   346,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   347,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   348,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   349,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   350,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   351,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   352,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   353,
+   "hills",
+   "aluminum",
+   null,
+   null
+  ],
+  [
+   354,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   355,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   356,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   357,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   358,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   359,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   360,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   361,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   362,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   363,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   364,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   365,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   366,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   367,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   368,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   369,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   370,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   371,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   372,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   373,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   374,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   375,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   376,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   377,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   378,
+   "forest",
+   null,
+   1,
+   null
+  ],
+  [
+   379,
+   "forest",
+   null,
+   1,
+   null
+  ],
+  [
+   380,
+   "plains",
+   null,
+   1,
+   null
+  ],
+  [
+   381,
+   "mountain",
+   null,
+   1,
+   null
+  ],
+  [
+   382,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   383,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   384,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   385,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   386,
+   "forest",
+   "copper",
+   null,
+   null
+  ],
+  [
+   387,
+   "hills",
+   "copper",
+   2,
+   null
+  ],
+  [
+   388,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   389,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   390,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   391,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   392,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   393,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   394,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   395,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   396,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   397,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   398,
+   "plains",
+   "wine",
+   null,
+   null
+  ],
+  [
+   399,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   400,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   401,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   402,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   403,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   404,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   405,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   406,
+   "hills",
+   "copper",
+   null,
+   null
+  ],
+  [
+   407,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   408,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   409,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   410,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   411,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   412,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   413,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   414,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   415,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   416,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   417,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   418,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   419,
+   "forest",
+   "iron",
+   1,
+   null
+  ],
+  [
+   420,
+   "plains",
+   null,
+   1,
+   "farm"
+  ],
+  [
+   421,
+   "forest",
+   null,
+   1,
+   null
+  ],
+  [
+   422,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   423,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   424,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   425,
+   "plains",
+   null,
+   2,
+   null
+  ],
+  [
+   426,
+   "plains",
+   null,
+   2,
+   null
+  ],
+  [
+   427,
+   "forest",
+   null,
+   2,
+   null
+  ],
+  [
+   428,
+   "plains",
+   null,
+   2,
+   null
+  ],
+  [
+   429,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   430,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   431,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   432,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   433,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   434,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   435,
+   "desert",
+   "wine",
+   null,
+   null
+  ],
+  [
+   436,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   437,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   438,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   439,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   440,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   441,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   442,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   443,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   444,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   445,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   446,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   447,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   448,
+   "hills",
+   "rare",
+   null,
+   null
+  ],
+  [
+   449,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   450,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   451,
+   "hills",
+   "iron",
+   3,
+   null
+  ],
+  [
+   452,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   453,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   454,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   455,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   456,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   457,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   458,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   459,
+   "plains",
+   null,
+   1,
+   null
+  ],
+  [
+   460,
+   "plains",
+   null,
+   1,
+   null
+  ],
+  [
+   461,
+   "forest",
+   null,
+   1,
+   null
+  ],
+  [
+   462,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   463,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   464,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   465,
+   "plains",
+   null,
+   2,
+   null
+  ],
+  [
+   466,
+   "plains",
+   null,
+   2,
+   null
+  ],
+  [
+   467,
+   "forest",
+   null,
+   2,
+   null
+  ],
+  [
+   468,
+   "forest",
+   null,
+   2,
+   null
+  ],
+  [
+   469,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   470,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   471,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   472,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   473,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   474,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   475,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   476,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   477,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   478,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   479,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   480,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   481,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   482,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   483,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   484,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   485,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   486,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   487,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   488,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   489,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   490,
+   "plains",
+   null,
+   3,
+   null
+  ],
+  [
+   491,
+   "forest",
+   null,
+   3,
+   null
+  ],
+  [
+   492,
+   "forest",
+   null,
+   3,
+   null
+  ],
+  [
+   493,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   494,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   495,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   496,
+   "hills",
+   "copper",
+   null,
+   null
+  ],
+  [
+   497,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   498,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   499,
+   "plains",
+   null,
+   1,
+   null
+  ],
+  [
+   500,
+   "plains",
+   null,
+   1,
+   null
+  ],
+  [
+   501,
+   "hills",
+   null,
+   1,
+   null
+  ],
+  [
+   502,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   503,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   504,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   505,
+   "hills",
+   null,
+   2,
+   null
+  ],
+  [
+   506,
+   "plains",
+   null,
+   2,
+   null
+  ],
+  [
+   507,
+   "mountain",
+   null,
+   2,
+   null
+  ],
+  [
+   508,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   509,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   510,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   511,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   512,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   513,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   514,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   515,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   516,
+   "forest",
+   null,
+   4,
+   null
+  ],
+  [
+   517,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   518,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   519,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   520,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   521,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   522,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   523,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   524,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   525,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   526,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   527,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   528,
+   "mountain",
+   null,
+   3,
+   null
+  ],
+  [
+   529,
+   "plains",
+   null,
+   3,
+   null
+  ],
+  [
+   530,
+   "plains",
+   null,
+   3,
+   null
+  ],
+  [
+   531,
+   "mountain",
+   null,
+   3,
+   null
+  ],
+  [
+   532,
+   "hills",
+   null,
+   3,
+   null
+  ],
+  [
+   533,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   534,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   535,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   536,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   537,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   538,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   539,
+   "hills",
+   "iron",
+   null,
+   null
+  ],
+  [
+   540,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   541,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   542,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   543,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   544,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   545,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   546,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   547,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   548,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   549,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   550,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   551,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   552,
+   "hills",
+   "aluminum",
+   null,
+   null
+  ],
+  [
+   553,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   554,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   555,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   556,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   557,
+   "desert",
+   null,
+   4,
+   null
+  ],
+  [
+   558,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   559,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   560,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   561,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   562,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   563,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   564,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   565,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   566,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   567,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   568,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   569,
+   "desert",
+   null,
+   3,
+   null
+  ],
+  [
+   570,
+   "hills",
+   "cotton",
+   3,
+   null
+  ],
+  [
+   571,
+   "plains",
+   null,
+   3,
+   null
+  ],
+  [
+   572,
+   "plains",
+   null,
+   3,
+   null
+  ],
+  [
+   573,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   574,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   575,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   576,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   577,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   578,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   579,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   580,
+   "hills",
+   "iron",
+   null,
+   null
+  ],
+  [
+   581,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   582,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   583,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   584,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   585,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   586,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   587,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   588,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   589,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   590,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   591,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   592,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   593,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   594,
+   "forest",
+   null,
+   4,
+   null
+  ],
+  [
+   595,
+   "hills",
+   null,
+   4,
+   null
+  ],
+  [
+   596,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   597,
+   "forest",
+   null,
+   4,
+   null
+  ],
+  [
+   598,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   599,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   600,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   601,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   602,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   603,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   604,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   605,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   606,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   607,
+   "plains",
+   "cotton",
+   null,
+   null
+  ],
+  [
+   608,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   609,
+   "hills",
+   null,
+   3,
+   null
+  ],
+  [
+   610,
+   "plains",
+   null,
+   3,
+   null
+  ],
+  [
+   611,
+   "forest",
+   null,
+   3,
+   null
+  ],
+  [
+   612,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   613,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   614,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   615,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   616,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   617,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   618,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   619,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   620,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   621,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   622,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   623,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   624,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   625,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   626,
+   "forest",
+   "copper",
+   null,
+   null
+  ],
+  [
+   627,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   628,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   629,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   630,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   631,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   632,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   633,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   634,
+   "plains",
+   "oil",
+   4,
+   null
+  ],
+  [
+   635,
+   "plains",
+   null,
+   4,
+   null
+  ],
+  [
+   636,
+   "forest",
+   null,
+   4,
+   null
+  ],
+  [
+   637,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   638,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   639,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   640,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   641,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   642,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   643,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   644,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   645,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   646,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   647,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   648,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   649,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   650,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   651,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   652,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   653,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   654,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   655,
+   "mountain",
+   "rare",
+   null,
+   null
+  ],
+  [
+   656,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   657,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   658,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   659,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   660,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   661,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   662,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   663,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   664,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   665,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   666,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   667,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   668,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   669,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   670,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   671,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   672,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   673,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   674,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   675,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   676,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   677,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   678,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   679,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   680,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   681,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   682,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   683,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   684,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   685,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   686,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   687,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   688,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   689,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   690,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   691,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   692,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   693,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   694,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   695,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   696,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   697,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   698,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   699,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   700,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   701,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   702,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   703,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   704,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   705,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   706,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   707,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   708,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   709,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   710,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   711,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   712,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   713,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   714,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   715,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   716,
+   "desert",
+   "oil",
+   null,
+   null
+  ],
+  [
+   717,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   718,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   719,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   720,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   721,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   722,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   723,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   724,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   725,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   726,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   727,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   728,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   729,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   730,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   731,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   732,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   733,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   734,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   735,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   736,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   737,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   738,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   739,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   740,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   741,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   742,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   743,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   744,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   745,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   746,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   747,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   748,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   749,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   750,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   751,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   752,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   753,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   754,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   755,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   756,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   757,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   758,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   759,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   760,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   761,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   762,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   763,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   764,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   765,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   766,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   767,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   768,
+   "mountain",
+   "iron",
+   null,
+   null
+  ],
+  [
+   769,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   770,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   771,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   772,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   773,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   774,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   775,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   776,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   777,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   778,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   779,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   780,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   781,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   782,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   783,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   784,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   785,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   786,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   787,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   788,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   789,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   790,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   791,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   792,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   793,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   794,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   795,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   796,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   797,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   798,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   799,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   800,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   801,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   802,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   803,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   804,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   805,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   806,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   807,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   808,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   809,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   810,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   811,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   812,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   813,
+   "jungle",
+   "spice",
+   null,
+   null
+  ],
+  [
+   814,
+   "jungle",
+   null,
+   6,
+   null
+  ],
+  [
+   815,
+   "plains",
+   null,
+   6,
+   null
+  ],
+  [
+   816,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   817,
+   "plains",
+   "rubber",
+   null,
+   null
+  ],
+  [
+   818,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   819,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   820,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   821,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   822,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   823,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   824,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   825,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   826,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   827,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   828,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   829,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   830,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   831,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   832,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   833,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   834,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   835,
+   "hills",
+   "iron",
+   null,
+   null
+  ],
+  [
+   836,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   837,
+   "desert",
+   "oil",
+   null,
+   null
+  ],
+  [
+   838,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   839,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   840,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   841,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   842,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   843,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   844,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   845,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   846,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   847,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   848,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   849,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   850,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   851,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   852,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   853,
+   "plains",
+   null,
+   6,
+   null
+  ],
+  [
+   854,
+   "jungle",
+   null,
+   6,
+   null
+  ],
+  [
+   855,
+   "jungle",
+   null,
+   6,
+   null
+  ],
+  [
+   856,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   857,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   858,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   859,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   860,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   861,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   862,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   863,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   864,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   865,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   866,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   867,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   868,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   869,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   870,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   871,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   872,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   873,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   874,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   875,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   876,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   877,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   878,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   879,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   880,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   881,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   882,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   883,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   884,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   885,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   886,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   887,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   888,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   889,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   890,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   891,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   892,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   893,
+   "plains",
+   "rubber",
+   6,
+   null
+  ],
+  [
+   894,
+   "plains",
+   null,
+   6,
+   null
+  ],
+  [
+   895,
+   "plains",
+   null,
+   6,
+   null
+  ],
+  [
+   896,
+   "plains",
+   null,
+   6,
+   null
+  ],
+  [
+   897,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   898,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   899,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   900,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   901,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   902,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   903,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   904,
+   "mountain",
+   null,
+   null,
+   null
+  ],
+  [
+   905,
+   "hills",
+   "aluminum",
+   null,
+   null
+  ],
+  [
+   906,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   907,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   908,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   909,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   910,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   911,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   912,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   913,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   914,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   915,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   916,
+   "desert",
+   null,
+   null,
+   null
+  ],
+  [
+   917,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   918,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   919,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   920,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   921,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   922,
+   "hills",
+   "iron",
+   null,
+   null
+  ],
+  [
+   923,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   924,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   925,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   926,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   927,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   928,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   929,
+   "forest",
+   "rubber",
+   null,
+   null
+  ],
+  [
+   930,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   931,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   932,
+   "forest",
+   null,
+   6,
+   null
+  ],
+  [
+   933,
+   "jungle",
+   null,
+   6,
+   null
+  ],
+  [
+   934,
+   "jungle",
+   null,
+   6,
+   null
+  ],
+  [
+   935,
+   "hills",
+   null,
+   6,
+   null
+  ],
+  [
+   936,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   937,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   938,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   939,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   940,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   941,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   942,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   943,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   944,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   945,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   946,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   947,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   948,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   949,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   950,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   951,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   952,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   953,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   954,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   955,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   956,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   957,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   958,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   959,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   960,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   961,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   962,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   963,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   964,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   965,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   966,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   967,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   968,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   969,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   970,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   971,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   972,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   973,
+   "hills",
+   "copper",
+   null,
+   null
+  ],
+  [
+   974,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   975,
+   "jungle",
+   null,
+   6,
+   null
+  ],
+  [
+   976,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   977,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   978,
+   "hills",
+   "copper",
+   null,
+   null
+  ],
+  [
+   979,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   980,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   981,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   982,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   983,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   984,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   985,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   986,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   987,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   988,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   989,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   990,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   991,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   992,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   993,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   994,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   995,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   996,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   997,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   998,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   999,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1000,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1001,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1002,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   1003,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   1004,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   1005,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1006,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1007,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1008,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1009,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1010,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   1011,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   1012,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   1013,
+   "plains",
+   null,
+   null,
+   null
+  ],
+  [
+   1014,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   1015,
+   "forest",
+   null,
+   null,
+   null
+  ],
+  [
+   1016,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   1017,
+   "jungle",
+   "spice",
+   null,
+   null
+  ],
+  [
+   1018,
+   "hills",
+   null,
+   null,
+   null
+  ],
+  [
+   1019,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   1020,
+   "jungle",
+   null,
+   null,
+   null
+  ],
+  [
+   1021,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1022,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1023,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1024,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1025,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1026,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1027,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1028,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1029,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1030,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1031,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1032,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1033,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1034,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1035,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1036,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1037,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1038,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1039,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1040,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1041,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1042,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1043,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1044,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1045,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1046,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1047,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1048,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1049,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1050,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1051,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1052,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1053,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1054,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1055,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1056,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1057,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1058,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1059,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1060,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1061,
+   "coast",
+   null,
+   null,
+   null
+  ],
+  [
+   1062,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1063,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1064,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1065,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1066,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1067,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1068,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1069,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1070,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1071,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1072,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1073,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1074,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1075,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1076,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1077,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1078,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1079,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1080,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1081,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1082,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1083,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1084,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1085,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1086,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1087,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1088,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1089,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1090,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1091,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1092,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1093,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1094,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1095,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1096,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1097,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1098,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1099,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1100,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1101,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1102,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1103,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1104,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1105,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1106,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1107,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1108,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1109,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1110,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1111,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1112,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1113,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1114,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1115,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1116,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1117,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1118,
+   "ocean",
+   null,
+   null,
+   null
+  ],
+  [
+   1119,
+   "ocean",
+   null,
+   null,
+   null
+  ]
+ ],
+ "cities": [
+  {
+   "id": "A",
+   "tile": 555,
+   "kind": "capital",
+   "name": "수도",
+   "art": "A",
+   "country": 4,
+   "buildings": [],
+   "def": 0,
+   "hp": 0,
+   "max_hp": 0,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "A1",
+   "tile": 474,
+   "kind": "cs",
+   "name": "들판마을",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 5,
+   "hp": 50,
+   "max_hp": 50,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "A2",
+   "tile": 717,
+   "kind": "cs",
+   "name": "큰강나루",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "A3",
+   "tile": 592,
+   "kind": "cs",
+   "name": "검은샘",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "A4",
+   "tile": 358,
+   "kind": "cs",
+   "name": "포도골",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "A5",
+   "tile": 794,
+   "kind": "cs",
+   "name": "바위성",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "A6",
+   "tile": 352,
+   "kind": "cs",
+   "name": "은빛고원",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "A7",
+   "tile": 877,
+   "kind": "cs",
+   "name": "독수리봉",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "C",
+   "tile": 530,
+   "kind": "capital",
+   "name": "수도",
+   "art": "C",
+   "country": 3,
+   "buildings": [],
+   "def": 0,
+   "hp": 0,
+   "max_hp": 0,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "C1",
+   "tile": 449,
+   "kind": "cs",
+   "name": "황토성",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 5,
+   "hp": 50,
+   "max_hp": 50,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "C2",
+   "tile": 495,
+   "kind": "cs",
+   "name": "붉은강",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "C3",
+   "tile": 647,
+   "kind": "cs",
+   "name": "비단마을",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "C4",
+   "tile": 769,
+   "kind": "cs",
+   "name": "철산성",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "C5",
+   "tile": 694,
+   "kind": "cs",
+   "name": "모래성",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "C6",
+   "tile": 405,
+   "kind": "cs",
+   "name": "옥수마을",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "C7",
+   "tile": 252,
+   "kind": "cs",
+   "name": "대나무성",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "J",
+   "tile": 466,
+   "kind": "capital",
+   "name": "수도",
+   "art": "J",
+   "country": 2,
+   "buildings": [],
+   "def": 0,
+   "hp": 0,
+   "max_hp": 0,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "J1",
+   "tile": 546,
+   "kind": "cs",
+   "name": "안개곶",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 5,
+   "hp": 50,
+   "max_hp": 50,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "J2",
+   "tile": 346,
+   "kind": "cs",
+   "name": "붉은항",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "J3",
+   "tile": 548,
+   "kind": "cs",
+   "name": "벚꽃마을",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "J4",
+   "tile": 627,
+   "kind": "cs",
+   "name": "등대섬",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "K",
+   "tile": 460,
+   "kind": "capital",
+   "name": "수도",
+   "art": "K",
+   "country": 1,
+   "buildings": [
+    "market"
+   ],
+   "def": 0,
+   "hp": 0,
+   "max_hp": 0,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "K1",
+   "tile": 379,
+   "kind": "cs",
+   "name": "소나무골",
+   "art": "village",
+   "country": 1,
+   "buildings": [],
+   "def": 5,
+   "hp": 50,
+   "max_hp": 50,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "K2",
+   "tile": 581,
+   "kind": "cs",
+   "name": "푸른나루",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "K3",
+   "tile": 579,
+   "kind": "cs",
+   "name": "솔바람재",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "K4",
+   "tile": 703,
+   "kind": "cs",
+   "name": "물새섬",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": true,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "N",
+   "tile": 96,
+   "kind": "capital",
+   "name": "수도",
+   "art": "N",
+   "country": 5,
+   "buildings": [],
+   "def": 0,
+   "hp": 0,
+   "max_hp": 0,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "N1",
+   "tile": 54,
+   "kind": "cs",
+   "name": "눈꽃마을",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 5,
+   "hp": 50,
+   "max_hp": 50,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "N2",
+   "tile": 19,
+   "kind": "cs",
+   "name": "얼음항",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "N3",
+   "tile": 49,
+   "kind": "cs",
+   "name": "금빛골",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "N4",
+   "tile": 23,
+   "kind": "cs",
+   "name": "자작나무골",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "N5",
+   "tile": 222,
+   "kind": "cs",
+   "name": "서리성",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "N6",
+   "tile": 208,
+   "kind": "cs",
+   "name": "북극성",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "N7",
+   "tile": 5,
+   "kind": "cs",
+   "name": "오로라성",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "T",
+   "tile": 894,
+   "kind": "capital",
+   "name": "수도",
+   "art": "T",
+   "country": 6,
+   "buildings": [],
+   "def": 0,
+   "hp": 0,
+   "max_hp": 0,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "T1",
+   "tile": 852,
+   "kind": "cs",
+   "name": "야자마을",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 5,
+   "hp": 50,
+   "max_hp": 50,
+   "tier": 0,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "T2",
+   "tile": 1013,
+   "kind": "cs",
+   "name": "고무나무골",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "T3",
+   "tile": 1016,
+   "kind": "cs",
+   "name": "향기섬",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 8,
+   "hp": 80,
+   "max_hp": 80,
+   "tier": 1,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "T4",
+   "tile": 818,
+   "kind": "cs",
+   "name": "구리곶",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "T5",
+   "tile": 938,
+   "kind": "cs",
+   "name": "산호섬",
+   "art": "village",
+   "country": null,
+   "buildings": [],
+   "def": 13,
+   "hp": 110,
+   "max_hp": 110,
+   "tier": 2,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "T6",
+   "tile": 969,
+   "kind": "cs",
+   "name": "망고나루",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": false,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "X1",
+   "tile": 945,
+   "kind": "cs",
+   "name": "고대 성채 아르카",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 40,
+   "hp": 220,
+   "max_hp": 220,
+   "tier": 4,
+   "sea": true,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "X2",
+   "tile": 907,
+   "kind": "cs",
+   "name": "수호자의 탑",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 40,
+   "hp": 220,
+   "max_hp": 220,
+   "tier": 4,
+   "sea": true,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "X3",
+   "tile": 151,
+   "kind": "cs",
+   "name": "폭풍섬",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": true,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "X4",
+   "tile": 193,
+   "kind": "cs",
+   "name": "천둥 요새",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 40,
+   "hp": 220,
+   "max_hp": 220,
+   "tier": 4,
+   "sea": true,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  },
+  {
+   "id": "X5",
+   "tile": 962,
+   "kind": "cs",
+   "name": "해적만",
+   "art": "fortress",
+   "country": null,
+   "buildings": [],
+   "def": 20,
+   "hp": 150,
+   "max_hp": 150,
+   "tier": 3,
+   "sea": true,
+   "boss": false,
+   "final": false,
+   "rebel": false
+  }
+ ],
+ "units": [
+  {
+   "id": 43,
+   "country": 1,
+   "kind": "worker",
+   "tile": 420,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 44,
+   "country": 1,
+   "kind": "scout",
+   "tile": 460,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 45,
+   "country": 1,
+   "kind": "scout",
+   "tile": 421,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 46,
+   "country": 1,
+   "kind": "scout",
+   "tile": 459,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 47,
+   "country": 1,
+   "kind": "spear",
+   "tile": 420,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 48,
+   "country": 1,
+   "kind": "spear",
+   "tile": 460,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 49,
+   "country": 1,
+   "kind": "catapult",
+   "tile": 421,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 50,
+   "country": 2,
+   "kind": "worker",
+   "tile": 466,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 51,
+   "country": 2,
+   "kind": "scout",
+   "tile": 426,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 52,
+   "country": 2,
+   "kind": "scout",
+   "tile": 427,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 53,
+   "country": 2,
+   "kind": "scout",
+   "tile": 465,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 54,
+   "country": 2,
+   "kind": "spear",
+   "tile": 466,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 55,
+   "country": 2,
+   "kind": "spear",
+   "tile": 426,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 56,
+   "country": 2,
+   "kind": "catapult",
+   "tile": 427,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 57,
+   "country": 3,
+   "kind": "worker",
+   "tile": 530,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 58,
+   "country": 3,
+   "kind": "scout",
+   "tile": 490,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 59,
+   "country": 3,
+   "kind": "scout",
+   "tile": 491,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 60,
+   "country": 3,
+   "kind": "scout",
+   "tile": 529,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 61,
+   "country": 3,
+   "kind": "spear",
+   "tile": 530,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 62,
+   "country": 3,
+   "kind": "spear",
+   "tile": 490,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 63,
+   "country": 3,
+   "kind": "catapult",
+   "tile": 491,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 64,
+   "country": 4,
+   "kind": "worker",
+   "tile": 555,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 65,
+   "country": 4,
+   "kind": "scout",
+   "tile": 515,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 66,
+   "country": 4,
+   "kind": "scout",
+   "tile": 516,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 67,
+   "country": 4,
+   "kind": "scout",
+   "tile": 554,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 68,
+   "country": 4,
+   "kind": "spear",
+   "tile": 555,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 69,
+   "country": 4,
+   "kind": "spear",
+   "tile": 515,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 70,
+   "country": 4,
+   "kind": "catapult",
+   "tile": 516,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 71,
+   "country": 5,
+   "kind": "worker",
+   "tile": 96,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 72,
+   "country": 5,
+   "kind": "scout",
+   "tile": 55,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 73,
+   "country": 5,
+   "kind": "scout",
+   "tile": 56,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 74,
+   "country": 5,
+   "kind": "scout",
+   "tile": 95,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 75,
+   "country": 5,
+   "kind": "spear",
+   "tile": 96,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 76,
+   "country": 5,
+   "kind": "spear",
+   "tile": 55,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 77,
+   "country": 5,
+   "kind": "catapult",
+   "tile": 56,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 78,
+   "country": 6,
+   "kind": "worker",
+   "tile": 894,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 79,
+   "country": 6,
+   "kind": "scout",
+   "tile": 853,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 80,
+   "country": 6,
+   "kind": "scout",
+   "tile": 854,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 81,
+   "country": 6,
+   "kind": "scout",
+   "tile": 893,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 82,
+   "country": 6,
+   "kind": "spear",
+   "tile": 894,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 83,
+   "country": 6,
+   "kind": "spear",
+   "tile": 853,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 84,
+   "country": 6,
+   "kind": "catapult",
+   "tile": 854,
+   "hp": 100,
+   "done": false
+  }
+ ],
+ "countries": [
+  {
+   "id": 1,
+   "type": "K",
+   "name": "반도의 용",
+   "flag_url": null,
+   "color": "#2F6FE0",
+   "coin": 332,
+   "happy": 12,
+   "inventory": {
+    "clothes": 7,
+    "food": 10,
+    "iron": 2,
+    "wood": 10
+   },
+   "units": 7,
+   "cities": 2
+  },
+  {
+   "id": 2,
+   "type": "J",
+   "name": "파도의 섬왕국",
+   "flag_url": null,
+   "color": "#E0463C",
+   "coin": 234,
+   "happy": 0,
+   "inventory": {
+    "food": 8,
+    "iron": 2,
+    "jewelry": 7,
+    "wood": 10
+   },
+   "units": 7,
+   "cities": 1
+  },
+  {
+   "id": 3,
+   "type": "C",
+   "name": "대륙의 제국",
+   "flag_url": null,
+   "color": "#F29A2E",
+   "coin": 234,
+   "happy": 0,
+   "inventory": {
+    "cotton": 7,
+    "food": 8,
+    "iron": 2,
+    "wood": 6
+   },
+   "units": 7,
+   "cities": 1
+  },
+  {
+   "id": 4,
+   "type": "A",
+   "name": "신대륙의 강국",
+   "flag_url": null,
+   "color": "#8A4FD8",
+   "coin": 234,
+   "happy": 0,
+   "inventory": {
+    "food": 8,
+    "iron": 2,
+    "wine": 7,
+    "wood": 6
+   },
+   "units": 7,
+   "cities": 1
+  },
+  {
+   "id": 5,
+   "type": "N",
+   "name": "북방의 대국",
+   "flag_url": null,
+   "color": "#22A36A",
+   "coin": 234,
+   "happy": 0,
+   "inventory": {
+    "food": 8,
+    "gold": 7,
+    "iron": 2,
+    "wood": 6
+   },
+   "units": 7,
+   "cities": 1
+  },
+  {
+   "id": 6,
+   "type": "T",
+   "name": "열대 해양국",
+   "flag_url": null,
+   "color": "#EC5C9A",
+   "coin": 234,
+   "happy": 0,
+   "inventory": {
+    "food": 8,
+    "iron": 2,
+    "spice": 7,
+    "wood": 6
+   },
+   "units": 7,
+   "cities": 1
+  }
+ ]
+}

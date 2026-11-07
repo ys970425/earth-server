@@ -2,7 +2,8 @@
   "scripts": {
     "test:war:import": "node tests/war/import.test.mjs",
     "test:war": "node tests/war/db.test.mjs",
-    "test:trade": "node tests/trade/db.test.mjs"
+    "test:trade": "node tests/trade/db.test.mjs",
+    "war:preview": "node tools/war/make-preview.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.15"
