@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "test:war:import": "node tests/war/import.test.mjs",
     "test:war": "node tests/war/db.test.mjs",
     "test:trade": "node tests/trade/db.test.mjs"
   },
