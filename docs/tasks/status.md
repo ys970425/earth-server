@@ -9,13 +9,18 @@
 - 실제 데이터 미리보기 변환 도구: `private/`에 무역 백업 파일을 넣고 `npm run war:preview:real` → `app/war/preview/state-real.json`
   - 백업 파일과 변환 결과는 `.gitignore`로 깃허브에서 제외됨. 변환 결과에는 학생 이름·닉네임이 없음
   - 시험: `npm run test:war:real`
+- 실제 데이터 미리보기 화면: Live Server `app/war/index.html?preview=real` (초록 띠, 파일이 없으면 안내 문구)
+- 화면의 병력·지형·자원·시설 이름 모두 한글 (영어 대신 「병력」 등으로 표시)
+- 의견 보내기 설계: `docs/war-design.md` 12장
 
 ## 진행 중
-- 실제 데이터 미리보기 화면 `?preview=real`과 병력·지형 한글 이름 [헬피] — 작업지시서 `docs/tasks/next.md`
-  - 끝나면: 「헬피코드 끝」 → Claude가 `docs/tasks/report.md`와 git diff 검토 후 커밋
+- 없음
 
 ## 다음에 할 것
-1. (위 작업이 남아 있으면) 검토·커밋, Live Server로 `?preview=real` 확인
+순서: **의견 보내기 → W3**
+
+1. 의견 보내기 (`docs/war-design.md` 12장) — F1 서버 SQL·시험 [GPT] → F2 학생 버튼·입력 창 [헬피] → F3 교사 목록·「AI에게 넘기기」 [헬피]
+   - 11/9 전에는 미리보기(브라우저 안 저장)로만. F4 서버 연결은 11/9 이후
 2. W3 이동과 한 칸 한 유닛 — 서버 함수 [GPT], 화면 [헬피] (설계 4-3, 4-4)
    - 함께 고칠 것: 화면이 클 때 지도 아래 빈 띠
 3. 이후 W4~W12 (`docs/war-design.md` 10장)

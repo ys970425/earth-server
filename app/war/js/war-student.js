@@ -26,7 +26,7 @@
       main(data);
     } catch (e) {
       root.innerHTML = '';
-      root.append(h('div', { class: 'entry' }, h('p', {}, '미리보기를 열지 못했어요: ' + e.message)));
+      root.append(h('div', { class: 'entry' }, h('p', {}, e.message)));
       console.error(e);
     }
   }
@@ -41,8 +41,12 @@
   // ================= 화면 =================
   function main(data) {
     S.data = data;
-    // 맨 위 미리보기 띠 (미리보기일 때만)
-    root.append(h('div', { class: 'war-banner' }, '미리보기 모드: 가짜 데이터예요'));
+    // 맨 위 미리보기 띠 (미리보기일 때만). 실제 데이터는 색도 다르게 (war.css)
+    const mode = window.WarData.mode();
+    root.append(h('div', { class: 'war-banner' + (mode === 'real' ? ' real' : '') },
+      mode === 'real'
+        ? '실제 데이터 미리보기: 우리 반 무역 게임 기록이에요 (여기서 바꿔도 저장되지 않아요)'
+        : '미리보기 모드: 가짜 데이터예요'));
     // 지도 + 오른쪽 창 (무역 앱 학생 화면과 같은 모양)
     const canvas = h('canvas', { class: 'hexmap' });
     const wrap = h('div', { class: 'map-wrap' }, canvas,
@@ -59,6 +63,14 @@
     renderSide();
     goCapital();
   }
+
+  // ================= 한글 이름표 =================
+  // 규칙 파일(RULES)에 이름이 없는 것도 영어가 화면에 나오지 않게 이름표를 만들어요
+  const UNIT_NAMES = { worker: '노동자', scout: '정찰병', ballista: '발리스타', archer: '궁수', swordsman: '검병', boat: '배', ship: '배' };
+  const unitName = k => (R.UNITS[k] || {}).name || UNIT_NAMES[k] || '병력';
+  const terrainName = k => R.TERRAIN[k] || '땅';
+  const resName = k => (R.ITEMS[k] || {}).name || '자원';
+  const impName = k => (R.IMPROVE[k] || {}).name || '시설';
 
   const myCountry = () => S.data.countries.find(c => c.id === S.country);
   const capitalTile = c => { const cap = S.data.cities.find(x => x.kind === 'capital' && x.country === c.id); return cap ? cap.tile : -1; };
@@ -103,7 +115,7 @@
         h('span', { class: 'stat' }, '병력 ', h('b', {}, c.units + '부대')),
         h('span', { class: 'stat' }, '도시 ', h('b', {}, c.cities + '곳'))),
       inv.length ? h('div', { class: 'war-inv' }, h('small', { class: 'muted' }, '창고: '),
-        inv.map(([k, n]) => h('span', { class: 'chip' }, ((R.ITEMS[k] || {}).name || k) + ' ' + n + '개'))) : null);
+        inv.map(([k, n]) => h('span', { class: 'chip' }, resName(k) + ' ' + n + '개'))) : null);
   }
   // 칸을 누르면: 지형, 주인 나라, 도시 이름, 병력 종류와 체력
   function tileWindow(side, id) {
@@ -115,16 +127,16 @@
       h('div', { class: 'side-head' },
         h('button', { class: 'small', onclick: () => { S.sel = null; S.map.select(null); renderSide(); } }, '←'),
         h('div', {}, h('div', { class: 'side-title' }, '칸 정보'), h('div', { class: 'muted' }, '칸 번호 ' + id))),
-      row('지형', R.TERRAIN[t.terrain] || t.terrain),
-      t.res ? row('자원', (R.ITEMS[t.res] || {}).name || t.res) : null,
-      t.imp ? row('시설', (R.IMPROVE[t.imp] || {}).name || t.imp) : null,
+      row('지형', terrainName(t.terrain)),
+      t.res ? row('자원', resName(t.res)) : null,
+      t.imp ? row('시설', impName(t.imp)) : null,
       row('주인', owner ? owner.name : '빈 땅 (주인 없어요)'),
       city ? row('도시', city.name + (city.kind === 'capital' ? ' (수도)' : '')) : null,
       city && !city.country && city.def != null ? row('도시국가', '방어 ' + city.def + ' · 체력 ' + city.hp + '/' + city.max_hp) : null,
       h('div', { class: 'war-units' },
         h('b', {}, '이 칸의 병력'),
         us.length ? us.map(u => h('div', { class: 'war-unit' },
-          h('span', {}, h('i', { class: 'war-dot', style: { background: colorOf(u.country) } }), ' ' + ((R.UNITS[u.kind] || {}).name || u.kind)),
+          h('span', {}, h('i', { class: 'war-dot', style: { background: colorOf(u.country) } }), ' ' + unitName(u.kind)),
           h('span', { class: 'muted' }, '체력 ' + (u.hp == null ? 100 : u.hp))))
           : h('p', { class: 'muted' }, '이 칸에는 병력이 없어요.'))));
   }

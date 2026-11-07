@@ -11,6 +11,11 @@ body.war .map-layout { height: calc(100vh - 170px); min-height: 420px; margin-to
   border-bottom: 3px solid var(--gold-dark);
   font-weight: 700; text-align: center; padding: 7px 10px;
 }
+/* 실제 데이터 미리보기 띠: 가짜(노란색)와 색을 다르게 해서 한눈에 구분해요 */
+.war-banner.real {
+  background: var(--mint); color: #063D2C;
+  border-bottom-color: var(--mint-dark);
+}
 
 /* 하단 제작자 표기: 모든 화면에 고정 */
 .credit-bar {
