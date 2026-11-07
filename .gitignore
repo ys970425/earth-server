@@ -2,3 +2,8 @@ node_modules/
 tests/e2e/shots/
 node_modules
 tests/trade/shots/
+
+# 실제 학생 데이터 (깃허브에 올리지 않음)
+private/
+app/war/preview/state-real.json
+지구서버-무역-백업-*.json
