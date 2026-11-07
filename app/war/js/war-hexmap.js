@@ -1,12 +1,12 @@
 // 육각 지도 그리기 (pointy-top, odd-r). 학생 화면과 전자칠판이 같이 씀
-// war: 무역 앱 app/trade/js/hexmap.js를 복사한 파일이에요. 그림 경로만 ../trade/img/로 바꾸고, window.WarHexMap으로 내보내요.
+// war: 무역 앱 app/trade/js/hexmap.js를 복사한 파일이에요. 그림 경로를 64px 사본 폴더(../trade/assets/small/)로 바꾸고, window.WarHexMap으로 내보내요.
 (function () {
   const R = window.RULES;
   const TW = 128, SIDE = TW / Math.sqrt(3), ROW = SIDE * 1.5, HALF_H = SIDE;   // 칸 가로 128, 위아래 꼭짓점 사이 148
   const BAND = 4;   // 흙 두께
 
   // ---------- 그림 불러오기 ----------
-  // war: 그림 파일은 무역 앱 폴더(app/trade/img/)에서 그대로 읽어요 (복사하지 않아요).
+  // war: 그림은 64px 사본 폴더(app/trade/assets/small/)에서 읽어요 (웨일북용, 원본 256px는 쓰지 않아요).
   const IMG = {};
   function load(key, src) {
     return new Promise(res => { const im = new Image(); im.onload = () => { IMG[key] = im; res(); }; im.onerror = () => res(); im.src = src; });
@@ -14,14 +14,15 @@
   const ready = Promise.all([
     load('u:destroyer', '../trade/assets/units/destroyer.png'), // war: 구축함 그림
     document.fonts ? document.fonts.load('700 16px Galmuri11').catch(() => null) : null,
-    ...Object.keys(R.TERRAIN).map(t => load('t:' + t, '../trade/img/terrain/' + t + '.png')),
-    ...Object.keys(R.ITEMS).map(i => load('r:' + i, '../trade/img/res/' + i + '.png')),
-    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery', 'swordsman', 'infantry', 'tank', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].map(u => load('u:' + u, '../trade/img/unit/' + u + '.png')),
+    ...Object.keys(R.TERRAIN).map(t => load('t:' + t, '../trade/assets/small/terrain/' + t + '.png')),
+    ...Object.keys(R.ITEMS).map(i => load('r:' + i, '../trade/assets/small/res/' + i + '.png')),
+    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery', 'swordsman', 'infantry', 'tank', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].map(u => load('u:' + u, '../trade/assets/small/unit/' + u + '.png')),
+    ...['destroyer', 'fighter'].map(u => load('u:' + u, '../trade/assets/small/unit/' + u + '.png')),   // war: 전쟁 버전 새 병력(구축함·전투기)도 small/unit/에서 읽어요
     // 나라 색 병력 (K는 원래 파랑)
-    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery', 'knight', 'swordsman', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, '../trade/img/unit/' + u + '_' + t + '.png'))),
-    ...['K', 'J', 'C', 'A', 'N', 'T'].map(t => load('u:boss_' + t, '../trade/img/unit/boss_' + t + '.png')),   // 특수 부대 (나라마다 하나)
-    ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, '../trade/img/bld/' + b + '.png')),
-    ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, '../trade/img/city/' + f + '.png'))
+    ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery', 'knight', 'swordsman', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, '../trade/assets/small/unit/' + u + '_' + t + '.png'))),
+    ...['K', 'J', 'C', 'A', 'N', 'T'].map(t => load('u:boss_' + t, '../trade/assets/small/unit/boss_' + t + '.png')),   // 특수 부대 (나라마다 하나)
+    ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, '../trade/assets/small/bld/' + b + '.png')),
+    ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, '../trade/assets/small/city/' + f + '.png'))
   ]);
 
   // ---------- 좌표 ----------
@@ -182,7 +183,7 @@
           continue;
         }
         const im = IMG['t:' + t.terrain];
-        if (im) ctx.drawImage(im, x - TW / 2, y + HALF_H + BAND - im.height, TW, im.height);
+        if (im) { const th = im.height * TW / im.width; ctx.drawImage(im, x - TW / 2, y + HALF_H + BAND - th, TW, th); }   // war: 64px 사본도 칸 크기에 맞게 늘려 그림
         else { hexPath(ctx, x, y); ctx.fillStyle = '#5C8A3A'; ctx.fill(); }
         if (t.owner) { hexPath(ctx, x, y, SIDE - 2); ctx.fillStyle = colorOf(t.owner) + '30'; ctx.fill(); }
       }
