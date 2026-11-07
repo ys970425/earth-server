@@ -1,67 +1,69 @@
-# 작업지시서: 실제 데이터 미리보기 화면 (`?preview=real`)과 한글 이름
+# 작업지시서: 역할 변경 마무리 + E0 (규칙 파일·전투기 그림·64px 그림)
 
-- 저장소: `C:\projects\earth-server`
-- 브랜치: **`war-version`** (작업 전에 `git branch --show-current`로 확인. 다른 브랜치면 멈추고 보고)
-- 참고: `docs/war-design.md` 7장(문구)·8장(미리보기 모드), 지금 화면 코드 `app/war/js/war-data.js`, `app/war/js/war-student.js`
+- 저장소: `C:\projects\earth-server`, 브랜치 **`war-version`** (`git branch --show-current`로 확인, 다르면 멈추고 보고)
+- 기준 문서: `docs/war-design.md` (「지구 서버: 전쟁의 시간」)
 
 ## ⚠️ 꼭 지킬 것
-- **커밋과 푸시를 하지 않는다.** (`git commit`, `git push`, `git switch` 모두 금지) 커밋은 Claude가 검토한 뒤에 한다.
-- **`private/` 폴더를 열거나 읽지 않는다.** (학생 데이터가 들어 있음) `npm run war:preview:real`도 실행하지 않는다.
-- 같은 시간에 다른 작업자가 `tools/war/`, `tests/war/`, `package.json`을 고치고 있다. **이 파일들은 건드리지 않는다.**
+- **커밋과 푸시를 하지 않는다.** 커밋은 Claude가 검토 후에 한다.
+- `C:\projects\nation`은 **읽기만** 한다 (사본만 만든다). `private/` 폴더는 열지 않는다.
+- `app/trade/` 아래 기존 파일(`img/`, `js/`, `css/` 등)과 `supabase/`, `tools/trade/`, `tests/trade/`는 고치지 않는다. 새 그림은 `app/trade/assets/` 아래에만 만든다.
 
-## 1. 작업 범위
+---
 
-### ① `?preview=real` 읽기 — `app/war/js/war-data.js`
-- 주소에 `?preview=real`이 있으면 `preview/state-real.json`을 읽는다. (이 파일은 다른 작업자가 만드는 `npm run war:preview:real`이 만든다. 깃허브에는 올라가지 않는 파일이다.)
-- `?preview=1` 등 그 밖의 `preview` 값은 지금처럼 `preview/state.json`(가짜 데이터)을 읽는다.
-- `state-real.json`이 없으면(404) 화면에 이 안내를 보여 준다:
-  「실제 데이터 미리보기 파일이 없어요. private 폴더에 무역 백업 파일을 넣고, 터미널에서 npm run war:preview:real 을 실행해 주세요.」
-- 화면 코드가 어느 모드인지 알 수 있게 `WarData.mode()` 같은 함수로 `'real'` / `'fake'` / `null`을 돌려준다.
+## 1부. 설계 문서 역할 변경 마무리 (`docs/war-design.md`)
 
-### ② 맨 위 띠 — `app/war/js/war-student.js`
-- 가짜: 「미리보기 모드: 가짜 데이터예요」 (지금 그대로)
-- 실제: 「실제 데이터 미리보기: 우리 반 무역 게임 기록이에요 (여기서 바꿔도 저장되지 않아요)」
-- 실제 데이터일 때 띠 색을 가짜와 다르게 해서 한눈에 구분되게 한다 (`app/war/css/war.css`).
+역할 변경(첩보부장 없앰, 공병사령관 추가, 4·5명 모둠, 정찰병 첩보 공유)은 2장·2-1·4-1·5-3·8-1·10장·13장에 **이미 반영되어 있다.** 아래만 한다.
 
-### ③ 영어 이름 없애기 — `app/war/js/war-student.js`
-화면에 영어 이름(`scout`, `worker` 등)이 **하나도** 나오지 않게 한다.
-- 병력 이름표를 만든다. `RULES.UNITS`의 한글 이름을 먼저 쓰고, 거기에 없는 것은 아래 이름을 쓴다:
+1. **특산 공장 수리 규칙 바꾸기 (5-3장):** 지금 「특산 공장은 원래 그 특산을 가진 나라만 수리」를 다음으로 바꾼다.
+   - 점령한 나라도 특산 공장을 수리할 수 있다. 단, **그 공장이 만드는 특산 자원 1개**가 더 필요하다 (예: 반도체 공장 → 반도체 1개). 비용은 다른 시설처럼 처음 짓는 비용의 절반 + 특산 1개.
+   - 13장 기록 표에도 한 줄로 남긴다.
+2. **문서 전체 점검:** 「첩보부장」이 13장 기록 말고 남아 있지 않은지, 노동자·정찰병·수리·건물 짓기를 「합동참모의장」이 한다고 적힌 곳이 남아 있지 않은지 (4명 모둠 설명은 제외) 찾아 고친다. `docs/tasks/status.md`도 같은 기준으로 점검한다.
 
-| 영어 | 한글 |
-|---|---|
-| worker | 노동자 |
-| scout | 정찰병 |
-| ballista | 발리스타 |
-| archer | 궁수 |
-| swordsman | 검병 |
-| boat, ship | 배 |
+## 2부. E0 (설계 10장)
 
-- 이름표에도 없으면 영어 대신 「병력」이라고 쓴다.
-- 지형·자원·시설도 같은 방식: `RULES.TERRAIN`, `RULES.ITEMS`, `RULES.IMPROVE`에 없으면 각각 「땅」, 「자원」, 「시설」.
-- 실제 데이터에 나오는 병력 종류(참고): `scout trireme spear worker musket catapult cannon infantry a_stealth frigate c_jet n_hyper k_missile battleship artillery j_patrol t_marine cruiser` — 모두 한글로 나오는지 확인한다.
+### ① 규칙 파일 `app/war/js/war-rules.js` (새)
+브라우저(`window.WAR_RULES`)와 Node(`module.exports`) 둘 다에서 쓸 수 있게 `app/trade/js/rules.js`와 같은 방식으로 만든다. 무역 앱 `rules.js`는 고치지 않고, 필요한 값은 그 파일의 `RULES`를 읽어서 계산한다. 넣을 것 (숫자는 설계 문서 2~7장, 11장 기준):
+- `ROLES`: 합동참모의장(`chief`), 공병사령관(`engineer`), 육군(`army`)·해군(`navy`)·공군(`air`) 참모총장 — 이름, 할 수 있는 일 목록, 화면 메뉴 목록. 4명 모둠이면 `chief`가 `engineer` 메뉴를 함께 가진다는 표시
+- `BRANCH`: 모든 `RULES.UNITS` 종류 + `destroyer`, `fighter` → `army` / `navy` / `air`, 그리고 `worker`·`scout` → `civil`. `t_marine`(상륙 기갑부대)은 `army`
+- `EXTRA_UNITS`: 구축함 `destroyer`(근접 바다, 힘 60, 이동 6, 비용 코인 100·강철 2·연료 1·식량 2, 그림 `units/destroyer.png`), 전투기 `fighter`(공군, 힘 40, 이동 6, 사거리 2, 비용 코인 70·알루미늄 1·연료 1, 그림 `units/fighter.png`)
+- `BOSS`: 특수 부대 힘 = (특수 부대가 아닌 병력 힘 최댓값 + 5)를 계산하는 함수, 피해 상한 60
+- `BUILDING_CLASS`: 기본(시장·병영·곡물 창고·광장·항구) / 공장(`FACTORIES` 전부) / 고등(`ADVANCED` 전부), 그리고 나라별 특산 공장 (`SPECIALTY`에서 읽기)
+- `TILE_IMP`: 점령되면 파괴 = 광산·유정·농원 / 그대로 = 농장·벌목장·채석장
+- `MARKET`: 특산 = `RULES.STRAT_OF`, 관세 = 기준가의 0.5배(버림), 특산이 없으면 관세 2배, 시작 재고 4개씩, 도시국가 3곳 위치 후보
+- `TURN`: 기본 180초, 최소 60, 최대 600 / `POLL_MS`: 4000 / `CAPITAL`: 방어 20, 체력 200 / `REPAIR`: 비용 0.5배, 특산 공장은 특산 1개 더 / `SHIELD_TURNS` 3 / `MAX_CITY_LOSS` 2 / `PEACE_TURNS` 3
 
-## 2. 고쳐도 되는 파일 (이것만)
-- `app/war/js/war-data.js`, `app/war/js/war-student.js`, `app/war/css/war.css`
-- `docs/tasks/report.md` (보고서, 내용 덮어쓰기)
+### ② 규칙 파일 시험 `tests/war/rules.test.mjs` (새) + `package.json` scripts `"test:war:rules"`
+- `RULES.UNITS`의 모든 종류와 `destroyer`, `fighter`가 `BRANCH`에 있음, `t_marine`은 `army`
+- 무역 앱의 모든 건물(`BUILDINGS`, `FACTORIES`, `ADVANCED`)이 `BUILDING_CLASS`에 꼭 한 번 들어 있음
+- 무역 앱의 모든 타일 시설(`IMPROVE`)이 `TILE_IMP`의 파괴/그대로 중 하나에 들어 있음
+- 특수 부대 힘이 95, 역할이 5개
+- 마지막 줄 「전체 통과」, 실패하면 종료 코드 1
 
-## 3. 하지 말아야 할 것
-- `private/` 읽기, `npm run war:preview:real` 실행
-- `tools/`, `tests/`, `package.json`, `.gitignore`, `app/war/preview/`, `app/war/js/war-hexmap.js`, `app/trade/`, `supabase/`, `docs/`(report.md 제외), `CLAUDE.md` 수정
-- `git commit`, `git push`, 브랜치 바꾸기, Supabase 접속, `npm install`
+### ③ 전투기 그림 자르기 → `app/trade/assets/units/fighter.png` (새)
+- 원본: `C:\projects\nation\archive\sheet_units_modern_sea_air.png` (위 줄: 구축함·전함·항공모함·잠수함, 아래 줄: **전투기**·수송기·드론·강화복). 아래 줄 맨 왼쪽 전투기만 자른다.
+- 결과: 256×256 투명 PNG, 그림이 가운데 아래쪽에 오게. 옆 그림 조각이 섞이면 지운다 (「가장 큰 덩어리만 남기기」 방법). 이미 있는 `app/trade/assets/units/destroyer.png`와 같은 방식.
+- Python PIL이 없으면 PowerShell `System.Drawing`을 쓴다. 작업 뒤 `C:\projects\nation`에서 `git status --short`로 바뀐 것이 없음을 확인한다.
 
-## 4. 완료 조건
-- `node --check app/war/js/war-data.js`, `node --check app/war/js/war-student.js` 통과
-- `app/war/preview/state.json`(가짜)의 모든 `units[].kind`, `tiles`의 지형·자원·시설 값에 대해 이름표 함수가 영어가 아닌 한글을 돌려줌 (짧은 node 스크립트로 확인하고 결과를 보고서에 적기. 스크립트 파일은 저장소에 남기지 않기)
-- 위 「실제 데이터에 나오는 병력 종류」 목록도 모두 한글로 나옴
-- 화면 확인 (Live Server, 가능하면):
-  - `http://127.0.0.1:5500/app/war/index.html?preview=1` → 지금처럼 가짜 데이터, 칸을 눌러 노동자·정찰병이 한글로 나옴
-  - `http://127.0.0.1:5500/app/war/index.html?preview=real` → `state-real.json`이 없으면 위 안내가 나옴
-  - 브라우저 콘솔(F12)에 빨간 오류 없음
-- `git status --short`에 위 「고쳐도 되는 파일」 말고 이 작업으로 바뀐 것이 없음 (다른 작업자의 `tools/war/`, `tests/war/`, `package.json` 변경은 그대로 둔다)
+### ④ 64px 그림 사본 도구 `tools/war/make-small-images.ps1` (새) + 결과 `app/trade/assets/small/`
+- 읽기: `app/trade/img/terrain`, `img/res`, `img/unit`, `img/bld`, `img/city` 의 PNG, 그리고 `app/trade/assets/units/*.png`, `app/trade/assets/cities/neutral_*.png`
+- 쓰기: `app/trade/assets/small/` 아래 같은 하위 폴더 이름으로 (`terrain/`, `res/`, `unit/`, `bld/`, `city/`). 긴 변 64px, 비율 유지, 투명 유지. 단 지형(육각) 그림은 가로 64px.
+- 두 번 실행해도 같은 결과. 마지막에 파일 수와 전체 용량을 출력한다.
+- `app/war/js/war-hexmap.js`의 그림 경로를 `../trade/img/...` → `../trade/assets/small/...`로 바꾼다 (바꾼 줄에 `// war:` 주석). 구축함·전투기도 `small/unit/`에서 읽는다.
+
+## 3. 고쳐도 되는 파일 (이것만)
+`docs/war-design.md`, `docs/tasks/status.md`, `app/war/js/war-rules.js`(새), `app/war/js/war-hexmap.js`(그림 경로만), `tests/war/rules.test.mjs`(새), `package.json`(scripts 한 줄), `tools/war/make-small-images.ps1`(새), `app/trade/assets/units/fighter.png`(새), `app/trade/assets/small/`(새), `docs/tasks/report.md`
+
+## 4. 완료 조건 (직접 실행)
+```bash
+node tests/war/rules.test.mjs        # 전체 통과
+node tests/war/db.test.mjs           # 전체 통과
+node tests/war/import.test.mjs       # 전체 통과
+node tests/war/real-preview.test.mjs # 전체 통과
+node tests/trade/db.test.mjs         # 전체 통과
+git status --short                   # 3번 목록 밖의 파일 변경 없음
+```
+- 화면: Live Server `app/war/index.html?preview=1` 지도가 64px 그림으로 보이고, F12 콘솔에 빨간 오류 없음 (확인 못 하면 「미확인」)
+- `C:\projects\nation`에서 `git status --short` 결과가 비어 있음
 
 ## 5. 보고 (`docs/tasks/report.md`에 덮어쓰기)
-- 바뀐 파일과 내용 5줄 요약
-- 한글 이름 확인 결과 (병력·지형·자원·시설 각각 몇 종류 확인했는지)
-- 화면 확인 결과 (확인 못 한 것은 「미확인」)
-- 못 한 것이 있으면 맨 위에 「실패: 이유」
-- 마지막 줄: 「커밋·푸시하지 않았습니다」
+1부·2부 각각 바뀐 내용 3줄 이내, 시험 결과 마지막 줄들, `small/` 파일 수·용량, 전투기 그림 확인 결과, 못 한 것은 맨 위 「실패: 이유」, 마지막 줄 「커밋·푸시하지 않았습니다」
