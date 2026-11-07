@@ -9,7 +9,7 @@ const ctx = await createDb();
 const seed = await seedTradeState(ctx);
 const { db, rpc } = ctx;
 // 무역 SQL 다음에 전쟁 SQL 설치 → 교사 uid로 「무역 게임에서 가져오기」 (tests/war/import.test.mjs와 같은 방식)
-for (const f of ['schema.sql', 'functions.sql']) {
+for (const f of ['schema.sql', 'config.sql', 'functions.sql']) {
   await db.exec(readFileSync(new URL(`../../supabase/war/${f}`, import.meta.url), 'utf8'));
 }
 await rpc(seed.ADMIN, 'war_admin_import', '초기화');

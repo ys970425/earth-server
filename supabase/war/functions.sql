@@ -1,11 +1,22 @@
 create or replace function war.admin_import(p_confirm text) returns jsonb
 language plpgsql security definer set search_path = war, priv, public as $$
 declare
-  cfg jsonb;
-  u record;
+  cfg jsonb;          -- 무역 규칙 (UNITS, CS_TIERS, W)
+  wcfg jsonb;         -- 전쟁 규칙 (BRANCH, BUILDING_CLASS, MARKET, SPECIALTY_ITEM, TURN)
+  u record; cr record; co record; mrow record;
   destination int;
   moved int := 0;
   converted int;
+  cities_list text[];
+  facs text[];
+  i int; n int;
+  br text;            -- 지급할 병과
+  k text;             -- 지급할 병력 종류
+  cap_tile int;
+  dest_tile int; cand int;
+  new_id int;
+  reason text;
+  granted int := 0;
 begin
   perform priv.need_admin();
   if p_confirm is distinct from '초기화' then
@@ -14,8 +25,12 @@ begin
   -- 같은 표를 동시에 초기화하는 요청도 순서대로 처리한다.
   lock table war.game in exclusive mode;
   cfg := priv.cfg();
+  wcfg := war.cfg();
+  if wcfg is null then raise exception 'war.config가 비어 있어요. config.sql을 먼저 실행해 주세요'; end if;
   truncate war.game, war.countries, war.inventory, war.tiles, war.cities,
-    war.units, war.factories, war.advanced;
+    war.units, war.factories, war.advanced,
+    war.roles, war.wallets, war.city_facilities, war.diplomacy, war.offers,
+    war.markets, war.market_stock, war.grants, war.versions;
   insert into war.game(id, turn, imported_at)
     select id, turn, now() from public.game;
   insert into war.countries
@@ -71,25 +86,164 @@ begin
     update war.units set tile_id = destination where id = u.id;
     moved := moved + 1;
   end loop;
+
+  -- 병력 조종 역할: 군사 유닛은 병과, 노동자·정찰병은 공병사령관 (설계 2장, H3-3)
+  update war.units set commander = case
+    when kind in ('worker', 'scout') then 'engineer'
+    else wcfg->'BRANCH'->>kind end
+   where commander is null;
+
+  -- 공장·고등 건물을 도시에 배치 (설계 3-2): 수도가 아닌 도시들에 골고루, 결정적 순서로
+  for co in select id from war.countries order by id loop
+    cities_list := (select array_agg(id order by id) from war.cities where country = co.id and kind <> 'capital');
+    if cities_list is null then
+      cities_list := (select array_agg(id order by id) from war.cities where country = co.id and kind = 'capital');
+    end if;
+    facs := coalesce((select array_agg('factory|' || kind order by kind) from priv.factories where country = co.id), '{}')
+         || coalesce((select array_agg('advanced|' || kind order by kind) from priv.advanced where country = co.id), '{}');
+    for i in 1 .. coalesce(array_length(facs, 1), 0) loop
+      insert into war.city_facilities(city, kind, class, ruined, origin_country)
+      values (cities_list[1 + (i - 1) % coalesce(array_length(cities_list, 1), 1)],
+        split_part(facs[i], '|', 2), split_part(facs[i], '|', 1), false, co.id);
+    end loop;
+  end loop;
+
+  -- 병과 최소 지급 (설계 3-3): 육군→창병, 해군→삼단노선, 공군→전투기. 빈 칸 = 군사 유닛이 없는 칸
+  for co in select id from war.countries order by id loop
+    foreach br in array array['army', 'navy', 'air'] loop
+      continue when exists (
+        select 1 from war.units where country = co.id and coalesce(wcfg->'BRANCH'->>kind, '') = br);
+      dest_tile := null; reason := null; k := null;
+      if br = 'army' then
+        k := 'spear';
+        cap_tile := (select c.tile_id from war.cities c where c.country = co.id and c.kind = 'capital');
+        -- 수도 칸이 비었으면 수도 칸, 아니면 수도에서 가장 가까운 빈 땅 칸 (우리 땅 우선, 바다·산·다른 나라 도시 제외)
+        select t.id into dest_tile from war.tiles t
+        where t.terrain not in ('ocean', 'coast', 'mountain')
+          and not exists (select 1 from war.cities c where c.tile_id = t.id and c.country is distinct from co.id)
+          and not exists (select 1 from war.units m where m.tile_id = t.id and m.kind not in ('worker', 'scout'))
+        order by priv.tdist(cap_tile, t.id),
+          case when t.owner = co.id then 0 else 1 end, t.id limit 1;
+        if dest_tile is null then reason := '빈 땅 칸이 없어요'; end if;
+      elsif br = 'navy' then
+        k := 'trireme';
+        select count(*) into n from war.cities c where c.country = co.id and exists (
+          select 1 from war.tiles t where t.terrain in ('ocean', 'coast') and priv.tdist(t.id, c.tile_id) = 1);
+        if n = 0 then
+          reason := '해안 도시가 없어 해군을 줄 수 없어요';
+        else
+          -- 해안 도시(수도 먼저, 그다음 도시 번호순) 옆의 빈 바다·해안 칸
+          for cr in select c.id, c.tile_id from war.cities c
+            where c.country = co.id and exists (
+              select 1 from war.tiles t where t.terrain in ('ocean', 'coast') and priv.tdist(t.id, c.tile_id) = 1)
+            order by (c.kind = 'capital') desc, c.id loop
+            select t.id into dest_tile from war.tiles t
+            where t.terrain in ('ocean', 'coast')
+              and priv.tdist(t.id, cr.tile_id) = 1
+              and not exists (select 1 from war.units m where m.tile_id = t.id and m.kind not in ('worker', 'scout'))
+            order by t.id limit 1;
+            exit when dest_tile is not null;
+          end loop;
+          if dest_tile is null then reason := '해안 도시 옆에 빈 바다 칸이 없어요'; end if;
+        end if;
+      else
+        k := 'fighter';
+        cap_tile := (select c.tile_id from war.cities c where c.country = co.id and c.kind = 'capital');
+        -- 수도 옆 빈 땅 칸 (바다·산·다른 나라 도시 제외)
+        select t.id into dest_tile from war.tiles t
+        where t.terrain not in ('ocean', 'coast', 'mountain')
+          and priv.tdist(t.id, cap_tile) = 1
+          and not exists (select 1 from war.cities c where c.tile_id = t.id and c.country is distinct from co.id)
+          and not exists (select 1 from war.units m where m.tile_id = t.id and m.kind not in ('worker', 'scout'))
+        order by case when t.owner = co.id then 0 else 1 end, t.id limit 1;
+        if dest_tile is null then reason := '수도 옆에 빈 땅 칸이 없어요'; end if;
+      end if;
+      if dest_tile is not null then
+        select coalesce(max(id), 0) + 1 into new_id from war.units;
+        insert into war.units(id, country, kind, tile_id, hp, commander)
+          values (new_id, co.id, k, dest_tile, 100, br);
+        insert into war.grants(country, branch, kind, unit_id, result)
+          values (co.id, br, k, new_id, 'given');
+        granted := granted + 1;
+      else
+        insert into war.grants(country, branch, kind, result, reason)
+          values (co.id, br, k, 'skipped', reason);
+      end if;
+    end loop;
+  end loop;
+
+  -- 도시국가 물물교환 시장 3곳 (설계 7장): 후보 칸이 쓰이고 있으면 가장 가까운 빈 바다 칸으로 옮긴다
+  i := 0;
+  for mrow in select * from jsonb_to_recordset(wcfg->'MARKET'->'cities') as x(name text, c int, r int, art text) loop
+    i := i + 1;
+    cand := mrow.r * (cfg->>'W')::int + mrow.c;
+    if exists (select 1 from war.cities c where c.tile_id = cand)
+      or exists (select 1 from war.units uu where uu.tile_id = cand)
+      or exists (select 1 from war.tiles t where t.id = cand and t.owner is not null) then
+      select t.id into dest_tile from war.tiles t
+      where t.terrain in ('ocean', 'coast') and t.owner is null
+        and not exists (select 1 from war.cities c where c.tile_id = t.id)
+        and not exists (select 1 from war.units uu where uu.tile_id = t.id)
+      order by priv.tdist(cand, t.id), t.id limit 1;
+      if dest_tile is null then raise exception '시장을 놓을 빈 바다 칸이 없어요'; end if;
+    else
+      dest_tile := cand;
+    end if;
+    update war.tiles set terrain = 'plains', owner = null where id = dest_tile;
+    insert into war.markets(id, tile_id, art, name) values (i, dest_tile, mrow.art, mrow.name);
+  end loop;
+  -- 시장 창고: 여섯 나라 특산 4개씩
+  insert into war.market_stock(market, item, qty)
+    select m.id, s.value, (wcfg->'MARKET'->>'stock')::int
+    from war.markets m, jsonb_each_text(wcfg->'SPECIALTY_ITEM') s;
+
+  -- 외교: 여섯 나라 모든 쌍이 평화에서 시작 (설계 6장)
+  insert into war.diplomacy(a, b, status)
+    select a.id, b.id, 'peace' from war.countries a, war.countries b where a.id < b.id;
+
+  -- 게임 기본값 (설계 1-2, 6장, 11장)
+  update war.game set turn_seconds = (wcfg->'TURN'->>'seconds')::int,
+    paused = false, combat_on = true, turn_end = null where id = 1;
+
   return jsonb_build_object(
     'countries', (select count(*) from war.countries),
     'tiles', (select count(*) from war.tiles),
     'cities', (select count(*) from war.cities),
     'units', (select count(*) from war.units),
-    'moved_units', moved, 'converted_cities', converted);
+    'moved_units', moved, 'converted_cities', converted,
+    'grants', granted,
+    'facilities', (select count(*) from war.city_facilities),
+    'markets', (select count(*) from war.markets));
 end $$;
 revoke all on function war.admin_import(text) from public;
+
+-- 지급 결과 표 (설계 3-3): 교사만
+create or replace function war.admin_grants() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  perform priv.need_admin();
+  return jsonb_build_object('grants', (select coalesce(jsonb_agg(to_jsonb(g) order by g.country, g.branch), '[]')
+    from war.grants g));
+end $$;
+revoke all on function war.admin_grants() from public;
 
 create or replace function public.war_admin_import(p_confirm text) returns jsonb
 language sql security definer set search_path = war, priv, public as $$
   select war.admin_import(p_confirm)
 $$;
+create or replace function public.war_admin_grants() returns jsonb
+language sql security definer set search_path = war, priv, public as $$
+  select war.admin_grants()
+$$;
+revoke all on function public.war_admin_import(text) from public;
+revoke all on function public.war_admin_grants() from public;
 do $$
 declare role_name text;
 begin
   foreach role_name in array array['anon', 'authenticated'] loop
     if exists (select 1 from pg_roles where rolname = role_name) then
       execute format('grant execute on function public.war_admin_import(text) to %I', role_name);
+      execute format('grant execute on function public.war_admin_grants() to %I', role_name);
     end if;
   end loop;
 end $$;

@@ -6,7 +6,7 @@ try {
   const seed = await seedTradeState(ctx);
   const { db, one, ok, rpc, fail } = ctx;
   const dir = new URL('../../supabase/war/', import.meta.url);
-  const sql = ['schema.sql', 'functions.sql'].map(f => readFileSync(new URL(f, dir), 'utf8'));
+  const sql = ['schema.sql', 'config.sql', 'functions.sql'].map(f => readFileSync(new URL(f, dir), 'utf8'));
   for (let i = 0; i < 2; i++) for (const source of sql) await db.exec(source);
   ok(true, '전쟁 SQL을 두 번 설치해도 안전함');
   const finalCity = await one(`select id from priv.cities where final and not rebel order by id limit 1`);
@@ -36,7 +36,9 @@ try {
   const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   ok(equal(before, afterFirst) && equal(before, afterSecond), '두 번 가져온 뒤에도 무역의 모든 표 지문이 같음');
   ok(first.countries === 6 && first.tiles === 1120, '나라 6개와 지도 칸 1120개를 가져옴');
-  ok(first.units === (await one('select count(*)::int n from priv.units')).n, '무역의 모든 병력을 가져옴');
+  ok(first.units === (await one('select count(*)::int n from priv.units')).n +
+    (await one(`select count(*)::int n from war.grants where result = 'given'`)).n,
+    '무역의 모든 병력 + 병과 지급 병력을 가져옴');
   ok(equal(firstCounts, await counts()), '두 번 가져와도 모든 전쟁 표의 행 수가 같음');
   ok(equal(first, second) && equal(positions, (await db.query('select id, tile_id from war.units order by id')).rows), '재배치 위치와 개수 요약이 결정적임');
   for (const civilian of [false, true]) {

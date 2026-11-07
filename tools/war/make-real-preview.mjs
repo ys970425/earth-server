@@ -8,7 +8,7 @@ import { stateFromWar } from './state-from-war.mjs';
 export async function convert(exportData) {
   const { db, rpc } = await createDb();
   try {
-    for (const f of ['schema.sql', 'functions.sql']) {
+    for (const f of ['schema.sql', 'config.sql', 'functions.sql']) {
       await db.exec(readFileSync(new URL(`../../supabase/war/${f}`, import.meta.url), 'utf8'));
     }
     const admin = randomUUID();

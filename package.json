@@ -1,12 +1,14 @@
 {
   "scripts": {
     "test:war:import": "node tests/war/import.test.mjs",
+    "test:war:import2": "node tests/war/import-v2.test.mjs",
     "test:war": "node tests/war/db.test.mjs",
     "test:war:rules": "node tests/war/rules.test.mjs",
     "test:trade": "node tests/trade/db.test.mjs",
     "war:preview:real": "node tools/war/make-real-preview.mjs",
     "test:war:real": "node tests/war/real-preview.test.mjs",
-    "war:preview": "node tools/war/make-preview.mjs"
+    "war:preview": "node tools/war/make-preview.mjs",
+    "war:config": "node tools/war/build-config.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.15"

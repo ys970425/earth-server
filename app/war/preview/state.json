@@ -1867,7 +1867,7 @@
   ],
   [
    266,
-   "coast",
+   "plains",
    null,
    null,
    null
@@ -2630,7 +2630,7 @@
   ],
   [
    375,
-   "coast",
+   "plains",
    null,
    null,
    null
@@ -4604,7 +4604,7 @@
   ],
   [
    657,
-   "coast",
+   "plains",
    null,
    null,
    null
@@ -8966,6 +8966,54 @@
    "tile": 854,
    "hp": 100,
    "done": false
+  },
+  {
+   "id": 85,
+   "country": 1,
+   "kind": "fighter",
+   "tile": 459,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 86,
+   "country": 2,
+   "kind": "fighter",
+   "tile": 465,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 87,
+   "country": 3,
+   "kind": "fighter",
+   "tile": 529,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 88,
+   "country": 4,
+   "kind": "fighter",
+   "tile": 554,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 89,
+   "country": 5,
+   "kind": "fighter",
+   "tile": 95,
+   "hp": 100,
+   "done": false
+  },
+  {
+   "id": 90,
+   "country": 6,
+   "kind": "fighter",
+   "tile": 893,
+   "hp": 100,
+   "done": false
   }
  ],
  "countries": [
@@ -8983,7 +9031,7 @@
     "iron": 2,
     "wood": 10
    },
-   "units": 7,
+   "units": 8,
    "cities": 2
   },
   {
@@ -9000,7 +9048,7 @@
     "jewelry": 7,
     "wood": 10
    },
-   "units": 7,
+   "units": 8,
    "cities": 1
   },
   {
@@ -9017,7 +9065,7 @@
     "iron": 2,
     "wood": 6
    },
-   "units": 7,
+   "units": 8,
    "cities": 1
   },
   {
@@ -9034,7 +9082,7 @@
     "wine": 7,
     "wood": 6
    },
-   "units": 7,
+   "units": 8,
    "cities": 1
   },
   {
@@ -9051,7 +9099,7 @@
     "iron": 2,
     "wood": 6
    },
-   "units": 7,
+   "units": 8,
    "cities": 1
   },
   {
@@ -9068,7 +9116,7 @@
     "spice": 7,
     "wood": 6
    },
-   "units": 7,
+   "units": 8,
    "cities": 1
   }
  ]

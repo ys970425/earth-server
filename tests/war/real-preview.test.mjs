@@ -8,7 +8,7 @@ const ctx = await createDb();
 try {
   const { db, rpc } = ctx;
   const { ADMIN, students } = await seedTradeState(ctx);
-  for (const f of ['schema.sql', 'functions.sql']) {
+  for (const f of ['schema.sql', 'config.sql', 'functions.sql']) {
     await db.exec(readFileSync(new URL(`../../supabase/war/${f}`, import.meta.url), 'utf8'));
   }
   await db.exec(`update priv.cities set country = 1 where id = (
