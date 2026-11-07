@@ -1,26 +1,28 @@
-# 작업지시서: E2 화면 고치기 (Chrome 확인 결과)
+# 작업지시서: E2 화면 고치기 2 — 다른 나라 땅이 검게 보임
 
 - 저장소: `C:\projects\earth-server`, 브랜치 **`war-version`** (`git branch --show-current`로 확인)
-- 지난 E2 작업은 아직 커밋 전이다. 그 위에서 이어서 고친다.
+- 지난 E2 작업과 화면 고치기 1은 아직 커밋 전이다. 그 위에서 이어서 고친다.
 
 ## ⚠️ 꼭 지킬 것
 - **커밋과 푸시를 하지 않는다.** Supabase 접속, `private/` 열기, `npm run war:preview:real` 실행 금지. 무역 앱 파일 수정 금지.
 
-## Claude가 이미 고친 것 (그대로 둘 것)
-- `app/war/js/war-api.js`의 `rpc()`: 미리보기 가짜 서버(`makeFake`)가 한 번도 만들어지지 않아 모든 화면이 「Cannot read properties of null (reading 'rpc')」로 멈췄다. 처음 부를 때 `makeFake(await WarData.load())`로 만들도록 한 줄 고쳤다.
+## 확인된 결과 (Claude가 Chrome으로 확인)
+- 합동참모의장 화면 지도: 이제 `?preview=real&as=1:chief`, `?preview=1&as=1:chief` 모두 **정상으로 보임**, 콘솔 오류 없음, 첫 탭 이름 정상. (이 부분은 더 고치지 않는다)
+- **새 문제:** `?preview=real` 역할 화면에서 다른 나라 땅 칸이 **검게** 칠해진다.
+  - 원인: `app/war/js/war-app.js`가 지도에 `countries`로 **우리 나라 하나만** 넘긴다. 다른 나라 땅은 `war-hexmap.js`의 `colorOf()`가 기본색 `'#888'`을 돌려주고, 거기에 `'30'`을 붙여 `'#88830'`(잘못된 색)이 되어 앞 색(어두운 색)이 그대로 칠해진다.
 
-## 고칠 것 (Chrome으로 열어 본 결과)
-1. **「undefined」 내용은 다음 단계에서 열려요** — 모든 역할 화면. `war-app.js`에서 `S.tab = S.me.role`로 처음 탭을 역할 키(`chief` 등)로 정하는데, 탭 목록의 키와 맞지 않는다. 처음에는 **첫 번째 메뉴 탭**이 열리게 고친다.
-2. **합동참모의장 화면의 지도가 비어 있다** — `?preview=1&as=1:chief`와 `?preview=1&as=1:chief&size=4`에서 지도 칸이 검게 비어 있다 (`as=1:engineer`, `as=1:army`는 지도가 보임). 원인을 찾아 고친다. 예상: 합참의장일 때만 poll 결과 처리(나라 정보·대행 탭 그리기 등)에서 오류가 나 지도 데이터가 들어가지 않음. 오류는 `catch`로 숨기지 말고 고친다.
-3. **처음 지도 위치:** 역할 화면이 열리면 우리 나라 **수도로 지도가 이동**하게 한다 (지금은 지도의 엉뚱한 곳이 보임).
-4. **영어 오류 문구:** 화면에 보여 주는 오류가 자바스크립트 영어 문구면 「문제가 생겼어요. 새로고침해 주세요.」로 바꿔 보여 주고, 영어 원문은 콘솔에만 남긴다.
+## 고칠 것
+1. **서버:** `public.war_me()` 결과에 `countries`(여섯 나라의 **공개 정보만**: 번호, 이름, 유형) 목록을 더한다. 창고·코인·지갑·시설 등은 넣지 않는다. 미리보기 가짜 서버(`war-api.js`)도 같은 모양으로 돌려준다.
+2. **화면:** `war-app.js`가 지도에 여섯 나라 모두를 넘긴다 (색은 `RULES.TYPES[유형].color`).
+3. **안전장치:** `war-hexmap.js`의 `colorOf()` 기본색을 6자리(`'#888888'`)로 바꿔, 혹시 모르는 나라가 있어도 잘못된 색이 되지 않게 한다 (`// war:` 주석).
+4. **시험:** `tests/war/e2.test.mjs`에 「`war_me`의 `countries`가 6개이고 각 항목은 번호·이름·유형만 있음(코인·창고 등 없음)」 검사 추가.
 
 ## 고쳐도 되는 파일
-`app/war/js/war-app.js`, `app/war/js/war-api.js`, `app/war/js/war-admin.js`, `app/war/css/war.css`, `docs/tasks/report.md`
+`supabase/war/functions.sql`(`war_me`만), `tests/war/e2.test.mjs`, `app/war/js/war-app.js`, `app/war/js/war-api.js`, `app/war/js/war-hexmap.js`(`colorOf` 한 줄), `docs/tasks/report.md`
 
 ## 완료 조건
-- `node --check`로 위 js 통과, `node tests/war/e2.test.mjs` 「전체 통과」
-- Live Server (가능하면): `?preview=1&as=1:chief`, `&as=1:engineer`, `&as=1:army`, `&as=1:chief&size=4`에서 지도가 우리 수도 근처로 보이고 첫 탭 이름이 제대로 나옴. `admin.html?preview=1` 정상. F12 콘솔 빨간 오류 없음. 못 하면 「미확인」 (Claude가 Chrome으로 다시 확인함)
+- `node tests/war/e2.test.mjs` 「전체 통과」, `node --check`로 고친 js 통과
+- Live Server `?preview=real&as=1:chief`(가능하면): 다른 나라 땅이 그 나라 색으로 옅게 보이고 검은 칸이 없음. 못 하면 「미확인」 (Claude가 Chrome으로 다시 확인함)
 
 ## 보고 (`docs/tasks/report.md`에 덮어쓰기)
-1~4 각각 원인과 고친 내용 2줄, 시험 마지막 줄, 마지막 줄 「커밋·푸시하지 않았습니다」
+1~4 각각 1~2줄, 시험 마지막 줄, 마지막 줄 「커밋·푸시하지 않았습니다」
