@@ -58,3 +58,12 @@ body.war .map-layout { height: calc(100vh - 170px); min-height: 420px; margin-to
   body.war .map-layout { height: calc(100vh - 218px); }
   .war-banner { font-size: 13px; }
 }
+
+/* 내용이 늘어도 캔버스 크기와 카메라가 바뀌지 않게 해요. */
+body.war .map-layout { grid-template-rows: minmax(0, 1fr); }
+body.war .map-wrap, body.war .map-layout > .side { min-height: 0; height: 100%; box-sizing: border-box; }
+body.war .map-layout > .side { overflow-y: auto; overflow-anchor: none; }
+body.war .map-layout > .side > * { flex-shrink: 0; }
+@media (max-width: 900px) {
+  body.war .map-layout { height: auto; grid-template-rows: 60vh 60vh; }
+}

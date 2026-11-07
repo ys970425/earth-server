@@ -3,7 +3,7 @@
   const R = { ...window.RULES, UNITS: Object.fromEntries(Object.entries(window.RULES.UNITS).map(([kind, rule]) => [kind, { ...rule }])) };
   const HexMap = window.WarHexMap;
   const root = document.getElementById('app');
-  const S = { data: null, map: null, sel: null, country: 1, unit: null, moves: new Map(), hints: new Map(), attacks: new Map(), attacked: new Set(), loading: false, turn: 1 };
+  const S = { data: null, map: null, sel: null, country: 1, unit: null, moves: new Map(), hints: new Map(), attacks: new Map(), attacked: new Set(), besieged: new Set(), loading: false, turn: 1 };
   const $ = s => document.querySelector(s);
   function h(tag, attrs, ...kids) {
     const e = document.createElement(tag);
@@ -23,7 +23,11 @@
     for (const unit of Object.values(R.UNITS)) {
       if (unit.boss) unit.str = bossStrength;
     }
-    S.data = data;
+    S.data = structuredClone(data);
+    S.besieged.clear();
+    for (const city of S.data.cities) {
+      if (city.kind === 'capital') Object.assign(city, { def: 20, hp: 200, max_hp: 200 });
+    }
   }
 
   async function start() {
@@ -99,7 +103,6 @@
       S.map.setAtk([]);
       refreshMap();
       renderSide();
-      goCapital();
     } catch (e) {
       alert('처음 상태를 불러오지 못했어요. 다시 해 주세요.');
       console.error(e);
@@ -109,6 +112,11 @@
   function nextTurn() {
     if (S.loading) return;
     S.turn++;
+    for (const city of S.data.cities) {
+      if (S.besieged.has(city.tile)) city.hp = 20;
+    }
+    S.besieged.clear();
+    refreshMap();
     S.moves.clear();
     S.attacked.clear();
     const u = selectedUnit();
@@ -153,6 +161,7 @@
     return !S.data.units.some(other => other.id !== u.id && other.tile === id && military(other) === military(u));
   }
   function selectUnit(u) {
+    if (u.kind === 'worker') return;
     S.unit = u.id;
     S.sel = u.tile;
     S.map.select(u.tile);
@@ -165,7 +174,15 @@
       for (const other of S.data.units) {
         const distance = HexMap.hexDist(u.tile, other.tile);
         if (other.country !== u.country && military(other) && distance >= 1 && distance <= (rule(u).range || 1)) {
-          S.attacks.set(other.tile, other.id);
+          S.attacks.set(other.tile, { unit: other.id });
+        }
+      }
+    }
+    if (military(u) && !S.attacked.has(u.id)) {
+      for (const city of S.data.cities) {
+        const distance = HexMap.hexDist(u.tile, city.tile);
+        if (city.country && city.country !== u.country && distance >= 1 && distance <= (rule(u).range || 1)) {
+          S.attacks.set(city.tile, { city });
         }
       }
     }
@@ -173,28 +190,30 @@
     renderSide();
   }
 
-  function previewAttack(attacker, defender) {
-    const strength = u => (rule(u).str || 1) * (0.5 + 0.5 * (u.hp == null ? 100 : u.hp) / 100);
+  const strength = u => (rule(u).str || 1) * (0.5 + 0.5 * (u.hp == null ? 100 : u.hp) / 100);
+  function previewAttack(attacker, defender, cityAttack = false) {
     const terrain = S.map.st.tiles.get(defender.tile).terrain;
-    const ratio = strength(attacker) / (strength(defender) * (['hills', 'forest', 'jungle'].includes(terrain) ? 1.25 : 1));
+    const ratio = strength(attacker) / (cityAttack ? Math.max(1, defender.def) : strength(defender) * (['hills', 'forest', 'jungle'].includes(terrain) ? 1.25 : 1));
     const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-    const damage = clamp(Math.round(30 * ratio), 3, rule(attacker).boss ? 60 : 100);
+    const damage = cityAttack && defender.hp <= 0 ? 0 : clamp(Math.round(30 * ratio), 3, rule(attacker).boss ? 60 : 100);
     let counter = clamp(Math.round(30 * 0.6 / ratio), 1, 100);
     if (rule(attacker).range && HexMap.hexDist(attacker.tile, defender.tile) > 1) counter = Math.round(counter * 0.25);
     const dialog = h('dialog', { class: 'war-combat' },
-      h('p', {}, '예상: 상대 −' + damage + ', 우리 −' + counter),
+      h('p', {}, '예상: ' + (cityAttack ? '도시' : '상대') + ' −' + damage + ', 우리 −' + counter),
       h('small', { class: 'muted' }, '체험용 계산'),
       h('div', { class: 'war-combat-actions' },
         h('button', { class: 'small', onclick: () => dialog.close() }, '그만둘래요'),
         h('button', { class: 'small', onclick: () => {
-          defender.hp = (defender.hp == null ? 100 : defender.hp) - damage;
+          defender.hp = Math.max(0, (defender.hp == null ? 100 : defender.hp) - damage);
           attacker.hp = (attacker.hp == null ? 100 : attacker.hp) - counter;
           S.moves.set(attacker.id, 0);
           S.attacked.add(attacker.id);
           S.data.units = S.data.units.filter(u => u.hp == null || u.hp > 0);
+          const attackTile = attacker.tile;
+          if (cityAttack && defender.hp === 0) resolveCity(attacker, defender);
           refreshMap();
           S.map.floatText(defender.tile, '상대 체력 −' + damage, '#FFB3B3');
-          S.map.floatText(attacker.tile, '우리 체력 −' + counter);
+          S.map.floatText(attackTile, '우리 체력 −' + counter);
           clearUnit();
           if (attacker.hp > 0) selectUnit(attacker);
           else { S.sel = attacker.tile; S.map.select(S.sel); renderSide(); }
@@ -205,12 +224,41 @@
     dialog.showModal();
   }
 
+  function resolveCity(attacker, city) {
+    if (city.kind === 'capital') {
+      S.besieged.add(city.tile);
+      S.map.floatText(city.tile, '포위됨');
+      return;
+    }
+    if (rule(attacker).range) {
+      S.map.floatText(city.tile, '근접 병력이 들어가야 점령해요');
+      return;
+    }
+    if (attacker.hp <= 0 || rule(attacker).sea || rule(attacker).fly) return;
+    if (S.data.units.some(u => u.id !== attacker.id && u.tile === city.tile && military(u))) {
+      S.map.floatText(city.tile, '다른 병력이 있어 들어갈 수 없어요');
+      return;
+    }
+    const terrain = S.map.st.tiles.get(city.tile).terrain;
+    if (['ocean', 'coast'].includes(terrain)) return;
+    attacker.tile = city.tile;
+    city.country = attacker.country;
+    const land = new Set([city.tile, ...HexMap.neighbors(city.tile)]);
+    for (const tile of S.data.tiles) {
+      if (land.has(tile[0]) && !['ocean', 'coast'].includes(tile[1]) &&
+          !S.data.cities.some(c => c !== city && c.tile === tile[0])) tile[3] = attacker.country;
+    }
+    city.hp = city.max_hp / 2;
+    S.map.floatText(city.tile, '점령!');
+  }
+
   function onTile(id) {
     if (S.loading) return;
     const current = selectedUnit();
     if (current && S.attacks.has(id)) {
-      const target = S.data.units.find(u => u.id === S.attacks.get(id));
-      if (target) previewAttack(current, target);
+      const attack = S.attacks.get(id);
+      const target = attack.city || S.data.units.find(u => u.id === attack.unit);
+      if (target) previewAttack(current, target, !!attack.city);
       return;
     }
     if (current && S.hints.has(id)) {
@@ -221,7 +269,8 @@
       return;
     }
     clearUnit();
-    const own = S.data.units.find(u => u.tile === id && u.country === S.country);
+    const own = S.data.units.find(u => u.tile === id && u.country === S.country && military(u))
+      || S.data.units.find(u => u.tile === id && u.country === S.country && u.kind === 'scout');
     if (own) return selectUnit(own);
     S.sel = S.sel === id ? null : id;   // 같은 칸을 다시 누르면 칸 선택 해제
     S.map.select(S.sel);
@@ -231,6 +280,8 @@
   // ================= 오른쪽 창 =================
   function renderSide() {
     const side = $('#side'); if (!side) return;
+    const scrollTop = side.scrollTop;
+    const armyScrollTop = side.querySelector('.war-army-list')?.scrollTop || 0;
     side.innerHTML = '';
     side.append(h('div', { class: 'war-turn', role: 'status' }, '체험 턴 ' + S.turn));
     side.append(picker());
@@ -243,9 +294,11 @@
       military(u) ? h('p', { class: 'muted' }, S.attacked.has(u.id) ? '이번 턴에는 공격을 마쳤어요.' : '빨간 칸을 누르면 공격을 미리 볼 수 있어요.') : null));
     if (S.sel != null && S.sel >= 0 && S.map.st.tiles.get(S.sel)) tileWindow(side, S.sel);
     side.append(countryWindow(), armyWindow());
+    side.querySelector('.war-army-list').scrollTop = armyScrollTop;
+    side.scrollTop = scrollTop;
   }
   function armyWindow() {
-    const units = S.data.units.filter(u => u.country === S.country);
+    const units = S.data.units.filter(u => u.country === S.country && u.kind !== 'worker');
     return h('div', { class: 'panel war-army' },
       h('div', { class: 'panel-title' }, '병력 목록'),
       h('div', { class: 'war-army-list', role: 'group', 'aria-label': '우리 나라 병력' },
@@ -261,14 +314,14 @@
         h('span', {}, movesLeft(u) < fullMove(u) || S.attacked.has(u.id) ? '움직였어요' : '쉬는 중')))
           : h('p', { class: 'muted' }, '병력이 없어요.')));
   }
-  // 「어느 나라로 볼까요?」: 여섯 나라 중 하나 (미리보기에서만). 고르면 그 나라 수도로 지도가 이동해요
+  // 체험할 나라를 골라요.
   function picker() {
     return h('div', { class: 'panel war-pick' },
-      h('div', { class: 'panel-title' }, '어느 나라로 볼까요?', h('small', {}, '고르면 그 나라 수도로 이동해요')),
+      h('div', { class: 'panel-title' }, '어느 나라로 볼까요?', h('small', {}, '체험할 나라를 골라요')),
       h('div', { class: 'war-pick-row' }, S.data.countries.map(c =>
         h('button', {
           class: 'small war-pick-btn' + (c.id === S.country ? ' on' : ''), style: { '--gc': c.color },
-          onclick: () => { if (S.loading) return; clearUnit(); S.country = c.id; S.sel = null; S.map.select(null); goCapital(); renderSide(); }
+          onclick: () => { if (S.loading) return; clearUnit(); S.country = c.id; S.sel = null; S.map.select(null); renderSide(); }
         }, c.id + '. ' + c.name))));
   }
   // 우리 나라: 이름·색·코인·병력 수·도시 수 (+창고)
@@ -283,7 +336,7 @@
       h('div', { class: 'war-stats' },
         h('span', { class: 'stat' }, '코인 ', h('b', {}, c.coin)),
         h('span', { class: 'stat' }, '병력 ', h('b', {}, S.data.units.filter(u => u.country === c.id).length + '부대')),
-        h('span', { class: 'stat' }, '도시 ', h('b', {}, c.cities + '곳'))),
+        h('span', { class: 'stat' }, '도시 ', h('b', {}, S.data.cities.filter(city => city.country === c.id).length + '곳'))),
       inv.length ? h('div', { class: 'war-inv' }, h('small', { class: 'muted' }, '창고: '),
         inv.map(([k, n]) => h('span', { class: 'chip' }, resName(k) + ' ' + n + '개'))) : null);
   }
@@ -302,11 +355,12 @@
       t.imp ? row('시설', impName(t.imp)) : null,
       row('주인', owner ? owner.name : '빈 땅 (주인 없어요)'),
       city ? row('도시', city.name + (city.kind === 'capital' ? ' (수도)' : '')) : null,
-      city && !city.country && city.def != null ? row('도시국가', '방어 ' + city.def + ' · 체력 ' + city.hp + '/' + city.max_hp) : null,
+      city ? row('도시 체력', city.hp + '/' + city.max_hp) : null,
+      city && S.besieged.has(city.tile) ? row('도시 상태', '포위됨') : null,
       h('div', { class: 'war-units' },
         h('b', {}, '이 칸의 병력'),
         us.length ? us.map(u => h('div', { class: 'war-unit' },
-          h(u.country === S.country ? 'button' : 'span', u.country === S.country ? { class: 'small', onclick: () => { if (!S.loading) selectUnit(u); } } : {}, h('i', { class: 'war-dot', style: { background: colorOf(u.country) } }), ' ' + unitName(u.kind)),
+          h(u.country === S.country && u.kind !== 'worker' ? 'button' : 'span', u.country === S.country && u.kind !== 'worker' ? { class: 'small', onclick: () => { if (!S.loading) selectUnit(u); } } : {}, h('i', { class: 'war-dot', style: { background: colorOf(u.country) } }), ' ' + unitName(u.kind)),
           h('span', { class: 'muted' }, '체력 ' + (u.hp == null ? 100 : u.hp))))
           : h('p', { class: 'muted' }, '이 칸에는 병력이 없어요.'))));
   }
