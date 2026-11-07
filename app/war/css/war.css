@@ -40,3 +40,14 @@ body.war .map-layout { height: calc(100vh - 170px); min-height: 420px; margin-to
 .war-unit:last-child { border-bottom: 0; }
 .war-inv { margin-top: 8px; }
 .war-inv .chip { margin: 2px 2px 0 0; }
+
+.war-combat { max-width: calc(100vw - 32px); border: 3px solid var(--gold-dark); border-radius: 12px; padding: 22px; background: #fff5dc; color: #3A2600; }
+.war-combat::backdrop { background: rgba(0, 0, 0, .55); }
+.war-combat-actions { display: flex; gap: 12px; margin-top: 18px; }
+.war .map-tools { flex-wrap: wrap; max-width: calc(100% - 20px); }
+.war-turn { font-weight: 700; padding: 8px 12px; color: var(--gold); }
+@media (max-width: 700px) {
+  body.war { padding-top: 88px; }
+  body.war .map-layout { height: calc(100vh - 218px); }
+  .war-banner { font-size: 13px; }
+}
