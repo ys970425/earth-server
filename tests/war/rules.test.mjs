@@ -46,6 +46,12 @@ try {
     '전투기: 힘 40·이동 6·사거리 2');
 
   // 기본 숫자 (설계 11장)
+  ok(W.MOVES.worker === 2 && W.MOVES.scout === 5, '노동자 이동력 2 (무역 앱은 0), 정찰병 이동력 5');
+  ok(W.canPass('spear', { terrain: 'mountain' }, {}) === false && W.canPass('spear', { terrain: 'plains' }, {}) === true,
+    'canPass: 땅 유닛은 산을 못 지나가고 평원은 지나감');
+  ok(W.canPass('fighter', { terrain: 'mountain' }, { enemyUnit: true }) === true &&
+    W.canStop('fighter', { terrain: 'ocean' }, {}) === false,
+    'canPass/canStop: 공군은 병력 위를 지나가지만 바다 위에 못 멈춤');
   ok(W.TURN.seconds === 180 && W.TURN.min === 60 && W.TURN.max === 600 && W.POLL_MS === 4000,
     '턴 180초(1~10분 조절)·확인 주기 4초');
   ok(W.CAPITAL.def === 20 && W.CAPITAL.hp === 200 && W.SHIELD_TURNS === 3 && W.MAX_CITY_LOSS === 2 && W.PEACE_TURNS === 3,

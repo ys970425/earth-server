@@ -24,6 +24,7 @@ const config = {
     tariffNoSpecialtyMult: W.MARKET.tariffNoSpecialtyMult
   },
   SPECIALTY_ITEM: W.SPECIALTY_ITEM,
+  MOVES: W.MOVES,
   TURN: W.TURN,
   POLL_MS: W.POLL_MS,
   CAPITAL: W.CAPITAL,

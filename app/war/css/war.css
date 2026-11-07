@@ -65,6 +65,14 @@ body.war .map-layout { margin-top: 4px; }
 .war-absent { display: flex; gap: 6px; align-items: center; min-height: 48px; }
 .war-absent input { width: 22px; height: 22px; }
 
+/* E3: 병력 목록·메시지 */
+.war-units-list { display: flex; flex-direction: column; gap: 6px; }
+.war-unit-row { min-height: 48px; display: flex; gap: 10px; align-items: center; text-align: left; }
+.war-unit-row.on { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold); }
+.war-unit-row .row { display: flex; gap: 6px; margin-left: auto; }
+.war-msg { padding: 10px 12px; border: 3px solid var(--coral); border-radius: 12px; background: #FFF1F0; color: var(--coral-dark); }
+
+
 
 /* 체험 병력 목록: 긴 목록은 이 영역 안에서만 스크롤해요. */
 .war-army { flex-shrink: 0; min-width: 0; }

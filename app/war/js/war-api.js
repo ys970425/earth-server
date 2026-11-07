@@ -6,7 +6,7 @@
 // - WarAPI.rpc(이름, 인자객체), WarAPI.startPoll(받을 함수): 4초마다 war_poll, 실패하면 8·16초로 늘리고,
 //   성공하면 4초로 돌아와요. 화면이 안 보이면(탭 뒤로) 잠깐 멈춰요.
 (function () {
-  const W = window.WAR_RULES;
+  const R = window.RULES, W = window.WAR_RULES;
   const q = new URLSearchParams(location.search);
   const mode = q.has('preview') ? (q.get('preview') === 'real' ? 'real' : 'fake') : null;
 
@@ -61,8 +61,10 @@
     };
     const cityCountry = {};
     for (const c of state.cities) cityCountry[c.id] = c.country;
-    const unitsFull = () => state.units.map(u => ({ id: u.id, country: u.country, kind: u.kind,
-      tile: u.tile, hp: u.hp, commander: u.commander || (W.BRANCH[u.kind] === 'civil' ? 'engineer' : W.BRANCH[u.kind]) }));
+    // 병력은 메모리에서 관리 (새로고침하면 state.json대로 처음 상태). 이동력은 전쟁 규칙대로 채움
+    const units = state.units.map(u => ({ ...u, moves_left: W.MOVES_OF(u.kind) }));
+    let paused = false;
+    const unitsFull = () => units.map(u => ({ ...u }));
     const tilesFull = () => state.tiles;
     const countryPayload = c => ({
       country: c, coin: countryOf(c).coin ?? 0, inventory: countryOf(c).inventory || {},
@@ -70,6 +72,28 @@
       facilities: (state.facilities || []).filter(f => cityCountry[f.city] === c)
     });
     const versions = () => ({ ...ver, ['country:' + meCountry]: countryVer[meCountry] || 0 });
+    // act_start 흉내: 역할·결석 대행·일시정지 검사
+    function fakeAct(role) {
+      if (paused) { const e = new Error('지금은 잠깐 멈춘 시간이에요.'); e.code = 'PAUSED'; throw e; }
+      if (meRole === role) return;
+      const holder = (taken[meCountry] || {})[role];
+      const okDeputy = meRole === 'chief' && (!holder || holder.absent || (role === 'engineer' && size <= 4));
+      if (!okDeputy) { const e = new Error('이 일은 ' + (W.ROLES.find(r => r.key === role) || {}).name + '이(가) 해요.'); e.code = 'ROLE_ONLY'; throw e; }
+    }
+    const tileAt = id => state.tiles.find(t => t[0] === id);
+    const hexDist = (a, b) => {
+      const w = R.W, cube = id => { const c = id % w, r = Math.floor(id / w); const q = c - (r - (r & 1)) / 2; return [q, r, -q - r]; };
+      const A = cube(a), B = cube(b);
+      return Math.max(Math.abs(A[0] - B[0]), Math.abs(A[1] - B[1]), Math.abs(A[2] - B[2]));
+    };
+    const occAt = id => units.filter(x => x.tile === id);
+    const infoAt = (id, u) => ({
+      market: (state.markets || []).some(m => m.tile === id),
+      enemyCity: (() => { const c = state.cities.find(x => x.tile === id); return !!(c && c.country !== u.country); })(),
+      enemyUnit: occAt(id).some(x => x.country !== u.country),
+      sameKind: occAt(id).some(x => (x.kind === 'worker' || x.kind === 'scout') === (u.kind === 'worker' || u.kind === 'scout'))
+    });
+    const err = (code, msg) => { const e = new Error(msg); e.code = code; return e; };
     async function rpc(name, args) {
       args = args || {};
       await new Promise(res => setTimeout(res, 30));   // 서버 느낌
@@ -98,7 +122,10 @@
         if (k('game') == null || k('game') !== ver.game) out.game = {
           turn: state.game.turn, turn_seconds: state.game.turn_seconds ?? 180,
           turn_end: null, paused: !!state.game.paused, combat_on: state.game.combat_on !== false };
-        if (k('map') == null || k('map') === 0 || k('map') !== ver.map) out.map = (k('map') == null || k('map') === 0) ? tilesFull() : [];
+        if (k('map') == null || k('map') === 0 || k('map') !== ver.map) {
+          out.map = (k('map') == null || k('map') === 0) ? tilesFull() : [];
+          out.markets = state.markets || [];   // 시장 칸(공개 정보)은 지도 영역과 함께
+        }
         if (k('units') == null || k('units') !== ver.units) out.units = unitsFull();
         if (k('cities') == null || k('cities') !== ver.cities) out.cities = state.cities.map(c => ({
           id: c.id, tile: c.tile, country: c.country, name: c.name, hp: c.hp, max_hp: c.max_hp, besieged: !!c.besieged }));
@@ -106,6 +133,47 @@
         if (k('country') == null || k('country') !== (countryVer[meCountry] || 0)) out.country = countryPayload(meCountry);
         if (k('notice') == null || k('notice') !== ver.notice) out.notice = [];
         return out;
+      }
+      if (name === 'war_move') {
+        const u = units.find(x => x.id === args.p_unit);
+        if (!u) throw err('NO_UNIT', '없는 병력이에요.');
+        if (u.country !== meCountry) throw err('NOT_MINE', '우리 나라 병력이 아니에요.');
+        fakeAct(u.commander);
+        const path = args.p_path || [];
+        if (!path.length) throw err('BAD_PATH', '갈 칸을 골라 주세요.');
+        if (path.length > (u.moves_left || 0)) throw err('NO_MOVES', '이동력이 모자라요 (남은 이동력 ' + (u.moves_left || 0) + ')');
+        let prev = u.tile;
+        for (const step of path) {
+          if (prev == null || step == null || hexDist(prev, step) !== 1) throw err('BAD_PATH', '이어지지 않는 길이에요.');
+          const t = tileAt(step);
+          if (!t) throw err('BAD_PATH', '없는 칸이에요.');
+          const o = infoAt(step, u);
+          if (!W.canPass(u.kind, { terrain: t[1] }, o)) throw err('NO_ENTRY', '지나갈 수 없는 칸이에요.');
+          prev = step;
+        }
+        const last = tileAt(prev);
+        if (!W.canStop(u.kind, { terrain: last[1] }, infoAt(prev, u))) {
+          throw (occAt(prev).some(x => (x.kind === 'worker' || x.kind === 'scout') === (u.kind === 'worker' || u.kind === 'scout'))
+            ? err('TILE_TAKEN', '먼저 온 병력이 있어요. 다른 칸을 골라 주세요.')
+            : err('BAD_STOP', '공기는 바다 위에 멈출 수 없어요. 땅으로 가요.'));
+        }
+        u.tile = prev;
+        u.moves_left -= path.length;
+        bump('units');
+        return { ok: true, unit: u.id, kind: u.kind, tile: u.tile, moves_left: u.moves_left };
+      }
+      if (name === 'war_transfer') {
+        const u = units.find(x => x.id === args.p_unit);
+        if (!u) throw err('NO_UNIT', '없는 병력이에요.');
+        if (u.country !== meCountry) throw err('NOT_MINE', '우리 나라 병력이 아니에요.');
+        fakeAct(u.commander);
+        if (u.kind === 'worker' || u.kind === 'scout') throw err('NOT_MILITARY', '노동자와 정찰병은 넘길 수 없어요.');
+        const to = args.p_to;
+        if (!['army', 'navy', 'air'].includes(to)) throw err('BAD_BRANCH', '육·해·공 참모총장 중에 골라 주세요.');
+        if (to === u.commander) throw err('SAME_BRANCH', '이미 그 참모총장이 조종하고 있어요.');
+        u.commander = to;
+        bump('units');
+        return { ok: true, unit: u.id, kind: u.kind, commander: u.commander };
       }
       if (name === 'war_admin_roles') {
         const rows = [];

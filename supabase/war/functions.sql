@@ -56,6 +56,126 @@ begin
 end $$;
 revoke all on function war.bump(text, int) from public;
 
+-- 병력의 칸을 바꾸는 유일한 길. 이후 이동·생산·점령 함수는 칸을 바꿀 때 반드시 이 함수를 쓴다.
+-- 한 칸 한 유닛 유일 조건에 걸리면(동시에 같은 칸으로 들어온 늦은 쪽) 쉬운 말로 알려 준다.
+create or replace function war.place_unit(p_unit int, p_tile int) returns void
+language plpgsql as $$
+begin
+  update war.units set tile_id = p_tile where id = p_unit;
+  if not found then
+    perform priv.err('NO_UNIT', '없는 병력이에요.');
+  end if;
+exception when unique_violation then
+  perform priv.err('TILE_TAKEN', '먼저 온 병력이 있어요. 다른 칸을 골라 주세요.');
+end $$;
+revoke all on function war.place_unit(int, int) from public;
+
+-- 병력의 남은 이동력 (설계 4-4): 노동자 2, 정찰병 5, 구축함·전투기는 전쟁 규칙, 나머지는 무역 규칙
+create or replace function war.moves_left_full(p_kind text, cfg jsonb, wcfg jsonb) returns int
+language sql stable as $$
+  select case when p_kind = 'worker' then (wcfg->'MOVES'->>'worker')::int
+    when p_kind = 'scout' then (wcfg->'MOVES'->>'scout')::int
+    else coalesce((wcfg->'EXTRA_UNITS'->p_kind->>'move')::int, (cfg->'UNITS'->p_kind->>'move')::int, 0) end
+$$;
+
+-- 이동 (설계 4-4): 경로를 한 칸씩 검사하고 마지막 칸은 war.place_unit으로 놓는다 (한 칸 한 유닛은 DB가 최종 판정)
+create or replace function public.war_move(p_unit int, p_path int[]) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  cfg jsonb := priv.cfg();
+  wcfg jsonb := war.cfg();
+  u war.units;
+  t war.tiles;
+  my_country int;
+  sea boolean; air boolean;
+  left_ int;
+  i int; step int; prev int;
+begin
+  select * into u from war.units where id = p_unit;
+  if not found then perform priv.err('NO_UNIT', '없는 병력이에요.'); end if;
+  select country_id into my_country from priv.students where uid = auth.uid();
+  if my_country is null then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요.'); end if;
+  if u.country <> my_country then perform priv.err('NOT_MINE', '우리 나라 병력이 아니에요.'); end if;
+  -- 역할·결석 대행·일시정지 검사와 나라 잠금 (병력의 조종 역할로)
+  perform war.act_start(u.commander);
+  select * into u from war.units where id = p_unit for update;
+  sea := coalesce((wcfg->'EXTRA_UNITS'->u.kind->>'sea')::boolean, (cfg->'UNITS'->u.kind->>'sea')::boolean, false);
+  air := coalesce(wcfg->'BRANCH'->>u.kind, '') = 'air';
+  left_ := u.moves_left;
+  if coalesce(array_length(p_path, 1), 0) = 0 then perform priv.err('BAD_PATH', '갈 칸을 골라 주세요.'); end if;
+  if array_length(p_path, 1) > left_ then
+    perform priv.err('NO_MOVES', '이동력이 모자라요 (남은 이동력 ' || left_ || ')');
+  end if;
+  prev := u.tile_id;
+  for i in 1 .. array_length(p_path, 1) loop
+    step := p_path[i];
+    if step is null or prev is null or priv.tdist(prev, step) <> 1 then
+      perform priv.err('BAD_PATH', '이어지지 않는 길이에요.');
+    end if;
+    select * into t from war.tiles where id = step;
+    if not found then perform priv.err('BAD_PATH', '없는 칸이에요.'); end if;
+    -- 모든 병력: 다른 나라 도시 칸과 시장 칸에는 들어갈 수 없음
+    if exists (select 1 from war.cities c where c.tile_id = step and c.country is distinct from u.country) then
+      perform priv.err('NO_ENTRY', '다른 나라 도시에는 들어갈 수 없어요.');
+    end if;
+    if exists (select 1 from war.markets m where m.tile_id = step) then
+      perform priv.err('NO_ENTRY', '시장 섬에는 들어갈 수 없어요.');
+    end if;
+    if not air then
+      if sea then
+        -- 배: 바다·해안만 (출발 칸은 검사하지 않는다 — 점령한 도시에서 나갈 수 있게)
+        if t.terrain not in ('ocean', 'coast') then perform priv.err('BAD_TILE', '배는 바다로만 다녀요.'); end if;
+      else
+        -- 땅 유닛: 바다·해안·산 금지
+        if t.terrain in ('ocean', 'coast', 'mountain') then perform priv.err('BAD_TILE', '바다와 산은 지나갈 수 없어요.'); end if;
+        -- 땅·바다 유닛: 다른 나라 병력(군사·민간)이 있는 칸을 지나갈 수 없음
+        if exists (select 1 from war.units o where o.tile_id = step and o.country <> u.country) then
+          perform priv.err('BLOCKED', '다른 나라 병력이 있는 칸은 지나갈 수 없어요.');
+        end if;
+      end if;
+    end if;
+    prev := step;
+  end loop;
+  -- 멈추는 칸: 공군은 바다·해안에 멈출 수 없음. 같은 종류 병력 유무는 place_unit의 유일 조건이 최종 판정
+  if air and t.terrain in ('ocean', 'coast') then
+    perform priv.err('BAD_STOP', '공기는 바다 위에 멈출 수 없어요. 땅으로 가요.');
+  end if;
+  perform war.place_unit(u.id, prev);
+  update war.units set moves_left = left_ - array_length(p_path, 1) where id = u.id;
+  perform war.bump('units');
+  return jsonb_build_object('ok', true, 'unit', u.id, 'kind', u.kind, 'tile', prev,
+    'moves_left', left_ - array_length(p_path, 1));
+end $$;
+revoke all on function public.war_move(int, int[]) from public;
+
+-- 지휘권 넘기기 (설계 4-3): 병력 종류·이동력은 그대로, 조종하는 참모총장만 바뀜
+create or replace function public.war_transfer(p_unit int, p_to text) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  u war.units;
+  my_country int;
+begin
+  select * into u from war.units where id = p_unit;
+  if not found then perform priv.err('NO_UNIT', '없는 병력이에요.'); end if;
+  select country_id into my_country from priv.students where uid = auth.uid();
+  if my_country is null then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요.'); end if;
+  if u.country <> my_country then perform priv.err('NOT_MINE', '우리 나라 병력이 아니에요.'); end if;
+  perform war.act_start(u.commander);
+  if u.kind in ('worker', 'scout') then
+    perform priv.err('NOT_MILITARY', '노동자와 정찰병은 넘길 수 없어요.');
+  end if;
+  if p_to not in ('army', 'navy', 'air') then
+    perform priv.err('BAD_BRANCH', '육·해·공 참모총장 중에 골라 주세요.');
+  end if;
+  if p_to = u.commander then
+    perform priv.err('SAME_BRANCH', '이미 그 참모총장이 조종하고 있어요.');
+  end if;
+  update war.units set commander = p_to where id = u.id;
+  perform war.bump('units');
+  return jsonb_build_object('ok', true, 'unit', u.id, 'kind', u.kind, 'commander', p_to);
+end $$;
+revoke all on function public.war_transfer(int, text) from public;
+
 create or replace function war.admin_import(p_confirm text) returns jsonb
 language plpgsql security definer set search_path = war, priv, public as $$
 declare
@@ -108,24 +228,23 @@ begin
   get diagnostics converted = row_count;
   insert into war.factories select country, kind from priv.factories;
   insert into war.advanced select country, kind from priv.advanced;
+  -- 원래 칸의 첫 유닛만 제자리에, 나머지(겹친 것·맞지 않는 지형·다른 나라 도시 칸)는 칸을 비워서 넣는다.
+  -- (판정은 예전 「insert 뒤 update ... set tile_id = null」과 같음. 한 칸 한 유닛 유일 조건을 어기지 않게 하려고 순서만 바꿈)
   insert into war.units(id, country, kind, tile_id, hp)
-    select id, country, kind, tile_id, 100 from priv.units;
-
-  -- 원래 칸의 첫 유닛을 먼저 예약하고, 이동할 유닛의 자리를 모두 비운다.
-  with ranked as (
-    select id, row_number() over (
-      partition by tile_id, (kind in ('worker', 'scout')) order by id) as n
-    from war.units
-  )
-  update war.units w set tile_id = null
-  from ranked x, war.tiles t
-  where w.id = x.id and t.id = w.tile_id and (
-    x.n > 1 or
-    case when coalesce((cfg->'UNITS'->w.kind->>'sea')::boolean, false)
-      then t.terrain not in ('ocean', 'coast')
-      else t.terrain in ('ocean', 'coast', 'mountain') or exists (
-        select 1 from war.cities c where c.tile_id = t.id and c.country is distinct from w.country)
-    end);
+  select s.id, s.country, s.kind,
+    case when t.id is null then s.tile_id
+         when x.n > 1 then null
+         when coalesce((cfg->'UNITS'->s.kind->>'sea')::boolean, false)
+           then case when t.terrain in ('ocean', 'coast') then s.tile_id else null end
+         when t.terrain in ('ocean', 'coast', 'mountain') then null
+         when exists (select 1 from war.cities c where c.tile_id = t.id and c.country is distinct from s.country) then null
+         else s.tile_id end,
+    100
+  from priv.units s
+  join (select id, row_number() over (
+          partition by tile_id, (kind in ('worker', 'scout')) order by id) as n
+        from priv.units) x on x.id = s.id
+  left join war.tiles t on t.id = s.tile_id;
   for u in select w.*, s.tile_id as origin from war.units w
     join priv.units s on s.id = w.id where w.tile_id is null order by w.id loop
     select t.id into destination from war.tiles t
@@ -265,6 +384,8 @@ begin
   -- 게임 기본값 (설계 1-2, 6장, 11장)
   update war.game set turn_seconds = (wcfg->'TURN'->>'seconds')::int,
     paused = false, combat_on = true, turn_end = null where id = 1;
+  -- 모든 병력의 이동력을 채운다 (설계 4-4: 노동자 2, 정찰병 5, 나머지는 무역·전쟁 규칙). 턴마다 채우기는 E5
+  update war.units set moves_left = war.moves_left_full(kind, cfg, wcfg);
   -- 지도 영역 번호를 1로 시작 (칸 ver은 전부 0. 칸을 바꾸는 함수는 bump('map') 뒤 그 칸 ver을 새 번호로)
   perform war.bump('map');
 
@@ -437,18 +558,21 @@ begin
       'turn', turn, 'turn_seconds', turn_seconds, 'turn_end', turn_end, 'paused', paused, 'combat_on', combat_on)
       from war.game where id = 1));
   end if;
-  -- map: 바뀐 칸만 [id, terrain, res, owner, imp, imp_ruined]. 처음엔 전체
+  -- map: 바뀐 칸만 [id, terrain, res, owner, imp, imp_ruined]. 처음엔 전체. 시장 칸(공개 정보)도 함께
   k := (known->>'map')::bigint;
   if k is null or k = 0 or k is distinct from v_map then
     out := out || jsonb_build_object('map', (select coalesce(jsonb_agg(
       jsonb_build_array(id, terrain, res, owner, imp, imp_ruined) order by id), '[]'::jsonb)
-      from war.tiles where k is null or k = 0 or ver > k));
+      from war.tiles where k is null or k = 0 or ver > k),
+      'markets', (select coalesce(jsonb_agg(jsonb_build_object(
+        'id', m.id, 'tile', m.tile_id, 'art', m.art, 'name', m.name) order by m.id), '[]'::jsonb)
+      from war.markets m));
   end if;
   -- units: 전체 목록 (번호·나라·종류·칸·체력·조종 역할)
   k := (known->>'units')::bigint;
   if k is null or k is distinct from v_units then
     out := out || jsonb_build_object('units', (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', id, 'country', country, 'kind', kind, 'tile', tile_id, 'hp', hp, 'commander', commander) order by id), '[]'::jsonb)
+      'id', id, 'country', country, 'kind', kind, 'tile', tile_id, 'hp', hp, 'commander', commander, 'moves_left', moves_left) order by id), '[]'::jsonb)
       from war.units));
   end if;
   -- cities: 전체 목록 (번호·칸·주인·이름·체력·최대·포위)
@@ -560,6 +684,8 @@ begin
       execute format('grant execute on function public.war_admin_roles() to %I', role_name);
       execute format('grant execute on function public.war_admin_set_absent(int, boolean) to %I', role_name);
       execute format('grant execute on function public.war_admin_set_role(int, text) to %I', role_name);
+      execute format('grant execute on function public.war_move(int, int[]) to %I', role_name);
+      execute format('grant execute on function public.war_transfer(int, text) to %I', role_name);
     end if;
   end loop;
 end $$;

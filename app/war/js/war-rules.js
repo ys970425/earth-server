@@ -99,6 +99,30 @@
   W.MAX_CITY_LOSS = 2;                            // 한 나라가 잃을 수 있는 도시 최대 2곳
   W.PEACE_TURNS = 3;                              // 평화 뒤 3턴 동안 재선포 금지
 
+  // ---------- 이동 (설계 4-4, E3) ----------
+  // 노동자 이동력 2 (무역 앱은 0), 정찰병은 SCOUT_MOVE(5). 나머지는 무역 규칙·구축함·전투기 순서로
+  W.MOVES = { worker: 2, scout: R.SCOUT_MOVE };
+  W.MOVES_OF = k => k === 'worker' ? W.MOVES.worker
+    : k === 'scout' ? W.MOVES.scout
+    : ((W.EXTRA_UNITS[k] || {}).move ?? (R.UNITS[k] || {}).move ?? 0);
+  W.unitIsSea = k => !!(W.EXTRA_UNITS[k] || {}).sea || !!(R.UNITS[k] || {}).sea;
+  W.unitIsAir = k => W.BRANCH[k] === 'air' || !!(W.EXTRA_UNITS[k] || {}).fly;
+  // 칸을 지나갈 수 있는지. t: 칸 정보({terrain}), o: 주변 정보({market, enemyCity, enemyUnit})
+  // 화면(갈 수 있는 칸 표시)과 미리보기 가짜 서버가 같은 규칙으로 쓴다
+  W.canPass = (kind, t, o) => {
+    if (o.market || o.enemyCity) return false;      // 시장 섬과 다른 나라 도시는 누구도 들어갈 수 없어요
+    if (W.unitIsAir(kind)) return true;             // 공군: 지형과 다른 나라 병력 위를 지나가요
+    if (W.unitIsSea(kind)) return t.terrain === 'ocean' || t.terrain === 'coast';
+    if (['ocean', 'coast', 'mountain'].includes(t.terrain)) return false;
+    return !o.enemyUnit;                            // 땅·바다 유닛: 다른 나라 병력이 있는 칸은 못 지나가요
+  };
+  // 그 칸에 멈출 수 있는지. o: {market, enemyCity, sameKind}
+  W.canStop = (kind, t, o) => {
+    if (o.market || o.enemyCity) return false;
+    if (W.unitIsAir(kind) && (t.terrain === 'ocean' || t.terrain === 'coast')) return false;   // 공군은 바다 위에 못 멈춰요
+    return !o.sameKind;                             // 같은 종류(군사/민간) 병력이 있으면 못 멈춰요 (최종 판정은 DB 유일 조건)
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = W;
   root.WAR_RULES = W;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -157,3 +157,9 @@ begin
     end if;
   end loop;
 end $$;
+
+-- 한 칸에 군사 유닛 하나, 민간 유닛(노동자·정찰병) 하나 (설계 4-4). 동시에 들어오면 늦은 쪽이 막힘
+create unique index if not exists war_units_one_military on war.units (tile_id)
+  where tile_id is not null and kind not in ('worker', 'scout');
+create unique index if not exists war_units_one_civil on war.units (tile_id)
+  where tile_id is not null and kind in ('worker', 'scout');

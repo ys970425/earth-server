@@ -3,7 +3,7 @@
 (function () {
   const R = window.RULES, W = window.WAR_RULES;
   const root = document.getElementById('app');
-  const S = { me: null, known: {}, map: null, tiles: new Map(), units: [], cities: [], sel: null, tab: null };
+  const S = { me: null, known: {}, map: null, tiles: new Map(), units: [], cities: [], markets: [], sel: null, tab: null, selUnit: null, reach: null, centered: false, msg: null, country: null };
   const $ = s => document.querySelector(s);
   function h(tag, attrs, ...kids) {
     const e = document.createElement(tag);
@@ -94,7 +94,7 @@
     // 여섯 나라 모두를 지도에 넘긴다 (땅 색은 무역 앱 규칙의 나라 유형 색)
     const countries = Object.fromEntries(S.me.countries.map(c => [c.id,
       { color: (R.TYPES[c.type] || {}).color || '#888888', type: c.type, name: c.name, flag_url: null }]));
-    S.map = WarHexMap.create(canvas, { onTile: id => { S.sel = S.sel === id ? null : id; S.map.select(S.sel); } });
+    S.map = WarHexMap.create(canvas, { onTile });
     S.map.setData({ tiles: S.tiles, cities: S.cities, units: S.units, countries, all: true, tintUnits: true });
     renderTabs(); renderTop();
     WarAPI.startPoll(applyPoll);
@@ -102,6 +102,26 @@
   function goCapital() {
     const cap = S.cities.find(x => x.kind === 'capital' && x.country === S.me.country.id);
     if (cap) S.map.centerOn(cap.tile, 0.6);
+  }
+  // 지도 조작: 내 병력을 누르면 선택 + 갈 수 있는 칸 표시, 표시된 칸을 누르면 이동
+  function onTile(id) {
+    const sel = S.units.find(u => u.id === S.selUnit);
+    if (sel && S.reach && S.reach.stops.includes(id)) {
+      const path = []; for (let p = id; p !== sel.tile; p = S.reach.prev.get(p)) path.unshift(p);
+      WarAPI.rpc('war_move', { p_unit: sel.id, p_path: path })
+        .then(r => {
+          S.msg = null; clearUnit();
+          const u = S.units.find(x => x.id === sel.id);
+          if (u) { u.tile = r.tile; u.moves_left = r.moves_left; S.map.setData({ units: S.units }); }
+          renderTabs();
+        })
+        .catch(e => { console.error(e); S.msg = friendly(e); renderTabs(); });
+      return;
+    }
+    const mine = S.units.find(u => u.tile === id && u.country === S.me.country.id && u.commander === actingRole());
+    if (mine) { selectUnit(mine); return; }
+    S.sel = S.sel === id ? null : id;
+    S.map.select(S.sel); clearUnit(); renderTabs();
   }
   function renderTop() {
     const top = $('#war-top'); if (!top) return;
@@ -115,19 +135,57 @@
       g.combat_on === false ? h('span', { class: 'chip' }, '전투 끈 시간') : null));
   }
   // 메뉴 탭: 내 역할 메뉴 + 대행 중인 역할 탭 (설계 2장 표 그대로)
+  const UNIT_NAMES = { worker: '노동자', scout: '정찰병' };
+  const kindLabel = k => ((R.UNITS[k] || {}).name || (W.EXTRA_UNITS[k] || {}).name || UNIT_NAMES[k] || '병력');
+  const isCivil = k => k === 'worker' || k === 'scout';
+  const actingRole = () => (typeof S.tab === 'string' && S.tab.startsWith('deputy:')) ? S.tab.slice(7) : S.me.role;
   function renderTabs() {
     const side = $('#side'); if (!side) return;
     const me = S.me;
     side.innerHTML = '';
     const tabs = me.menus.map(m => ({ label: m, key: 'menu:' + m }));
-    for (const d of me.deputy_roles) tabs.push({ label: d.name + ' 대신하는 중', key: 'deputy:' + d.key, menus: d.menus });
-    const active = S.tab || tabs[0].key;
+    for (const d of me.deputy_roles) tabs.push({ label: d.name + ' 대신하는 중', key: 'deputy:' + d.key });
+    const active = S.tab && tabs.some(t => t.key === S.tab) ? S.tab : tabs[0].key;
     side.append(h('div', { class: 'war-tabs' }, tabs.map(t =>
-      h('button', { class: 'war-tab' + (active === t.key ? ' on' : ''), onclick: () => { S.tab = t.key; renderTabs(); } }, t.label))));
-    const body = h('div', { class: 'panel war-tab-body' },
-      h('p', { class: 'muted' }, '「' + (tabs.find(t => t.key === active) || {}).label + '」 내용은 다음 단계에서 열려요.'),
-      h('p', { class: 'muted' }, '지도는 아래에서 바로 볼 수 있어요.'));
+      h('button', { class: 'war-tab' + (active === t.key ? ' on' : ''), onclick: () => { S.tab = t.key; S.selUnit = null; S.reach = null; S.map.selectUnit(null); S.map.setHint([]); renderTabs(); } }, t.label))));
+    const label = (tabs.find(t => t.key === active) || {}).label || '';
+    const body = h('div', { class: 'panel war-tab-body' });
+    const role = actingRole();
+    // 병력 이동 탭: 내 병력(참모총장·대행) / 노동자·정찰병(공병사령관·대행)
+    const unitTab = (kinds, emptyMsg) => {
+      const list = S.units.filter(u => u.commander === role && u.tile != null && kinds.includes(u.kind));
+      body.append(h('div', { class: 'panel-title' }, label, h('small', {}, list.length + '부대 · 눌러서 고르고 지도에서 갈 칸을 골라요')));
+      body.append(list.length ? h('div', { class: 'war-units-list' }, list.map(u =>
+        h('button', { class: 'war-unit-row' + (S.selUnit === u.id ? ' on' : ''), onclick: () => selectUnit(u) },
+          h('b', {}, kindLabel(u.kind)),
+          h('span', {}, '체력 ' + u.hp),
+          h('span', { class: 'muted' }, '남은 이동 ' + (u.moves_left ?? 0)))))
+        : h('p', { class: 'muted' }, emptyMsg));
+    };
+    if (role === 'engineer') {
+      if (active === 'menu:노동자') unitTab(['worker'], '노동자가 없어요.');
+      else if (active === 'menu:정찰병') unitTab(['scout'], '정찰병이 없어요.');
+      else unitTab(['worker', 'scout'], '노동자·정찰병이 없어요.');
+    } else if (active === 'menu:지휘권 넘기기') {
+      const list = S.units.filter(u => u.commander === S.me.role && !isCivil(u.kind) && u.tile != null);
+      body.append(h('div', { class: 'panel-title' }, '지휘권 넘기기', h('small', {}, '병력 종류는 그대로, 조종하는 참모총장만 바뀌어요')));
+      body.append(list.length ? h('div', { class: 'war-units-list' }, list.map(u =>
+        h('div', { class: 'war-unit-row' },
+          h('b', {}, kindLabel(u.kind)),
+          h('span', { class: 'muted' }, '체력 ' + u.hp),
+          h('div', { class: 'row' }, ['army', 'navy', 'air'].filter(b => b !== u.commander).map(b =>
+            h('button', { class: 'small', onclick: () => doTransfer(u, b) }, { army: '육군', navy: '해군', air: '공군' }[b]))))))
+        : h('p', { class: 'muted' }, '내가 조종하는 군사 병력이 없어요.'));
+    } else if (active === 'menu:내 병력' || active.startsWith('deputy:')) {
+      unitTab(['spear', 'catapult', 'knight', 'musket', 'cannon', 'infantry', 'artillery', 'tank',
+        'trireme', 'frigate', 'battleship', 'destroyer', 'cruiser', 'fighter',
+        'k_missile', 'j_patrol', 'c_jet', 'a_stealth', 'n_hyper', 't_marine'], '내가 조종하는 병력이 없어요.');
+    } else {
+      body.append(h('p', { class: 'muted' }, '「' + label + '」 내용은 다음 단계에서 열려요.'),
+        h('p', { class: 'muted' }, '지도는 아래에서 바로 볼 수 있어요.'));
+    }
     side.append(body);
+    if (S.msg) side.append(h('div', { class: 'war-msg' }, S.msg));
     // 역할 현황 (우리 나라, 닉네임만)
     if (S.meCountryRoles) {
       side.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '우리 나라 역할'),
@@ -136,6 +194,42 @@
             h('b', {}, r.nick ? (r.absent ? r.nick + ' (결석)' : r.nick) : '빈 자리'))))));
     }
   }
+  async function doTransfer(u, to) {
+    try { await WarAPI.rpc('war_transfer', { p_unit: u.id, p_to: to }); S.msg = null; }
+    catch (e) { console.error(e); S.msg = friendly(e); }
+    renderTabs();
+  }
+
+  // 갈 수 있는 칸 (설계 4-4, war-rules.js의 canPass·canStop을 화면과 미리보기가 같이 씀)
+  const tileAt = id => S.tiles.get(id);
+  const occAt = id => S.units.filter(u => u.tile === id);
+  const infoAt = (id, u) => ({
+    market: (S.markets || []).some(m => m.tile === id),
+    enemyCity: (() => { const c = S.cities.find(x => x.tile === id); return !!(c && c.country !== S.me.country.id); })(),
+    enemyUnit: occAt(id).some(x => x.country !== S.me.country.id),
+    sameKind: occAt(id).some(x => isCivil(x.kind) === isCivil(u.kind))
+  });
+  function computeReach(u) {
+    const dist = new Map([[u.tile, 0]]), prev = new Map(), q = [u.tile];
+    while (q.length) {
+      const cur = q.shift(), d = dist.get(cur);
+      if (d >= (u.moves_left || 0)) continue;
+      for (const n of WarHexMap.neighbors(cur)) {
+        if (n < 0 || dist.has(n) || !tileAt(n)) continue;
+        if (!W.canPass(u.kind, tileAt(n), infoAt(n, u))) continue;
+        dist.set(n, d + 1); prev.set(n, cur); q.push(n);
+      }
+    }
+    const stops = [...dist.keys()].filter(id => id !== u.tile && W.canStop(u.kind, tileAt(id), infoAt(id, u)));
+    return { dist, prev, stops };
+  }
+  function selectUnit(u) {
+    S.selUnit = u.id; S.reach = computeReach(u);
+    S.map.selectUnit(u.id); S.map.setHint(S.reach.stops);
+    S.map.centerOn(u.tile, Math.max(0.6, S.map.st.cam.z));
+    renderTabs();
+  }
+  function clearUnit() { S.selUnit = null; S.reach = null; S.map.selectUnit(null); S.map.setHint([]); }
 
   // ================= 4초마다 바뀐 것만 받기 =================
   // 지도·병력·도시 데이터를 먼저 적용하고, 화면 갱신(탭·위쪽 표시줄)은 그 뒤에 따로 해요.
@@ -148,7 +242,12 @@
       }
       S.map.setData({ tiles: S.tiles });
     }
-    if (data.units) { S.units = data.units; S.map.setData({ units: S.units }); }
+    if (data.markets) S.markets = data.markets;
+    if (data.units) {
+      S.units = data.units;
+      S.map.setData({ units: S.units });
+      if (S.selUnit && !S.units.some(u => u.id === S.selUnit)) clearUnit();
+    }
     if (data.cities) { S.cities = data.cities; S.map.setData({ cities: S.cities }); }
     // 처음 데이터가 오면 우리 나라 수도로 지도를 옮겨요
     if (!S.centered && S.cities.length) { S.centered = true; goCapital(); }
