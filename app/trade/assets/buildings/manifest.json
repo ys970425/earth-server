@@ -1,0 +1,70 @@
+{
+  "package": "earth_trade_buildings_11",
+  "format": "PNG RGBA",
+  "size_px": [
+    160,
+    160
+  ],
+  "anchor": [
+    0.5,
+    0.83
+  ],
+  "status": "prototype",
+  "assets": [
+    {
+      "id": "market",
+      "label_ko": "도시 시장",
+      "path": "market.png"
+    },
+    {
+      "id": "barracks",
+      "label_ko": "병영",
+      "path": "barracks.png"
+    },
+    {
+      "id": "granary",
+      "label_ko": "곡물 창고",
+      "path": "granary.png"
+    },
+    {
+      "id": "plaza",
+      "label_ko": "광장",
+      "path": "plaza.png"
+    },
+    {
+      "id": "harbor",
+      "label_ko": "항구",
+      "path": "harbor.png"
+    },
+    {
+      "id": "steelworks",
+      "label_ko": "제철소",
+      "path": "steelworks.png"
+    },
+    {
+      "id": "refinery",
+      "label_ko": "정유소",
+      "path": "refinery.png"
+    },
+    {
+      "id": "semiconductor_factory",
+      "label_ko": "반도체 공장",
+      "path": "semiconductor_factory.png"
+    },
+    {
+      "id": "textile_factory",
+      "label_ko": "섬유 공장",
+      "path": "textile_factory.png"
+    },
+    {
+      "id": "rubber_factory",
+      "label_ko": "고무 공장",
+      "path": "rubber_factory.png"
+    },
+    {
+      "id": "goldsmith",
+      "label_ko": "금 세공소",
+      "path": "goldsmith.png"
+    }
+  ]
+}

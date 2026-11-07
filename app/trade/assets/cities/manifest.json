@@ -1,0 +1,124 @@
+{
+  "source": "a_clean_high_resolution_game_asset_sheet_infogr.png",
+  "status": "prototype_for_visual_approval",
+  "note": "Automated background extraction from a combined reference image. Halo/cutout edges require manual QA for production. Six capitals plus three neutral cities, 160px canvas each.",
+  "items": [
+    {
+      "id": "capital_peninsula",
+      "ko": "반도의 나라 수도",
+      "file": "capital_peninsula.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    },
+    {
+      "id": "capital_island",
+      "ko": "섬의 나라 수도",
+      "file": "capital_island.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    },
+    {
+      "id": "capital_continental",
+      "ko": "대륙의 공장 수도",
+      "file": "capital_continental.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    },
+    {
+      "id": "capital_newworld",
+      "ko": "신대륙의 강국 수도",
+      "file": "capital_newworld.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    },
+    {
+      "id": "capital_northern",
+      "ko": "북방의 대국 수도",
+      "file": "capital_northern.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    },
+    {
+      "id": "capital_tropical",
+      "ko": "열대 해양국 수도",
+      "file": "capital_tropical.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    },
+    {
+      "id": "neutral_village",
+      "ko": "중립 소도시",
+      "file": "neutral_village.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    },
+    {
+      "id": "neutral_fortress",
+      "ko": "중립 성곽 도시",
+      "file": "neutral_fortress.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    },
+    {
+      "id": "neutral_harbor",
+      "ko": "중립 항구 도시",
+      "file": "neutral_harbor.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.83
+      ]
+    }
+  ]
+}
