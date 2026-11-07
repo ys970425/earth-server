@@ -12,6 +12,7 @@
     return new Promise(res => { const im = new Image(); im.onload = () => { IMG[key] = im; res(); }; im.onerror = () => res(); im.src = src; });
   }
   const ready = Promise.all([
+    load('u:destroyer', '../trade/assets/units/destroyer.png'), // war: 구축함 그림
     document.fonts ? document.fonts.load('700 16px Galmuri11').catch(() => null) : null,
     ...Object.keys(R.TERRAIN).map(t => load('t:' + t, '../trade/img/terrain/' + t + '.png')),
     ...Object.keys(R.ITEMS).map(i => load('r:' + i, '../trade/img/res/' + i + '.png')),

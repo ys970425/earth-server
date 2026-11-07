@@ -31,4 +31,5 @@
 ## 잊지 말 것
 - 11/9 공개수업 전까지: 배포(gh-pages, publish-pages.sh) 금지, Supabase에 SQL 실행 금지, `claude/setup`에 커밋 금지
 - codex exec에는 `-c 'windows.sandbox="unelevated"'`
+- 체험 모드 추가 (2026-11-07): 근접 배의 해안 도시 점령, 구축함 준비(힘 60·이동 6, 그림 `app/trade/assets/units/destroyer.png`). 구축함을 만드는(훈련) 기능은 아직 없음 → W4 이후 병력 훈련 단계에서 추가
 - 특수 부대: 설계 11장 변경(전투 참여, 힘 95, 한 번 피해 최대 60). 체험 모드에만 반영됨 → W4에서 `war.admin_import`·서버 전투에 옮기고 시험 추가

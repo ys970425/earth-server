@@ -1,6 +1,7 @@
 // 체험 중 바뀐 내용은 이 화면의 메모리 안에만 두어요.
 (function () {
   const R = { ...window.RULES, UNITS: Object.fromEntries(Object.entries(window.RULES.UNITS).map(([kind, rule]) => [kind, { ...rule }])) };
+  if (!R.UNITS.destroyer) R.UNITS.destroyer = { name: '구축함', era: 4, str: 60, move: 6, sea: true, img: 'destroyer', cost: { coin: 100, steel: 2, fuel: 1, food: 2 } };
   const HexMap = window.WarHexMap;
   const root = document.getElementById('app');
   const S = { data: null, map: null, sel: null, country: 1, unit: null, moves: new Map(), hints: new Map(), attacks: new Map(), attacked: new Set(), besieged: new Set(), loading: false, turn: 1 };
@@ -234,7 +235,9 @@
       S.map.floatText(city.tile, '근접 병력이 들어가야 점령해요');
       return;
     }
-    if (attacker.hp <= 0 || rule(attacker).sea || rule(attacker).fly) return;
+    if (city.hp !== 0 || attacker.hp <= 0 || rule(attacker).fly) return;
+    if (rule(attacker).sea && !HexMap.neighbors(city.tile).some(id =>
+      ['ocean', 'coast'].includes(S.map.st.tiles.get(id)?.terrain))) return;
     if (S.data.units.some(u => u.id !== attacker.id && u.tile === city.tile && military(u))) {
       S.map.floatText(city.tile, '다른 병력이 있어 들어갈 수 없어요');
       return;
