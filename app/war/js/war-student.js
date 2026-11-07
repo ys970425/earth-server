@@ -1,6 +1,6 @@
 // 체험 중 바뀐 내용은 이 화면의 메모리 안에만 두어요.
 (function () {
-  const R = window.RULES;
+  const R = { ...window.RULES, UNITS: Object.fromEntries(Object.entries(window.RULES.UNITS).map(([kind, rule]) => [kind, { ...rule }])) };
   const HexMap = window.WarHexMap;
   const root = document.getElementById('app');
   const S = { data: null, map: null, sel: null, country: 1, unit: null, moves: new Map(), hints: new Map(), attacks: new Map(), attacked: new Set(), loading: false, turn: 1 };
@@ -18,6 +18,14 @@
   }
 
   // ================= 시작 =================
+  function loadTrialData(data) {
+    const bossStrength = Math.max(0, ...Object.values(R.UNITS).filter(unit => !unit.boss).map(unit => unit.str || 0)) + 5;
+    for (const unit of Object.values(R.UNITS)) {
+      if (unit.boss) unit.str = bossStrength;
+    }
+    S.data = data;
+  }
+
   async function start() {
     try {
       const data = await window.WarData.load();
@@ -39,7 +47,7 @@
 
   // ================= 화면 =================
   function main(data) {
-    S.data = data;
+    loadTrialData(data);
     // 맨 위 미리보기 띠 (미리보기일 때만). 실제 데이터는 색도 다르게 (war.css)
     const mode = window.WarData.mode();
     root.append(h('div', { class: 'war-banner' + (mode === 'real' ? ' real' : '') },
@@ -79,7 +87,7 @@
     try {
       const data = await window.WarData.load();
       if (!data) throw new Error('처음 상태를 불러오지 못했어요.');
-      S.data = data;
+      loadTrialData(data);
       S.moves.clear();
       S.attacked.clear();
       S.turn = 1;
@@ -153,10 +161,10 @@
     S.hints = new Map([...reachable].filter(([id]) => canStop(u, id)));
     S.map.setHint(S.hints.keys());
     S.attacks.clear();
-    if (military(u) && !rule(u).boss && !S.attacked.has(u.id)) {
+    if (military(u) && !S.attacked.has(u.id)) {
       for (const other of S.data.units) {
         const distance = HexMap.hexDist(u.tile, other.tile);
-        if (other.country !== u.country && military(other) && !rule(other).boss && distance >= 1 && distance <= (rule(u).range || 1)) {
+        if (other.country !== u.country && military(other) && distance >= 1 && distance <= (rule(u).range || 1)) {
           S.attacks.set(other.tile, other.id);
         }
       }
@@ -170,7 +178,7 @@
     const terrain = S.map.st.tiles.get(defender.tile).terrain;
     const ratio = strength(attacker) / (strength(defender) * (['hills', 'forest', 'jungle'].includes(terrain) ? 1.25 : 1));
     const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-    const damage = clamp(Math.round(30 * ratio), 3, 100);
+    const damage = clamp(Math.round(30 * ratio), 3, rule(attacker).boss ? 60 : 100);
     let counter = clamp(Math.round(30 * 0.6 / ratio), 1, 100);
     if (rule(attacker).range && HexMap.hexDist(attacker.tile, defender.tile) > 1) counter = Math.round(counter * 0.25);
     const dialog = h('dialog', { class: 'war-combat' },
@@ -205,9 +213,6 @@
       if (target) previewAttack(current, target);
       return;
     }
-    if (current && military(current) && S.data.units.some(u => u.tile === id && u.country !== current.country && military(u) && (rule(current).boss || rule(u).boss))) {
-      S.map.floatText(id, '특수 부대는 나라끼리 싸움에 쓸 수 없어요');
-    }
     if (current && S.hints.has(id)) {
       S.moves.set(current.id, movesLeft(current) - S.hints.get(id));
       current.tile = id;
@@ -235,9 +240,26 @@
       row('체력', (u.hp == null ? 100 : u.hp) + '/100'),
       row('남은 이동력', movesLeft(u)),
       h('p', { class: 'muted' }, u.kind === 'worker' ? '노동자는 움직이지 않아요' : '노란 칸을 누르면 이동해요.'),
-      military(u) ? h('p', { class: 'muted' }, rule(u).boss ? '특수 부대는 나라끼리 싸움에 쓸 수 없어요' : S.attacked.has(u.id) ? '이번 턴에는 공격을 마쳤어요.' : '빨간 칸을 누르면 공격을 미리 볼 수 있어요.') : null));
-    if (S.sel != null && S.sel >= 0 && S.map.st.tiles.get(S.sel)) return tileWindow(side, S.sel);
-    side.append(countryWindow());
+      military(u) ? h('p', { class: 'muted' }, S.attacked.has(u.id) ? '이번 턴에는 공격을 마쳤어요.' : '빨간 칸을 누르면 공격을 미리 볼 수 있어요.') : null));
+    if (S.sel != null && S.sel >= 0 && S.map.st.tiles.get(S.sel)) tileWindow(side, S.sel);
+    side.append(countryWindow(), armyWindow());
+  }
+  function armyWindow() {
+    const units = S.data.units.filter(u => u.country === S.country);
+    return h('div', { class: 'panel war-army' },
+      h('div', { class: 'panel-title' }, '병력 목록'),
+      h('div', { class: 'war-army-list', role: 'group', 'aria-label': '우리 나라 병력' },
+        units.length ? units.map(u => h('button', {
+          class: 'small war-army-row', type: 'button', 'aria-pressed': String(u.id === S.unit),
+          onclick: () => {
+            if (S.loading) return;
+            S.map.centerOn(u.tile, S.map.st.cam.z || 0.8);
+            selectUnit(u);
+          }
+        }, h('span', { class: 'war-army-name' }, unitName(u.kind)),
+        h('span', {}, '체력 ' + (u.hp == null ? 100 : u.hp)),
+        h('span', {}, movesLeft(u) < fullMove(u) || S.attacked.has(u.id) ? '움직였어요' : '쉬는 중')))
+          : h('p', { class: 'muted' }, '병력이 없어요.')));
   }
   // 「어느 나라로 볼까요?」: 여섯 나라 중 하나 (미리보기에서만). 고르면 그 나라 수도로 지도가 이동해요
   function picker() {

@@ -41,6 +41,13 @@ body.war .map-layout { height: calc(100vh - 170px); min-height: 420px; margin-to
 .war-inv { margin-top: 8px; }
 .war-inv .chip { margin: 2px 2px 0 0; }
 
+/* 체험 병력 목록: 긴 목록은 이 영역 안에서만 스크롤해요. */
+.war-army { flex-shrink: 0; min-width: 0; }
+.war-army-list { max-height: 240px; overflow-y: auto; }
+.war-army-row { display: flex; align-items: center; gap: 8px; width: 100%; margin: 4px 0; text-align: left; white-space: nowrap; }
+.war-army-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.war-army-row[aria-pressed="true"] { border-color: var(--gold-dark); }
+
 .war-combat { max-width: calc(100vw - 32px); border: 3px solid var(--gold-dark); border-radius: 12px; padding: 22px; background: #fff5dc; color: #3A2600; }
 .war-combat::backdrop { background: rgba(0, 0, 0, .55); }
 .war-combat-actions { display: flex; gap: 12px; margin-top: 18px; }

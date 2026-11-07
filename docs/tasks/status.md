@@ -31,4 +31,4 @@
 ## 잊지 말 것
 - 11/9 공개수업 전까지: 배포(gh-pages, publish-pages.sh) 금지, Supabase에 SQL 실행 금지, `claude/setup`에 커밋 금지
 - codex exec에는 `-c 'windows.sandbox="unelevated"'`
-- 실제 데이터에는 특수 부대(보스 유닛)가 있음: 설계 11장대로 「나라끼리 전투에는 못 씀」을 W4에서 반영
+- 특수 부대: 설계 11장 변경(전투 참여, 힘 95, 한 번 피해 최대 60). 체험 모드에만 반영됨 → W4에서 `war.admin_import`·서버 전투에 옮기고 시험 추가
