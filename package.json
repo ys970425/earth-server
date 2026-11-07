@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "test:war": "node tests/war/db.test.mjs",
+    "test:trade": "node tests/trade/db.test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.15"
+  }
+}
