@@ -1,91 +1,84 @@
-# 작업지시서: E1 헬피코드 몫 (H0~H4) — 서버 표, 규칙 숫자, 가져오기 v2, 시험
+# 작업지시서: E2 — 접속·역할 고르기·역할별 화면 틀·바뀐 것만 받기 (H1~H6)
 
 - 저장소: `C:\projects\earth-server`, 브랜치 **`war-version`** (`git branch --show-current`로 확인, 다르면 멈추고 보고)
-- 기준 문서: `docs/war-design.md` 2장(역할·예산), 3장(가져오기), 5장, 6장, 7장(시장), 11장(숫자)
-- 이 작업이 끝나면 GPT가 `war.act_start`(행동 시작·잠금)와 `war.bump`(바뀜 번호 올리기)를 만든다. **이 두 함수는 만들지 않는다.**
+- 기준 문서: `docs/war-design.md` 1-3(바뀐 것만 받기), 2장(역할·메뉴·결석 대행·4명 모둠), 3-3(병과 지급), 8장(화면)
+- 결정 (2026-11-07): **Q-A A** 학생 기기 연결은 무역 앱 연결을 그대로 씀 / **Q-B A** 교사는 같은 브라우저에서 무역 관제실에 로그인해 둔 상태를 씀 / **해군 지급 A** 해안 도시가 없으면 수도에서 가장 가까운 빈 바다 칸
 
 ## ⚠️ 꼭 지킬 것
 - **커밋과 푸시를 하지 않는다.** 커밋은 Claude가 검토 후에 한다.
-- `private/` 폴더는 열지 않는다. `npm run war:preview:real`은 실행하지 않는다.
-- 무역 표(`priv.*`, `public.game` 등)에는 쓰지 않는다 (읽기만). 무역 앱 파일(`app/trade/js`, `css`, `img`, `supabase/trade*`, `tools/trade`, `tests/trade`)은 고치지 않는다.
+- Supabase에 접속하거나 SQL을 설치하지 않는다 (설치는 교사가 정한 때). `private/` 폴더는 열지 않는다. `npm run war:preview:real`은 실행하지 않는다.
+- 무역 표(`priv.*`)에 쓰지 않는다. 무역 앱 파일(`app/trade/` 아래 js·css·img·html, `supabase/trade*`, `tools/trade`, `tests/trade`)은 고치지 않는다. 화면에서 무역 앱의 함수(`join_student`, `admin_login` 등)를 부르지 않는다.
+- `war.act_start`, `war.bump`(GPT가 만든 잠금·번호 함수)의 내용은 바꾸지 않는다 (부르는 것은 됨).
 
 ---
 
-## H0. 설계 문서: 결석 대행 규칙 (`docs/war-design.md` 2장)
-지금 2장 「결석 대비」 줄을 아래로 바꾼다.
-- **결석한 학생의 역할은 합동참모의장이 대신 맡는다.** 공병사령관·참모총장 모두 해당.
-- 결석은 (1) 교사가 관제실에서 그 학생을 「결석」으로 표시했거나, (2) 그 역할을 아무도 고르지 않은 경우.
-- 합동참모의장이 결석하면 교사가 관제실에서 그 나라의 다른 학생을 합동참모의장으로 지정한다 (기본값).
-- 13장 기록 표에 「결석 대행: 결석한 학생의 역할은 합동참모의장이 대신」 한 줄 추가 (기존 행은 그대로 두기).
+## H1. 서버 함수 (`supabase/war/functions.sql`, 필요하면 `schema.sql`)
+모두 `security definer`, `search_path = war, priv, public`. 화면은 `public.war_*` 이름으로 부른다. 새 public 함수는 아래 목록만.
+- **지도 바뀐 칸 추적:** `war.tiles`에 `ver int not null default 0` 추가. 앞으로 칸을 바꾸는 함수는 `war.bump('map')` 뒤 그 칸의 `ver`를 새 map 번호로 맞춘다 (이번에는 규칙만 함수 주석으로 남기고, 가져오기는 모든 칸 `ver = 0`).
+- `public.war_me()`: 로그인한 학생(`priv.students.uid = auth.uid()`)의 나라(번호·이름·유형·색), 내 역할, **대행 역할 목록**(결석·빈 역할, 4명 모둠이면 `engineer`), 내가 볼 메뉴 목록(`war.cfg()`의 ROLES 메뉴, 4명 모둠 합참은 공병 메뉴 합치기), 우리 나라 역할 현황(역할별 **닉네임**만, 실명 금지). 연결된 학생이 아니면 오류 `NO_AUTH` 「무역 앱에서 먼저 접속해 주세요」.
+- `public.war_choose_role(p_role text)`: 아직 역할이 없는 학생만. 4명 모둠이면 `engineer` 고를 수 없음. 같은 역할을 이미 누가 골랐으면(유일 조건 충돌) 「이미 다른 친구가 고른 역할이에요」. 성공하면 `war.bump('country', 나라)`. 역할 바꾸기는 교사만.
+- `public.war_poll(p_known jsonb)`: `p_known` 예 `{"game":3,"map":5,"units":2,"cities":1,"diplomacy":1,"country":4,"notice":0}` (`country`는 우리 나라 번호). 바뀐 영역만 돌려준다:
+  - `versions`(지금 번호 전부), `game`(턴·남은 시각·일시정지·전투 켜짐), `map`(이번 번호보다 `ver`가 큰 칸만 `[id, terrain, res, owner, imp, imp_ruined]`; `p_known.map`이 없거나 0이면 전체), `units`(전체 목록: 번호·나라·종류·칸·체력·조종 역할), `cities`(전체: 번호·칸·주인·이름·체력·최대·포위), `diplomacy`(15쌍), `country`(**우리 나라만**: 국고·창고·역할별 지갑·도시 시설), `notice`(이번 단계는 빈 목록)
+  - 다른 나라의 창고·지갑·도시 시설은 절대 넣지 않는다.
+- 교사용 (모두 `priv.need_admin()`): `public.war_admin_roles()`(나라별 학생 닉네임·역할·결석), `public.war_admin_set_absent(p_student int, p_absent bool)`, `public.war_admin_set_role(p_student int, p_role text)` (null이면 역할 비우기, `chief` 지정 포함). 바뀌면 `war.bump('country', 나라)`.
 
-## H1. 표 추가 (`supabase/war/schema.sql`)
-여러 번 실행해도 안전하게(`if not exists`, `add column if not exists`). `war` 표에 학생이 직접 쓰지 못하게 하는 기존 권한 처리 유지.
-- `war.game`에 열 추가: `turn_seconds`(기본 180), `turn_end`(시각), `paused`(기본 false), `combat_on`(기본 true)
-- `war.roles`: 학생 번호, 나라, 역할(`chief`/`engineer`/`army`/`navy`/`air`), `absent`(결석, 기본 false). 한 나라에서 한 역할은 한 명 (유일 조건)
-- `war.wallets`: 나라, 역할, 물건, 개수 (기본키 나라·역할·물건). 국고는 지금처럼 `war.countries.coin` + `war.inventory`
-- `war.city_facilities`: 도시, 시설 종류, 분류(`factory`/`advanced`), `ruined`(파괴, 기본 false), `origin_country`(원래 나라)
-- `war.tiles`에 `imp_ruined`(기본 false)
-- `war.units`에 `commander`(조종하는 역할: `army`/`navy`/`air`/`engineer`)
-- `war.cities`에 `besieged`(기본 false)
-- `war.countries`에 `shield_until`(보호막 끝나는 턴, 기본 0), `cities_lost`(기본 0)
-- `war.diplomacy`: 나라 a, 나라 b (a < b), 상태(`peace`/`war`/`ally`), 바뀐 턴, `no_war_until`(평화 뒤 선포 금지 끝나는 턴, 기본 0)
-- `war.offers`: 번호, 종류(`ally`/`peace`/`trade`), 보낸 나라, 받는 나라, 내용(jsonb), 상태, 턴
-- `war.markets`: 번호(1~3), 칸, 그림(`neutral_village`/`neutral_harbor`/`neutral_fortress`), 이름 / `war.market_stock`: 시장, 물건, 개수
-- `war.versions`: 영역(`game`/`map`/`units`/`cities`/`diplomacy`/`country`/`notice`), 나라(전체면 0), 번호 (기본키 영역·나라). **번호를 올리는 함수는 만들지 않는다 (GPT 몫).**
-- `war.grants`: 나라, 병과, 병력 종류, 병력 번호, 결과(`given`/`skipped`), 까닭
+## H2. 해군 지급 A (`war.admin_import`)
+- 해안 도시가 없거나 해안 도시 옆에 빈 바다 칸이 없으면, **수도에서 가장 가까운 빈 바다·해안 칸**(군사 유닛 없음, 칸 번호순으로 동점 처리)에 삼단노선을 지급하고 `given`으로 기록한다. 그래도 칸이 없을 때만 `skipped`.
+- `tests/war/import-v2.test.mjs`의 「해안 도시가 없는 나라는 skipped」 기대를 「수도에서 가장 가까운 빈 바다 칸에 given」으로 바꾼다.
 
-## H2. 규칙 숫자를 서버로 (`tools/war/build-config.mjs` → `supabase/war/config.sql`)
-- `app/war/js/war-rules.js`와 `app/trade/js/rules.js`를 읽어 `war.config`(한 행, jsonb)에 넣는 SQL을 만든다. 무역 앱 `tools/trade/build-sql.mjs`가 `priv.config`를 만드는 방식을 따른다.
-- 넣을 것: 역할, 병과 분류, 추가 병력(구축함·전투기), 특수 부대 힘(95)·피해 상한(60), 건물·타일 시설 분류, 시장 숫자, 턴·수도·수리·보호막·도시 손실·평화 숫자.
-- `war.cfg()` 함수: `war.config`의 jsonb를 돌려줌.
-- `package.json` scripts에 `"war:config": "node tools/war/build-config.mjs"`. 두 번 실행해도 같은 파일.
+## H3. 시험 `tests/war/e2.test.mjs` (새) + `package.json` `"test:war:e2"`
+- 역할 고르기: 성공 / 같은 역할 두 번째 학생 거절 / 4명 모둠은 `engineer` 거절 / 이미 역할 있는 학생이 또 고르기 거절 / 연결 안 된 uid는 `NO_AUTH`
+- `war_me`: 4명 모둠 합참 메뉴에 공병 메뉴 포함, 결석 표시한 역할이 합참의 대행 목록에 나옴, 실명(`name`)이 결과에 없음
+- `war_poll`: 처음(빈 `p_known`)엔 모든 영역, 같은 번호로 다시 부르면 `versions` 말고 아무 영역도 없음, 역할을 고르면 `country`만 돌아옴, 다른 나라의 창고·지갑이 없음
+- 학생은 `war_admin_*` 실행 불가
+- 기존 시험 모두 통과 (`test:war:act`, `test:war:import2`, `test:war:import`, `test:war:rules`, `test:war`, `test:war:real`, `test:trade`)
 
-## H3. 가져오기 v2 (`supabase/war/functions.sql`의 `war.admin_import`)
-W1 규칙(겹친 병력 펼치기, 특수 도시 처리, 체력 100, 무역 표 읽기만)은 그대로 두고 아래를 더한다. 모든 결정은 **정해진 순서**(번호순)로 해서 두 번 가져와도 결과가 같게 한다.
-1. **새 표 비우기:** 가져올 때 H1의 새 표도 모두 비운다 (`war.roles`는 비움, 역할은 E2에서 학생이 고름).
-2. **공장·고등 건물 배치:** 나라마다 `priv.factories` → `priv.advanced` 순서(각각 종류 이름순)로, 그 나라의 **수도가 아닌 도시**(도시 번호순)에 하나씩 돌아가며 `war.city_facilities`에 넣는다. 수도 말고 도시가 없으면 수도에. 분류는 `war.cfg()`의 건물 분류.
-3. **병력 조종 역할:** 군사 유닛은 병과에 따라 `army`/`navy`/`air`, 노동자·정찰병은 `engineer`. 상륙 기갑부대(`t_marine`)는 `army`.
-4. **병과 최소 지급:** 나라마다 육군·해군·공군 군사 유닛이 하나도 없으면 1부대 지급하고 `war.grants`에 기록 (있으면 기록 안 함).
-   - 육군 → 창병: 수도 칸에 군사 유닛이 없으면 수도 칸, 있으면 수도에서 가장 가까운 빈 땅 칸(우리 땅 우선, 바다·산·다른 나라 도시 제외)
-   - 해군 → 삼단노선: 그 나라 해안 도시(이웃에 바다·해안 칸이 있는 도시, 수도 먼저, 그다음 도시 번호순) 옆의 빈 바다·해안 칸. 해안 도시가 없으면 지급하지 않고 `skipped`, 까닭 「해안 도시가 없어 해군을 줄 수 없어요」
-   - 공군 → 전투기(`fighter`): 수도 옆 빈 땅 칸
-   - 「빈 칸」은 군사 유닛이 없는 칸. 지급한 병력도 체력 100.
-5. **시장 3곳:** 칸 번호 = 행 × 40 + 열. 후보 (15,9) 북서 마을 `neutral_village`, (17,16) 남쪽 항구 `neutral_harbor`, (26,6) 동쪽 성곽 `neutral_fortress`. 후보 칸에 도시·병력이 있거나 주인이 있으면, 가장 가까운 주인 없는·도시 없는·병력 없는 바다/해안 칸으로 옮긴다. 고른 칸은 `war.tiles`에서 지형을 평원(`plains`)으로 바꾸고 주인 없음. 창고는 여섯 나라 특산(`STRAT_OF`) 4개씩.
-6. **외교:** 여섯 나라 모든 쌍을 `peace`로 넣는다 (15쌍).
-7. **게임:** `turn_seconds` 180, `paused` false, `combat_on` true, `turn_end` 비움.
-8. 돌려주는 요약에 `grants`(지급 수), `facilities`(배치 수), `markets` 추가.
-9. **지급 결과 표 함수:** `war.admin_grants()` (교사만, 무역 앱 관리자 확인 함수 사용) → 나라별 행 목록, 그리고 앱이 부를 `public.war_admin_grants()` 연결 함수. public에는 이것 말고 새 함수를 만들지 않는다.
+## H4. 화면 연결 층 `app/war/js/war-api.js` (새)
+- 서버 모드: `../trade/js/config.js`의 `window.APP_CONFIG`와 supabase-js **2.116.0** (무역 앱과 같은 CDN 주소)을 쓰고, `createClient` 옵션은 **`app/trade/js/api.js`와 똑같이** (`storageKey: 'earth-trade-auth'` 등) 해서 무역 앱 로그인을 그대로 이어받는다. **익명 로그인을 새로 만들지 않는다.** 로그인 정보가 없으면 「무역 앱에서 먼저 접속해 주세요」와 무역 앱 주소 버튼.
+- `WarAPI.rpc(이름, 인자)`, `WarAPI.startPoll(받을 함수)`: 4초마다 `war_poll`, 실패하면 8·16초로 늘리고 성공하면 4초로. 화면이 안 보이면(`document.hidden`) 멈춤.
+- **미리보기 가짜 서버:** `?preview=1` 또는 `?preview=real`이면 서버 대신 `preview/state.json`(또는 `state-real.json`)으로 `war_me`·`war_choose_role`·`war_poll`·`war_admin_*`을 흉내 낸다 (브라우저 메모리에서만). `&as=나라번호:역할`이면 그 역할로 접속한 것처럼, `&size=4`면 4명 모둠처럼.
+- 미리보기에 필요한 시설·지급 결과·시장·외교가 state 파일에 없으면 `tools/war/state-from-war.mjs`에 넣고 `npm run war:preview`로 `state.json`을 다시 만든다 (`real-preview` 시험이 계속 통과해야 함).
 
-## H4. 시험
-- `tests/war/import-v2.test.mjs` (새) + `package.json` `"test:war:import2"`. W0 틀(`createDb`, `seedTradeState`, `tradeFingerprint`)을 쓴다:
-  - 가져오기 전후·두 번째 가져오기 뒤 무역 표 지문 그대로
-  - 두 번 가져와도 모든 `war` 표 행 수와 내용(병력 위치, 시설 배치, 시장 칸)이 같음
-  - 공장·고등 건물이 하나도 빠짐없이 `war.city_facilities`에 있고, 수도 말고 도시가 있는 나라는 수도에 하나도 없음
-  - 병과 지급: 지급 뒤 모든 나라가 육·해·공 각 1부대 이상 (해안 도시가 없어 `skipped`인 경우 제외), 지급된 병력이 규칙에 맞는 칸(땅/바다, 겹침 없음)
-  - 시험용 준비로 「한 나라의 해군을 모두 없앤 상태」와 「해안 도시가 없는 나라」를 만들어 지급·`skipped`를 각각 확인 (준비용 직접 `update`/`delete`는 `priv` 표에 지문 기준값을 만들기 **전에** 해도 됨)
-  - 시장 3곳: 지형 평원, 주인 없음, 창고 6종×4개, 서로 다른 칸
-  - 외교 15쌍 모두 `peace`
-  - 학생은 `war_admin_grants` 실행 불가
-  - SQL 검사: `supabase/war/*.sql`에 무역 표를 만들거나 고치는 문장 0개 (W1 시험의 정규식 재사용)
-- **기존 시험 고치기:** 병과 지급 때문에 `tests/war/import.test.mjs`의 「무역의 모든 병력을 가져옴」(병력 수 = `priv.units` 수)이 맞지 않게 된다. 이 검사만 「`war.units` 수 = `priv.units` 수 + `war.grants`의 `given` 수」로 고친다. 그 밖의 기존 시험은 고치지 않는다.
-- `tools/war/make-real-preview.mjs`와 `tests/war/real-preview.test.mjs`도 `config.sql`을 설치해야 하면 설치 순서만 더한다 (`schema.sql` → `config.sql` → `functions.sql`). `tools/war/make-preview.mjs`, `tests/war/import.test.mjs`도 같은 순서.
-- 가짜 미리보기 다시 만들기: `npm run war:preview`로 `app/war/preview/state.json`을 다시 만든다 (지급 병력이 들어감).
+## H5. 화면
+- **학생 화면** (`app/war/index.html` + 새 `app/war/js/war-app.js`): 접속 확인 → 우리 나라 표시 → 역할이 없으면 「역할 고르기」(빈 역할만 누를 수 있음, 이미 고른 역할은 친구 닉네임 표시) → **역할별 화면 틀**
+  - 위쪽: 나라 이름·내 역할·턴·남은 시간 / 가운데: 지도(`war-hexmap.js`, 64px) / 오른쪽: 내 역할 **메뉴 탭** (설계 2장 표 그대로, 내용은 「다음 단계에서 열려요」). 대행 중인 역할이 있으면 「○○ 대신하는 중」 탭이 더 생김
+  - 참모총장·공병사령관 화면에는 무역·외교·시장 메뉴가 없어야 함
+  - 버튼 최소 48px, 깜빡이는 효과 없음, 아래 「myoLab(산쌤)」
+  - 지금의 체험 모드는 `?preview=real&play=1`(또는 `?preview=1&play=1`)로 계속 열리게 둔다 (`war-student.js`는 그대로).
+- **교사 관제실** (`app/war/admin.html` + `app/war/js/war-admin.js`, 새): 「무역 게임에서 가져오기」(「초기화」 입력 확인) + **지급 결과 표**(나라별 육·해·공 지급/건너뜀·까닭) + **역할 현황**(나라별 닉네임·역할, 결석 표시 켜기·끄기, 역할 지정). 교사 로그인이 아니면 「같은 브라우저에서 무역 관제실에 먼저 로그인해 주세요」.
+- 글은 쉬운 「~해요」, 영어 노출 금지.
+
+## H6. 문서
+- `docs/war-design.md`: 3-3장 해군 지급을 「해안 도시가 없으면 수도에서 가장 가까운 빈 바다 칸」으로, 8장에 Q-A·Q-B 결정 한 줄씩, 13장 기록 표에 「해군 지급 A」「기기 연결 Q-A」「교사 로그인 Q-B」 행 추가 (기존 행 그대로).
+- `docs/tasks/status.md`에 **「설치 후 확인」** 목록을 만들고 아래를 넣는다:
+  1. `earth-war`에서 무역 앱 로그인이 이어지는지 (같은 웨일북·같은 브라우저)
+  2. 웨일북 2대 동시 접속: 같은 역할을 동시에 고르면 한 명만 성공
+  3. 한쪽 웨일북에서 역할을 고르면 다른 웨일북에 4초 안에 반영
+  4. 교사 관제실에서 실제 가져오기와 지급 결과 표
+  5. 25명이 4초마다 받을 때 응답 크기·서버 부담 (무료 요금제 한도)
+  6. 교사가 무역 관제실 로그인 상태로 전쟁 관제실이 열리는지
 
 ## 고쳐도 되는 파일 (이것만)
-`docs/war-design.md`(2장·13장), `supabase/war/schema.sql`, `supabase/war/functions.sql`, `supabase/war/config.sql`(새), `tools/war/build-config.mjs`(새), `tools/war/make-preview.mjs`·`tools/war/make-real-preview.mjs`(설치 순서만), `tests/war/import-v2.test.mjs`(새), `tests/war/import.test.mjs`(위 한 검사만), `tests/war/real-preview.test.mjs`(설치 순서만), `package.json`(scripts 두 줄), `app/war/preview/state.json`(다시 만들기), `docs/tasks/report.md`
+`supabase/war/schema.sql`, `supabase/war/functions.sql`, `tests/war/e2.test.mjs`(새), `tests/war/import-v2.test.mjs`(H2 기대값만), `package.json`(scripts), `tools/war/state-from-war.mjs`, `app/war/preview/state.json`(다시 만들기), `app/war/index.html`, `app/war/admin.html`(새), `app/war/js/war-api.js`·`war-app.js`·`war-admin.js`(새), `app/war/css/war.css`, `docs/war-design.md`, `docs/tasks/status.md`, `docs/tasks/report.md`
 
 ## 완료 조건 (직접 실행)
 ```bash
-npm run war:config && npm run war:config   # 두 번 실행, git diff로 config.sql 같음
-node tests/war/import-v2.test.mjs          # 전체 통과
-node tests/war/rules.test.mjs              # 전체 통과
-node tests/war/db.test.mjs                 # 전체 통과
-node tests/war/import.test.mjs             # 전체 통과
-node tests/war/real-preview.test.mjs       # 전체 통과
-node tests/trade/db.test.mjs               # 전체 통과
-npm run war:preview && npm run war:preview # state.json 두 번 같음
-git status --short                         # 위 목록 밖 변경 없음
+node tests/war/e2.test.mjs         # 전체 통과
+node tests/war/act.test.mjs        # 전체 통과
+node tests/war/import-v2.test.mjs  # 전체 통과
+node tests/war/import.test.mjs     # 전체 통과
+node tests/war/rules.test.mjs      # 전체 통과
+node tests/war/db.test.mjs         # 전체 통과
+node tests/war/real-preview.test.mjs # 전체 통과
+node tests/trade/db.test.mjs       # 전체 통과
+npm run war:preview && npm run war:preview  # state.json 두 번 같음
+git status --short                 # 위 목록 밖 변경 없음
 ```
+화면 (Live Server, 확인 못 하면 「미확인」):
+- `app/war/index.html?preview=1&as=1:chief` → 합참 메뉴 / `&as=1:army` → 무역 메뉴 없음 / `&as=1:chief&size=4` → 공병 메뉴 합쳐짐 / `?preview=1` (as 없음) → 역할 고르기 화면
+- `app/war/admin.html?preview=1` → 지급 결과 표와 역할 현황
+- `?preview=1&play=1` → 예전 체험 모드
+- F12 콘솔 빨간 오류 없음, Chrome CPU 4x에서 탭 전환이 끊기지 않음
 
 ## 보고 (`docs/tasks/report.md`에 덮어쓰기)
-H0~H4 각각 3줄 이내, 시험 마지막 줄들, 가짜 데이터 기준 나라별 지급 결과(육·해·공 지급/건너뜀), 시장 3곳의 실제 칸, 못 한 것은 맨 위 「실패: 이유」, 마지막 줄 「커밋·푸시하지 않았습니다」
+H1~H6 각각 3줄 이내, 시험 마지막 줄들, 가짜 데이터 지급 결과(해군이 이제 given인지), 화면 확인 결과, 못 한 것은 맨 위 「실패: 이유」, 마지막 줄 「커밋·푸시하지 않았습니다」
