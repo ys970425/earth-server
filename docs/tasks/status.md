@@ -1,35 +1,26 @@
-# 진행 상황 (전쟁 버전, 브랜치 `war-version`)
+# 진행 상황 (「지구 서버: 전쟁의 시간」, 브랜치 `war-version`)
 
 마지막 정리: 2026-11-07
 
 ## 끝난 것
-- 설계: `docs/war-design.md` (11장까지 확정, 8장 이미지·미리보기 확정)
+- 설계: `docs/war-design.md` — 2026-11-07 「전쟁의 시간」 기준으로 전면 개정 (역할, 동시 턴제, 점령·파괴·수리, 외교, 물물교환, 배포 `earth-war`). 바뀐 점은 13장
 - W0 테스트 틀 (`npm run test:war`), W1 가져오기 (`npm run test:war:import`)
-- W2 학생 화면 뼈대 + 가짜 미리보기: Live Server `app/war/index.html?preview=1`
-- 실제 데이터 미리보기 변환 도구: `private/`에 무역 백업 파일을 넣고 `npm run war:preview:real` → `app/war/preview/state-real.json`
-  - 백업 파일과 변환 결과는 `.gitignore`로 깃허브에서 제외됨. 변환 결과에는 학생 이름·닉네임이 없음
-  - 시험: `npm run test:war:real`
-- 실제 데이터 미리보기 화면: Live Server `app/war/index.html?preview=real` (초록 띠, 파일이 없으면 안내 문구)
-- 화면의 병력·지형·자원·시설 이름 모두 한글 (영어 대신 「병력」 등으로 표시)
-- 의견 보내기 설계: `docs/war-design.md` 12장
-- 체험 모드 (미리보기 전용, 브라우저 메모리에서만): 처음 상태로 / 병력 이동(이동력·산·한 칸 한 유닛) / 공격 미리보기 「체험용 계산」 / 턴 넘기기
-  - 확인 못 한 것: 클릭 조작은 사람이 직접 눌러 확인해야 함 (자동 확인은 화면 표시·오류 없음까지)
-  - 정식 W3·W4에서는 이 체험용 계산을 서버 함수로 옮기고 시험을 붙일 것 (지금은 화면 안 계산)
+- 학생 화면 뼈대 + 가짜 미리보기: Live Server `app/war/index.html?preview=1`
+- 실제 데이터 미리보기: `private/`에 무역 백업 → `npm run war:preview:real` → `?preview=real` (깃허브 제외, 학생 이름 없음, 시험 `npm run test:war:real`)
+- 체험 모드 (브라우저 메모리에서만): 이동, 공격 미리보기, 도시 공격·점령·수도 포위, 근접 배 해안 도시 점령, 병력 목록, 특수 부대 95·피해 60, 턴 넘기기, 처음 상태로
+- 구축함 그림 `app/trade/assets/units/destroyer.png`
 
 ## 진행 중
 - 없음
 
-## 다음에 할 것
-순서: **의견 보내기 → W3**
-
-1. 의견 보내기 (`docs/war-design.md` 12장) — F1 서버 SQL·시험 [GPT] → F2 학생 버튼·입력 창 [헬피] → F3 교사 목록·「AI에게 넘기기」 [헬피]
-   - 11/9 전에는 미리보기(브라우저 안 저장)로만. F4 서버 연결은 11/9 이후
-2. W3 이동과 한 칸 한 유닛 — 서버 함수 [GPT], 화면 [헬피] (설계 4-3, 4-4)
-   - 함께 고칠 것: 화면이 클 때 지도 아래 빈 띠
-3. 이후 W4~W12 (`docs/war-design.md` 10장)
+## 다음에 할 것 (`docs/war-design.md` 10장 순서)
+1. **E0** 규칙 파일 `app/war/js/war-rules.js` + 전투기 그림 자르기(nation archive 사본만) + 64px 그림 사본 도구 [헬피]
+2. **E1** 서버 기반 + 가져오기 v2 (공장 배치, 병과 지급, 특수 부대 수치) [GPT]
+3. E2~E13 (역할 화면, 이동, 전투·파괴, 턴 타이머, 합참의장, 생산, 외교, 시장, 첩보, 칠판·의견 보내기, 모의 실행, 배포)
+- 체험 모드의 계산은 E3·E4에서 서버 함수로 옮기고 시험을 붙인다
 
 ## 잊지 말 것
-- 11/9 공개수업 전까지: 배포(gh-pages, publish-pages.sh) 금지, Supabase에 SQL 실행 금지, `claude/setup`에 커밋 금지
-- codex exec에는 `-c 'windows.sandbox="unelevated"'`
-- 체험 모드 추가 (2026-11-07): 근접 배의 해안 도시 점령, 구축함 준비(힘 60·이동 6, 그림 `app/trade/assets/units/destroyer.png`). 구축함을 만드는(훈련) 기능은 아직 없음 → W4 이후 병력 훈련 단계에서 추가
-- 특수 부대: 설계 11장 변경(전투 참여, 힘 95, 한 번 피해 최대 60). 체험 모드에만 반영됨 → W4에서 `war.admin_import`·서버 전투에 옮기고 시험 추가
+- Supabase 설치(`war`·`feedback` 스키마)는 교사가 정한 때에만. gh-pages·`publish-pages.sh`·`claude/setup` 건드리지 않기
+- 배포는 새 저장소 `earth-war` (생성 승인됨, E13에서 만듦)
+- 담당은 헬피코드 우선, 어려운 것(여러 표·잠금이 얽힌 서버 함수, 모의 실행)만 GPT. codex exec에는 `-c 'windows.sandbox="unelevated"'`
+- 웨일북 확인: Chrome CPU 4x 느리게, 또는 Live Server Host 0.0.0.0 + PC IP (설계 8-4)
