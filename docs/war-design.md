@@ -196,8 +196,11 @@
 
 - 학생 화면 `app/war/index.html`, 교사 관제실 `app/war/admin.html`, 전자칠판 `app/war/board.html`
 - 무역 앱 파일(`app/trade/js/hexmap.js` 등)은 **고치지 않습니다.** 그대로 불러 쓸 수 있으면 불러 쓰고, 바꿔야 하면 `app/war/js/`에 복사해서 고칩니다.
-- 이미지는 `app/trade/assets/` 아래 것만 씁니다 (CLAUDE.md 규칙).
-  - 참고: 무역 앱은 `app/trade/img/city/`에 같은 이름의 **다른 그림**을 씁니다. 전쟁 버전은 `app/trade/assets/cities/`의 그림을 씁니다.
+- 이미지 (2026-11-07 G-A로 확정):
+  - 지형·자원·병력·건물·기존 도시 그림은 무역 앱의 `app/trade/img/`를 **복사하지 않고 그 자리에서 읽기만** 합니다. 무역 앱 지도와 똑같이 보이게 하기 위해서입니다.
+  - 전쟁 버전에서 새로 생기는 중립 도시국가 3곳(3장)만 `app/trade/assets/cities/neutral_*.png`를 씁니다. (무역 앱의 `app/trade/img/city/neutral_*.png`는 이름만 같고 다른 그림입니다.)
+  - 전쟁 버전용 그림을 새로 넣어야 하면 `app/trade/assets/` 아래에만 넣습니다 (CLAUDE.md 규칙). `app/war/` 안에 그림을 두지 않습니다.
+- 미리보기 모드: 주소 끝에 `?preview=1`을 붙이면 Supabase 대신 `app/war/preview/state.json`(가짜 데이터)을 읽습니다. 이 파일은 `npm run war:preview`가 W0 테스트 틀(학생 25명 진행 상태)과 W1 가져오기를 실행해 만듭니다. Supabase에 설치하기 전에도 화면을 확인할 수 있게 하기 위해서입니다.
 - 모든 화면 하단에 「myoLab(산쌤)」
 
 ---
