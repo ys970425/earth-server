@@ -1,3 +1,61 @@
+-- Lock war.game FOR SHARE, then countries FOR UPDATE in ascending id order.
+-- Actions involving two countries must lock both only through act_start p_other.
+drop function if exists war.act_start(text, boolean);
+drop function if exists war.lock_countries(int, int);
+create or replace function war.act_start(p_role text, p_combat boolean default false, p_other int default null) returns jsonb
+language plpgsql as $$
+declare
+  student priv.students;
+  own_role text;
+  role_name text;
+  g war.game;
+begin
+  select * into student from priv.students where uid = auth.uid();
+  if not found then
+    perform priv.err('NO_AUTH', '접속 정보가 없어요. 새로고침해 주세요.');
+  end if;
+
+  select * into g from war.game where id = 1 for share;
+  perform 1 from war.countries
+    where id = student.country_id or id = p_other order by id for update;
+
+  select role into own_role from war.roles
+    where war.roles.student = student.id and country = student.country_id;
+  select r->>'name' into role_name
+    from jsonb_array_elements(war.cfg()->'ROLES') r where r->>'key' = p_role;
+  if role_name is null or not coalesce(
+    own_role = p_role or (own_role = 'chief' and (
+      not exists (select 1 from war.roles where country = student.country_id
+        and role = p_role and not absent)
+      or (p_role = 'engineer' and
+        (select count(*) from priv.students where country_id = student.country_id) <= 4)
+    )), false) then
+    perform priv.err('ROLE_ONLY', '이 일은 ' || coalesce(role_name, p_role, '담당 역할') || '이(가) 해요');
+  end if;
+  if g.paused then
+    perform priv.err('PAUSED', '지금은 잠깐 멈춘 시간이에요');
+  end if;
+  if p_combat and not g.combat_on then
+    perform priv.err('NO_COMBAT', '지금은 싸울 수 없는 시간이에요');
+  end if;
+  return jsonb_build_object('student', student.id, 'country', student.country_id,
+    'role', own_role, 'acting_as', case when own_role <> p_role then p_role end);
+end $$;
+revoke all on function war.act_start(text, boolean, int) from public;
+
+-- schema의 war.versions에 설계 1-3의 영역만 기록한다. 호출한 행동과 같은 트랜잭션이다.
+create or replace function war.bump(p_section text, p_country int default 0) returns void
+language plpgsql as $$
+begin
+  if p_section is null or p_section not in
+    ('game', 'map', 'units', 'cities', 'diplomacy', 'country', 'notice') then
+    perform priv.err('BAD_SECTION', '없는 영역이에요');
+  end if;
+  insert into war.versions(area, country, ver) values (p_section, p_country, 1)
+    on conflict (area, country) do update set ver = war.versions.ver + 1;
+end $$;
+revoke all on function war.bump(text, int) from public;
+
 create or replace function war.admin_import(p_confirm text) returns jsonb
 language plpgsql security definer set search_path = war, priv, public as $$
 declare
