@@ -3,6 +3,8 @@
     "test:war:import": "node tests/war/import.test.mjs",
     "test:war": "node tests/war/db.test.mjs",
     "test:trade": "node tests/trade/db.test.mjs",
+    "war:preview:real": "node tools/war/make-real-preview.mjs",
+    "test:war:real": "node tests/war/real-preview.test.mjs",
     "war:preview": "node tools/war/make-preview.mjs"
   },
   "devDependencies": {
