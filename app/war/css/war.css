@@ -41,6 +41,31 @@ body.war .map-layout { height: calc(100vh - 170px); min-height: 420px; margin-to
 .war-inv { margin-top: 8px; }
 .war-inv .chip { margin: 2px 2px 0 0; }
 
+/* E2: 학생 화면 틀 — 위쪽 표시줄, 역할 고르기, 메뉴 탭 */
+.war-top { padding: 4px 8px 0; }
+.war-top-in { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 6px 10px;
+  border: 3px solid var(--line); border-radius: 14px; background: rgba(255, 249, 238, .9); }
+.war-top-name { font-family: var(--font-display); font-size: 20px; }
+.war-top-turn { margin-left: auto; font-weight: 700; }
+body.war .map-layout { margin-top: 4px; }
+.war-role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin: 18px 0; }
+.war-role { min-height: 72px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+  border-color: var(--gc, var(--gold)); }
+.war-role.taken { opacity: .55; }
+.war-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.war-tab { min-height: 48px; }
+.war-tab.on { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold); }
+.war-tab-body { margin-top: 8px; }
+.war-roles-list { margin-top: 4px; }
+
+/* E2: 관제실 */
+.war-admin { max-width: 900px; margin: 0 auto; padding: 8px 12px 30px; display: flex; flex-direction: column; gap: 12px; }
+.war-table td, .war-table th { padding: 6px 8px; }
+.war-role-sel { min-height: 40px; }
+.war-absent { display: flex; gap: 6px; align-items: center; min-height: 48px; }
+.war-absent input { width: 22px; height: 22px; }
+
+
 /* 체험 병력 목록: 긴 목록은 이 영역 안에서만 스크롤해요. */
 .war-army { flex-shrink: 0; min-width: 0; }
 .war-army-list { max-height: 240px; overflow-y: auto; }

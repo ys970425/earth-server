@@ -115,10 +115,18 @@ try {
     '5번 나라 창병은 수도 칸 말고 가까운 빈 땅 칸에 지급');
   ok((await one(`select count(*)::int n from war.grants where country = 5 and branch = 'air'`)).n === 0,
     '5번 나라는 공군이 이미 있어 지급 기록이 없음');
-  // 3번 나라: 해군 skipped, 까닭 문구
-  const g3 = (await one(`select result, reason from war.grants where country = 3 and branch = 'navy'`));
-  ok(g3.result === 'skipped' && g3.reason === '해안 도시가 없어 해군을 줄 수 없어요',
-    '3번 나라 해군은 skipped: ' + g3.reason);
+  // 3번 나라: 해안 도시가 없어도 수도에서 가장 가까운 빈 바다 칸에 지급 (E2 해군 지급 A)
+  const g3 = (await one(`select result, unit_id from war.grants where country = 3 and branch = 'navy'`));
+  ok(g3.result === 'given', '3번 나라(해안 도시 없음) 해군도 given (해군 지급 A: 수도에서 가장 가까운 빈 바다 칸)');
+  ok((await one(`select t.terrain in ('ocean', 'coast') sea from war.units u join war.tiles t on t.id = u.tile_id where u.id = ${g3.unit_id}`)).sea,
+    '3번 나라 삼단노선이 바다 칸에 있음');
+  ok((await one(`select u.tile_id = n.tile_id same from war.units u
+      join war.cities c on c.country = 3 and c.kind = 'capital'
+      join lateral (select t.id tile_id from war.tiles t where t.terrain in ('ocean', 'coast')
+        and not exists (select 1 from war.units m where m.tile_id = t.id and m.kind not in ('worker', 'scout') and m.id <> u.id)
+        order by priv.tdist(t.id, c.tile_id), t.id limit 1) n on true
+      where u.id = ${g3.unit_id}`)).same,
+    '3번 나라 삼단노선은 수도에서 가장 가까운 빈 바다 칸 (군사 유닛 없음, 번호순 동점)');
   // 지급된 병력은 규칙에 맞는 칸 (땅/바다, 군사 유닛 겹침 없음)
   ok((await one(`select count(*)::int n from war.grants g join war.units u on u.id = g.unit_id
       join war.tiles t on t.id = u.tile_id

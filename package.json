@@ -1,6 +1,7 @@
 {
   "scripts": {
     "test:war:act": "node tests/war/act.test.mjs",
+    "test:war:e2": "node tests/war/e2.test.mjs",
     "test:war:import": "node tests/war/import.test.mjs",
     "test:war:import2": "node tests/war/import-v2.test.mjs",
     "test:war": "node tests/war/db.test.mjs",

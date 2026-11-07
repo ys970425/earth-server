@@ -112,7 +112,7 @@
       return bd <= SIDE * SIDE ? best : -1;
     }
     const visible = id => st.all || st.tiles.has(id);
-    const colorOf = c => (st.countries[c] && st.countries[c].color) || '#888';
+    const colorOf = c => (st.countries[c] && st.countries[c].color) || '#888888';   // war: 기본색을 6자리로 (모르는 나라도 잘못된 색이 되지 않게)
 
     function drawImgBottom(im, cx, by, w) {
       if (!im) return;

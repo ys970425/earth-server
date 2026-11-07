@@ -1,6 +1,9 @@
 {
  "game": {
-  "turn": 3
+  "turn": 3,
+  "turn_seconds": 180,
+  "paused": false,
+  "combat_on": true
  },
  "tiles": [
   [
@@ -8,7840 +11,8960 @@
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    2,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    3,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    4,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    5,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    6,
    "forest",
    "gold",
    null,
-   null
+   null,
+   false
   ],
   [
    7,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    8,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    9,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    10,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    11,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    12,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    13,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    14,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    15,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    16,
    "tundra",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    17,
    "forest",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    18,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    19,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    20,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    21,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    22,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    23,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    24,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    25,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    26,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    27,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    28,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    29,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    30,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    31,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    32,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    33,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    34,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    35,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    36,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    37,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    38,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    39,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    40,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    41,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    42,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    43,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    44,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    45,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    46,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    47,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    48,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    49,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    50,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    51,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    52,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    53,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    54,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    55,
    "tundra",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    56,
    "forest",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    57,
    "tundra",
    "oil",
    5,
-   null
+   null,
+   false
   ],
   [
    58,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    59,
    "forest",
    "gold",
    null,
-   null
+   null,
+   false
   ],
   [
    60,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    61,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    62,
    "snow",
    "oil",
    null,
-   null
+   null,
+   false
   ],
   [
    63,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    64,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    65,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    66,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    67,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    68,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    69,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    70,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    71,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    72,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    73,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    74,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    75,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    76,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    77,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    78,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    79,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    80,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    81,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    82,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    83,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    84,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    85,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    86,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    87,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    88,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    89,
    "forest",
    "aluminum",
    null,
-   null
+   null,
+   false
   ],
   [
    90,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    91,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    92,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    93,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    94,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    95,
    "hills",
    "uranium",
    5,
-   null
+   null,
+   false
   ],
   [
    96,
    "plains",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    97,
    "tundra",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    98,
    "forest",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    99,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    100,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    101,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    102,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    103,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    104,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    105,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    106,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    107,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    108,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    109,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    110,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    111,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    112,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    113,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    114,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    115,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    116,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    117,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    118,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    119,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    120,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    121,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    122,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    123,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    124,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    125,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    126,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    127,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    128,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    129,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    130,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    131,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    132,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    133,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    134,
    "tundra",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    135,
    "tundra",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    136,
    "tundra",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    137,
    "tundra",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    138,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    139,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    140,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    141,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    142,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    143,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    144,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    145,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    146,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    147,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    148,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    149,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    150,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    151,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    152,
    "mountain",
    "aluminum",
    null,
-   null
+   null,
+   false
   ],
   [
    153,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    154,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    155,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    156,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    157,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    158,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    159,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    160,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    161,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    162,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    163,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    164,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    165,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    166,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    167,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    168,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    169,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    170,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    171,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    172,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    173,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    174,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    175,
    "snow",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    176,
    "forest",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    177,
    "forest",
    null,
    5,
-   null
+   null,
+   false
   ],
   [
    178,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    179,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    180,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    181,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    182,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    183,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    184,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    185,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    186,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    187,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    188,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    189,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    190,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    191,
    "hills",
    "aluminum",
    null,
-   null
+   null,
+   false
   ],
   [
    192,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    193,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    194,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    195,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    196,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    197,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    198,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    199,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    200,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    201,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    202,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    203,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    204,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    205,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    206,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    207,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    208,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    209,
    "hills",
    "aluminum",
    null,
-   null
+   null,
+   false
   ],
   [
    210,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    211,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    212,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    213,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    214,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    215,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    216,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    217,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    218,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    219,
    "snow",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    220,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    221,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    222,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    223,
    "hills",
    "uranium",
    null,
-   null
+   null,
+   false
   ],
   [
    224,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    225,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    226,
    "tundra",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    227,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    228,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    229,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    230,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    231,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    232,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    233,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    234,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    235,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    236,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    237,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    238,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    239,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    240,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    241,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    242,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    243,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    244,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    245,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    246,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    247,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    248,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    249,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    250,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    251,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    252,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    253,
    "hills",
    "iron",
    null,
-   null
+   null,
+   false
   ],
   [
    254,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    255,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    256,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    257,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    258,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    259,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    260,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    261,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    262,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    263,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    264,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    265,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    266,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    267,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    268,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    269,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    270,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    271,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    272,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    273,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    274,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    275,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    276,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    277,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    278,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    279,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    280,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    281,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    282,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    283,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    284,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    285,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    286,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    287,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    288,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    289,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    290,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    291,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    292,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    293,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    294,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    295,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    296,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    297,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    298,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    299,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    300,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    301,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    302,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    303,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    304,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    305,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    306,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    307,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    308,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    309,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    310,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    311,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    312,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    313,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    314,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    315,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    316,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    317,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    318,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    319,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    320,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    321,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    322,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    323,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    324,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    325,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    326,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    327,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    328,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    329,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    330,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    331,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    332,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    333,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    334,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    335,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    336,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    337,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    338,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    339,
    "forest",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    340,
    "hills",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    341,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    342,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    343,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    344,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    345,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    346,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    347,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    348,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    349,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    350,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    351,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    352,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    353,
    "hills",
    "aluminum",
    null,
-   null
+   null,
+   false
   ],
   [
    354,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    355,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    356,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    357,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    358,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    359,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    360,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    361,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    362,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    363,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    364,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    365,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    366,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    367,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    368,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    369,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    370,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    371,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    372,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    373,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    374,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    375,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    376,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    377,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    378,
    "forest",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    379,
    "forest",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    380,
    "plains",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    381,
    "mountain",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    382,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    383,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    384,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    385,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    386,
    "forest",
    "copper",
    null,
-   null
+   null,
+   false
   ],
   [
    387,
    "hills",
    "copper",
    2,
-   null
+   null,
+   false
   ],
   [
    388,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    389,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    390,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    391,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    392,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    393,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    394,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    395,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    396,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    397,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    398,
    "plains",
    "wine",
    null,
-   null
+   null,
+   false
   ],
   [
    399,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    400,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    401,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    402,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    403,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    404,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    405,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    406,
    "hills",
    "copper",
    null,
-   null
+   null,
+   false
   ],
   [
    407,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    408,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    409,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    410,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    411,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    412,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    413,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    414,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    415,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    416,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    417,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    418,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    419,
    "forest",
    "iron",
    1,
-   null
+   null,
+   false
   ],
   [
    420,
    "plains",
    null,
    1,
-   "farm"
+   "farm",
+   false
   ],
   [
    421,
    "forest",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    422,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    423,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    424,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    425,
    "plains",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    426,
    "plains",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    427,
    "forest",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    428,
    "plains",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    429,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    430,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    431,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    432,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    433,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    434,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    435,
    "desert",
    "wine",
    null,
-   null
+   null,
+   false
   ],
   [
    436,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    437,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    438,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    439,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    440,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    441,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    442,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    443,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    444,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    445,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    446,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    447,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    448,
    "hills",
    "rare",
    null,
-   null
+   null,
+   false
   ],
   [
    449,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    450,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    451,
    "hills",
    "iron",
    3,
-   null
+   null,
+   false
   ],
   [
    452,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    453,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    454,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    455,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    456,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    457,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    458,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    459,
    "plains",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    460,
    "plains",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    461,
    "forest",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    462,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    463,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    464,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    465,
    "plains",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    466,
    "plains",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    467,
    "forest",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    468,
    "forest",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    469,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    470,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    471,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    472,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    473,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    474,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    475,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    476,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    477,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    478,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    479,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    480,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    481,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    482,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    483,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    484,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    485,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    486,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    487,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    488,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    489,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    490,
    "plains",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    491,
    "forest",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    492,
    "forest",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    493,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    494,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    495,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    496,
    "hills",
    "copper",
    null,
-   null
+   null,
+   false
   ],
   [
    497,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    498,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    499,
    "plains",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    500,
    "plains",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    501,
    "hills",
    null,
    1,
-   null
+   null,
+   false
   ],
   [
    502,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    503,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    504,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    505,
    "hills",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    506,
    "plains",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    507,
    "mountain",
    null,
    2,
-   null
+   null,
+   false
   ],
   [
    508,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    509,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    510,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    511,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    512,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    513,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    514,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    515,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    516,
    "forest",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    517,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    518,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    519,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    520,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    521,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    522,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    523,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    524,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    525,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    526,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    527,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    528,
    "mountain",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    529,
    "plains",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    530,
    "plains",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    531,
    "mountain",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    532,
    "hills",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    533,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    534,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    535,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    536,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    537,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    538,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    539,
    "hills",
    "iron",
    null,
-   null
+   null,
+   false
   ],
   [
    540,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    541,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    542,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    543,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    544,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    545,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    546,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    547,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    548,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    549,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    550,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    551,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    552,
    "hills",
    "aluminum",
    null,
-   null
+   null,
+   false
   ],
   [
    553,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    554,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    555,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    556,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    557,
    "desert",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    558,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    559,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    560,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    561,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    562,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    563,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    564,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    565,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    566,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    567,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    568,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    569,
    "desert",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    570,
    "hills",
    "cotton",
    3,
-   null
+   null,
+   false
   ],
   [
    571,
    "plains",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    572,
    "plains",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    573,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    574,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    575,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    576,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    577,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    578,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    579,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    580,
    "hills",
    "iron",
    null,
-   null
+   null,
+   false
   ],
   [
    581,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    582,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    583,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    584,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    585,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    586,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    587,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    588,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    589,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    590,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    591,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    592,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    593,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    594,
    "forest",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    595,
    "hills",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    596,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    597,
    "forest",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    598,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    599,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    600,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    601,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    602,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    603,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    604,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    605,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    606,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    607,
    "plains",
    "cotton",
    null,
-   null
+   null,
+   false
   ],
   [
    608,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    609,
    "hills",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    610,
    "plains",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    611,
    "forest",
    null,
    3,
-   null
+   null,
+   false
   ],
   [
    612,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    613,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    614,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    615,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    616,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    617,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    618,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    619,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    620,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    621,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    622,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    623,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    624,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    625,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    626,
    "forest",
    "copper",
    null,
-   null
+   null,
+   false
   ],
   [
    627,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    628,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    629,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    630,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    631,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    632,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    633,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    634,
    "plains",
    "oil",
    4,
-   null
+   null,
+   false
   ],
   [
    635,
    "plains",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    636,
    "forest",
    null,
    4,
-   null
+   null,
+   false
   ],
   [
    637,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    638,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    639,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    640,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    641,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    642,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    643,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    644,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    645,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    646,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    647,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    648,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    649,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    650,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    651,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    652,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    653,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    654,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    655,
    "mountain",
    "rare",
    null,
-   null
+   null,
+   false
   ],
   [
    656,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    657,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    658,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    659,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    660,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    661,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    662,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    663,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    664,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    665,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    666,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    667,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    668,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    669,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    670,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    671,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    672,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    673,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    674,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    675,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    676,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    677,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    678,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    679,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    680,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    681,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    682,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    683,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    684,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    685,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    686,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    687,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    688,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    689,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    690,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    691,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    692,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    693,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    694,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    695,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    696,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    697,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    698,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    699,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    700,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    701,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    702,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    703,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    704,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    705,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    706,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    707,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    708,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    709,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    710,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    711,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    712,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    713,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    714,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    715,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    716,
    "desert",
    "oil",
    null,
-   null
+   null,
+   false
   ],
   [
    717,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    718,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    719,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    720,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    721,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    722,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    723,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    724,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    725,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    726,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    727,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    728,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    729,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    730,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    731,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    732,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    733,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    734,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    735,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    736,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    737,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    738,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    739,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    740,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    741,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    742,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    743,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    744,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    745,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    746,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    747,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    748,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    749,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    750,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    751,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    752,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    753,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    754,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    755,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    756,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    757,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    758,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    759,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    760,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    761,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    762,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    763,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    764,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    765,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    766,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    767,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    768,
    "mountain",
    "iron",
    null,
-   null
+   null,
+   false
   ],
   [
    769,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    770,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    771,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    772,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    773,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    774,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    775,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    776,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    777,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    778,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    779,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    780,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    781,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    782,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    783,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    784,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    785,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    786,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    787,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    788,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    789,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    790,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    791,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    792,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    793,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    794,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    795,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    796,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    797,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    798,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    799,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    800,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    801,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    802,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    803,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    804,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    805,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    806,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    807,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    808,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    809,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    810,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    811,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    812,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    813,
    "jungle",
    "spice",
    null,
-   null
+   null,
+   false
   ],
   [
    814,
    "jungle",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    815,
    "plains",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    816,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    817,
    "plains",
    "rubber",
    null,
-   null
+   null,
+   false
   ],
   [
    818,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    819,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    820,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    821,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    822,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    823,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    824,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    825,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    826,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    827,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    828,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    829,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    830,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    831,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    832,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    833,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    834,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    835,
    "hills",
    "iron",
    null,
-   null
+   null,
+   false
   ],
   [
    836,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    837,
    "desert",
    "oil",
    null,
-   null
+   null,
+   false
   ],
   [
    838,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    839,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    840,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    841,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    842,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    843,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    844,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    845,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    846,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    847,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    848,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    849,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    850,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    851,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    852,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    853,
    "plains",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    854,
    "jungle",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    855,
    "jungle",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    856,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    857,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    858,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    859,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    860,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    861,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    862,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    863,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    864,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    865,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    866,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    867,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    868,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    869,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    870,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    871,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    872,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    873,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    874,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    875,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    876,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    877,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    878,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    879,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    880,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    881,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    882,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    883,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    884,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    885,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    886,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    887,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    888,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    889,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    890,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    891,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    892,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    893,
    "plains",
    "rubber",
    6,
-   null
+   null,
+   false
   ],
   [
    894,
    "plains",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    895,
    "plains",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    896,
    "plains",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    897,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    898,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    899,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    900,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    901,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    902,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    903,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    904,
    "mountain",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    905,
    "hills",
    "aluminum",
    null,
-   null
+   null,
+   false
   ],
   [
    906,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    907,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    908,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    909,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    910,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    911,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    912,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    913,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    914,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    915,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    916,
    "desert",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    917,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    918,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    919,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    920,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    921,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    922,
    "hills",
    "iron",
    null,
-   null
+   null,
+   false
   ],
   [
    923,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    924,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    925,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    926,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    927,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    928,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    929,
    "forest",
    "rubber",
    null,
-   null
+   null,
+   false
   ],
   [
    930,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    931,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    932,
    "forest",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    933,
    "jungle",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    934,
    "jungle",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    935,
    "hills",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    936,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    937,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    938,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    939,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    940,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    941,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    942,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    943,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    944,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    945,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    946,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    947,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    948,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    949,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    950,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    951,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    952,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    953,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    954,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    955,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    956,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    957,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    958,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    959,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    960,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    961,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    962,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    963,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    964,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    965,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    966,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    967,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    968,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    969,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    970,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    971,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    972,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    973,
    "hills",
    "copper",
    null,
-   null
+   null,
+   false
   ],
   [
    974,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    975,
    "jungle",
    null,
    6,
-   null
+   null,
+   false
   ],
   [
    976,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    977,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    978,
    "hills",
    "copper",
    null,
-   null
+   null,
+   false
   ],
   [
    979,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    980,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    981,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    982,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    983,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    984,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    985,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    986,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    987,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    988,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    989,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    990,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    991,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    992,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    993,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    994,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    995,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    996,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    997,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    998,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    999,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1000,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1001,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1002,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1003,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1004,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1005,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1006,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1007,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1008,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1009,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1010,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1011,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1012,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1013,
    "plains",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1014,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1015,
    "forest",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1016,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1017,
    "jungle",
    "spice",
    null,
-   null
+   null,
+   false
   ],
   [
    1018,
    "hills",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1019,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1020,
    "jungle",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1021,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1022,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1023,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1024,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1025,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1026,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1027,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1028,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1029,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1030,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1031,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1032,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1033,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1034,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1035,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1036,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1037,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1038,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1039,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1040,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1041,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1042,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1043,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1044,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1045,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1046,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1047,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1048,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1049,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1050,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1051,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1052,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1053,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1054,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1055,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1056,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1057,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1058,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1059,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1060,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1061,
    "coast",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1062,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1063,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1064,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1065,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1066,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1067,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1068,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1069,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1070,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1071,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1072,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1073,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1074,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1075,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1076,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1077,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1078,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1079,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1080,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1081,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1082,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1083,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1084,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1085,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1086,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1087,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1088,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1089,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1090,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1091,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1092,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1093,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1094,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1095,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1096,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1097,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1098,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1099,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1100,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1101,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1102,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1103,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1104,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1105,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1106,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1107,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1108,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1109,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1110,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1111,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1112,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1113,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1114,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1115,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1116,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1117,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1118,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ],
   [
    1119,
    "ocean",
    null,
    null,
-   null
+   null,
+   false
   ]
  ],
  "cities": [
@@ -7860,7 +8983,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "A1",
@@ -7877,7 +9001,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "A2",
@@ -7894,7 +9019,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "A3",
@@ -7911,7 +9037,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "A4",
@@ -7928,7 +9055,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "A5",
@@ -7945,7 +9073,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "A6",
@@ -7962,7 +9091,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "A7",
@@ -7979,7 +9109,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "C",
@@ -7996,7 +9127,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "C1",
@@ -8013,7 +9145,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "C2",
@@ -8030,7 +9163,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "C3",
@@ -8047,7 +9181,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "C4",
@@ -8064,7 +9199,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "C5",
@@ -8081,7 +9217,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "C6",
@@ -8098,7 +9235,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "C7",
@@ -8115,7 +9253,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "J",
@@ -8132,7 +9271,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "J1",
@@ -8149,7 +9289,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "J2",
@@ -8166,7 +9307,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "J3",
@@ -8183,7 +9325,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "J4",
@@ -8200,7 +9343,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "K",
@@ -8219,7 +9363,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "K1",
@@ -8236,7 +9381,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "K2",
@@ -8253,7 +9399,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "K3",
@@ -8270,7 +9417,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "K4",
@@ -8287,7 +9435,8 @@
    "sea": true,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "N",
@@ -8304,7 +9453,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "N1",
@@ -8321,7 +9471,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "N2",
@@ -8338,7 +9489,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "N3",
@@ -8355,7 +9507,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "N4",
@@ -8372,7 +9525,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "N5",
@@ -8389,7 +9543,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "N6",
@@ -8406,7 +9561,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "N7",
@@ -8423,7 +9579,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "T",
@@ -8440,7 +9597,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "T1",
@@ -8457,7 +9615,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "T2",
@@ -8474,7 +9633,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "T3",
@@ -8491,7 +9651,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "T4",
@@ -8508,7 +9669,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "T5",
@@ -8525,7 +9687,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "T6",
@@ -8542,7 +9705,8 @@
    "sea": false,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "X1",
@@ -8559,7 +9723,8 @@
    "sea": true,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "X2",
@@ -8576,7 +9741,8 @@
    "sea": true,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "X3",
@@ -8593,7 +9759,8 @@
    "sea": true,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "X4",
@@ -8610,7 +9777,8 @@
    "sea": true,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   },
   {
    "id": "X5",
@@ -8627,7 +9795,8 @@
    "sea": true,
    "boss": false,
    "final": false,
-   "rebel": false
+   "rebel": false,
+   "besieged": false
   }
  ],
  "units": [
@@ -8637,6 +9806,7 @@
    "kind": "worker",
    "tile": 420,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8645,6 +9815,7 @@
    "kind": "scout",
    "tile": 460,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8653,6 +9824,7 @@
    "kind": "scout",
    "tile": 421,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8661,6 +9833,7 @@
    "kind": "scout",
    "tile": 459,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8669,6 +9842,7 @@
    "kind": "spear",
    "tile": 420,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8677,6 +9851,7 @@
    "kind": "spear",
    "tile": 460,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8685,6 +9860,7 @@
    "kind": "catapult",
    "tile": 421,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8693,6 +9869,7 @@
    "kind": "worker",
    "tile": 466,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8701,6 +9878,7 @@
    "kind": "scout",
    "tile": 426,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8709,6 +9887,7 @@
    "kind": "scout",
    "tile": 427,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8717,6 +9896,7 @@
    "kind": "scout",
    "tile": 465,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8725,6 +9905,7 @@
    "kind": "spear",
    "tile": 466,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8733,6 +9914,7 @@
    "kind": "spear",
    "tile": 426,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8741,6 +9923,7 @@
    "kind": "catapult",
    "tile": 427,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8749,6 +9932,7 @@
    "kind": "worker",
    "tile": 530,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8757,6 +9941,7 @@
    "kind": "scout",
    "tile": 490,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8765,6 +9950,7 @@
    "kind": "scout",
    "tile": 491,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8773,6 +9959,7 @@
    "kind": "scout",
    "tile": 529,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8781,6 +9968,7 @@
    "kind": "spear",
    "tile": 530,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8789,6 +9977,7 @@
    "kind": "spear",
    "tile": 490,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8797,6 +9986,7 @@
    "kind": "catapult",
    "tile": 491,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8805,6 +9995,7 @@
    "kind": "worker",
    "tile": 555,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8813,6 +10004,7 @@
    "kind": "scout",
    "tile": 515,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8821,6 +10013,7 @@
    "kind": "scout",
    "tile": 516,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8829,6 +10022,7 @@
    "kind": "scout",
    "tile": 554,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8837,6 +10031,7 @@
    "kind": "spear",
    "tile": 555,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8845,6 +10040,7 @@
    "kind": "spear",
    "tile": 515,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8853,6 +10049,7 @@
    "kind": "catapult",
    "tile": 516,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8861,6 +10058,7 @@
    "kind": "worker",
    "tile": 96,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8869,6 +10067,7 @@
    "kind": "scout",
    "tile": 55,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8877,6 +10076,7 @@
    "kind": "scout",
    "tile": 56,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8885,6 +10085,7 @@
    "kind": "scout",
    "tile": 95,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8893,6 +10094,7 @@
    "kind": "spear",
    "tile": 96,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8901,6 +10103,7 @@
    "kind": "spear",
    "tile": 55,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8909,6 +10112,7 @@
    "kind": "catapult",
    "tile": 56,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8917,6 +10121,7 @@
    "kind": "worker",
    "tile": 894,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8925,6 +10130,7 @@
    "kind": "scout",
    "tile": 853,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8933,6 +10139,7 @@
    "kind": "scout",
    "tile": 854,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8941,6 +10148,7 @@
    "kind": "scout",
    "tile": 893,
    "hp": 100,
+   "commander": "engineer",
    "done": false
   },
   {
@@ -8949,6 +10157,7 @@
    "kind": "spear",
    "tile": 894,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8957,6 +10166,7 @@
    "kind": "spear",
    "tile": 853,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
@@ -8965,54 +10175,115 @@
    "kind": "catapult",
    "tile": 854,
    "hp": 100,
+   "commander": "army",
    "done": false
   },
   {
    "id": 85,
    "country": 1,
-   "kind": "fighter",
-   "tile": 459,
+   "kind": "trireme",
+   "tile": 422,
    "hp": 100,
+   "commander": "navy",
    "done": false
   },
   {
    "id": 86,
-   "country": 2,
+   "country": 1,
    "kind": "fighter",
-   "tile": 465,
+   "tile": 459,
    "hp": 100,
+   "commander": "air",
    "done": false
   },
   {
    "id": 87,
-   "country": 3,
-   "kind": "fighter",
-   "tile": 529,
+   "country": 2,
+   "kind": "trireme",
+   "tile": 385,
    "hp": 100,
+   "commander": "navy",
    "done": false
   },
   {
    "id": 88,
-   "country": 4,
+   "country": 2,
    "kind": "fighter",
-   "tile": 554,
+   "tile": 465,
    "hp": 100,
+   "commander": "air",
    "done": false
   },
   {
    "id": 89,
-   "country": 5,
-   "kind": "fighter",
-   "tile": 95,
+   "country": 3,
+   "kind": "trireme",
+   "tile": 287,
    "hp": 100,
+   "commander": "navy",
    "done": false
   },
   {
    "id": 90,
+   "country": 3,
+   "kind": "fighter",
+   "tile": 529,
+   "hp": 100,
+   "commander": "air",
+   "done": false
+  },
+  {
+   "id": 91,
+   "country": 4,
+   "kind": "trireme",
+   "tile": 519,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 92,
+   "country": 4,
+   "kind": "fighter",
+   "tile": 554,
+   "hp": 100,
+   "commander": "air",
+   "done": false
+  },
+  {
+   "id": 93,
+   "country": 5,
+   "kind": "trireme",
+   "tile": 258,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 94,
+   "country": 5,
+   "kind": "fighter",
+   "tile": 95,
+   "hp": 100,
+   "commander": "air",
+   "done": false
+  },
+  {
+   "id": 95,
+   "country": 6,
+   "kind": "trireme",
+   "tile": 773,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 96,
    "country": 6,
    "kind": "fighter",
    "tile": 893,
    "hp": 100,
+   "commander": "air",
    "done": false
   }
  ],
@@ -9031,7 +10302,7 @@
     "iron": 2,
     "wood": 10
    },
-   "units": 8,
+   "units": 9,
    "cities": 2
   },
   {
@@ -9048,7 +10319,7 @@
     "jewelry": 7,
     "wood": 10
    },
-   "units": 8,
+   "units": 9,
    "cities": 1
   },
   {
@@ -9065,7 +10336,7 @@
     "iron": 2,
     "wood": 6
    },
-   "units": 8,
+   "units": 9,
    "cities": 1
   },
   {
@@ -9082,7 +10353,7 @@
     "wine": 7,
     "wood": 6
    },
-   "units": 8,
+   "units": 9,
    "cities": 1
   },
   {
@@ -9099,7 +10370,7 @@
     "iron": 2,
     "wood": 6
    },
-   "units": 8,
+   "units": 9,
    "cities": 1
   },
   {
@@ -9116,8 +10387,204 @@
     "spice": 7,
     "wood": 6
    },
-   "units": 8,
+   "units": 9,
    "cities": 1
+  }
+ ],
+ "facilities": [],
+ "grants": [
+  {
+   "country": 1,
+   "branch": "air",
+   "kind": "fighter",
+   "unit_id": 86,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 1,
+   "branch": "navy",
+   "kind": "trireme",
+   "unit_id": 85,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 2,
+   "branch": "air",
+   "kind": "fighter",
+   "unit_id": 88,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 2,
+   "branch": "navy",
+   "kind": "trireme",
+   "unit_id": 87,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 3,
+   "branch": "air",
+   "kind": "fighter",
+   "unit_id": 90,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 3,
+   "branch": "navy",
+   "kind": "trireme",
+   "unit_id": 89,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 4,
+   "branch": "air",
+   "kind": "fighter",
+   "unit_id": 92,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 4,
+   "branch": "navy",
+   "kind": "trireme",
+   "unit_id": 91,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 5,
+   "branch": "air",
+   "kind": "fighter",
+   "unit_id": 94,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 5,
+   "branch": "navy",
+   "kind": "trireme",
+   "unit_id": 93,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 6,
+   "branch": "air",
+   "kind": "fighter",
+   "unit_id": 96,
+   "result": "given",
+   "reason": null
+  },
+  {
+   "country": 6,
+   "branch": "navy",
+   "kind": "trireme",
+   "unit_id": 95,
+   "result": "given",
+   "reason": null
+  }
+ ],
+ "markets": [
+  {
+   "id": 1,
+   "tile_id": 375,
+   "art": "neutral_village",
+   "name": "북서 마을"
+  },
+  {
+   "id": 2,
+   "tile_id": 657,
+   "art": "neutral_harbor",
+   "name": "남쪽 항구"
+  },
+  {
+   "id": 3,
+   "tile_id": 266,
+   "art": "neutral_fortress",
+   "name": "동쪽 성곽"
+  }
+ ],
+ "diplomacy": [
+  {
+   "a": 1,
+   "b": 2,
+   "status": "peace"
+  },
+  {
+   "a": 1,
+   "b": 3,
+   "status": "peace"
+  },
+  {
+   "a": 1,
+   "b": 4,
+   "status": "peace"
+  },
+  {
+   "a": 1,
+   "b": 5,
+   "status": "peace"
+  },
+  {
+   "a": 1,
+   "b": 6,
+   "status": "peace"
+  },
+  {
+   "a": 2,
+   "b": 3,
+   "status": "peace"
+  },
+  {
+   "a": 2,
+   "b": 4,
+   "status": "peace"
+  },
+  {
+   "a": 2,
+   "b": 5,
+   "status": "peace"
+  },
+  {
+   "a": 2,
+   "b": 6,
+   "status": "peace"
+  },
+  {
+   "a": 3,
+   "b": 4,
+   "status": "peace"
+  },
+  {
+   "a": 3,
+   "b": 5,
+   "status": "peace"
+  },
+  {
+   "a": 3,
+   "b": 6,
+   "status": "peace"
+  },
+  {
+   "a": 4,
+   "b": 5,
+   "status": "peace"
+  },
+  {
+   "a": 4,
+   "b": 6,
+   "status": "peace"
+  },
+  {
+   "a": 5,
+   "b": 6,
+   "status": "peace"
   }
  ]
 }

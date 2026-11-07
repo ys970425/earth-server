@@ -86,6 +86,9 @@ create table if not exists war.city_facilities (
   primary key (city, kind)
 );
 alter table war.tiles add column if not exists imp_ruined boolean not null default false;
+-- 지도 바뀜 번호 (E2 규칙): 칸을 바꾸는 함수는 war.bump('map')을 부른 뒤, 바꾼 칸의 ver을 새 map 번호로 맞춘다.
+-- (지금은 칸을 바꾸는 함수가 없고, 가져오기는 모든 칸 ver = 0)
+alter table war.tiles add column if not exists ver int not null default 0;
 alter table war.units add column if not exists commander text;   -- army | navy | air | engineer
 alter table war.cities add column if not exists besieged boolean not null default false;
 alter table war.countries add column if not exists shield_until int not null default 0;

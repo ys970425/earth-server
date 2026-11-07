@@ -185,25 +185,28 @@ begin
         if dest_tile is null then reason := '빈 땅 칸이 없어요'; end if;
       elsif br = 'navy' then
         k := 'trireme';
-        select count(*) into n from war.cities c where c.country = co.id and exists (
-          select 1 from war.tiles t where t.terrain in ('ocean', 'coast') and priv.tdist(t.id, c.tile_id) = 1);
-        if n = 0 then
-          reason := '해안 도시가 없어 해군을 줄 수 없어요';
-        else
-          -- 해안 도시(수도 먼저, 그다음 도시 번호순) 옆의 빈 바다·해안 칸
-          for cr in select c.id, c.tile_id from war.cities c
-            where c.country = co.id and exists (
-              select 1 from war.tiles t where t.terrain in ('ocean', 'coast') and priv.tdist(t.id, c.tile_id) = 1)
-            order by (c.kind = 'capital') desc, c.id loop
-            select t.id into dest_tile from war.tiles t
-            where t.terrain in ('ocean', 'coast')
-              and priv.tdist(t.id, cr.tile_id) = 1
-              and not exists (select 1 from war.units m where m.tile_id = t.id and m.kind not in ('worker', 'scout'))
-            order by t.id limit 1;
-            exit when dest_tile is not null;
-          end loop;
-          if dest_tile is null then reason := '해안 도시 옆에 빈 바다 칸이 없어요'; end if;
+        cap_tile := (select c.tile_id from war.cities c where c.country = co.id and c.kind = 'capital');
+        -- 해안 도시(수도 먼저, 그다음 도시 번호순) 옆의 빈 바다·해안 칸
+        for cr in select c.id, c.tile_id from war.cities c
+          where c.country = co.id and exists (
+            select 1 from war.tiles t where t.terrain in ('ocean', 'coast') and priv.tdist(t.id, c.tile_id) = 1)
+          order by (c.kind = 'capital') desc, c.id loop
+          select t.id into dest_tile from war.tiles t
+          where t.terrain in ('ocean', 'coast')
+            and priv.tdist(t.id, cr.tile_id) = 1
+            and not exists (select 1 from war.units m where m.tile_id = t.id and m.kind not in ('worker', 'scout'))
+          order by t.id limit 1;
+          exit when dest_tile is not null;
+        end loop;
+        -- 해군 지급 A (E2 결정): 해안 도시가 없거나 옆이 다 차 있으면
+        -- 수도에서 가장 가까운 빈 바다·해안 칸(군사 유닛 없음, 칸 번호순 동점)에 지급
+        if dest_tile is null then
+          select t.id into dest_tile from war.tiles t
+          where t.terrain in ('ocean', 'coast')
+            and not exists (select 1 from war.units m where m.tile_id = t.id and m.kind not in ('worker', 'scout'))
+          order by priv.tdist(cap_tile, t.id), t.id limit 1;
         end if;
+        if dest_tile is null then reason := '빈 바다 칸이 없어요'; end if;
       else
         k := 'fighter';
         cap_tile := (select c.tile_id from war.cities c where c.country = co.id and c.kind = 'capital');
@@ -262,6 +265,8 @@ begin
   -- 게임 기본값 (설계 1-2, 6장, 11장)
   update war.game set turn_seconds = (wcfg->'TURN'->>'seconds')::int,
     paused = false, combat_on = true, turn_end = null where id = 1;
+  -- 지도 영역 번호를 1로 시작 (칸 ver은 전부 0. 칸을 바꾸는 함수는 bump('map') 뒤 그 칸 ver을 새 번호로)
+  perform war.bump('map');
 
   return jsonb_build_object(
     'countries', (select count(*) from war.countries),
@@ -302,6 +307,259 @@ begin
     if exists (select 1 from pg_roles where rolname = role_name) then
       execute format('grant execute on function public.war_admin_import(text) to %I', role_name);
       execute format('grant execute on function public.war_admin_grants() to %I', role_name);
+    end if;
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- E2 (H1): 접속·역할 고르기·바뀐 것만 받기
+-- ---------------------------------------------------------------------
+
+-- 로그인한 학생: 나라(번호·이름·유형·색), 내 역할, 대행 역할 목록, 내가 볼 메뉴, 우리 나라 역할 현황
+-- 역할 현황에는 닉네임만 넣는다 (실명 금지, 설계 2장·8장)
+create or replace function public.war_me() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  s priv.students;
+  wcfg jsonb := war.cfg();
+  co war.countries;
+  size int;
+  my_role text;
+  roles jsonb;
+  deputies jsonb;
+  menus jsonb;
+begin
+  select * into s from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
+  select * into co from war.countries where id = s.country_id;
+  select count(*) into size from priv.students where country_id = co.id;
+  select role into my_role from war.roles where student = s.id;
+  -- 우리 나라 역할 현황 (역할별 닉네임만)
+  roles := coalesce((select jsonb_agg(jsonb_build_object(
+      'key', def.value->>'key', 'name', def.value->>'name',
+      'nick', (select coalesce(s2.nickname, '학생') from war.roles rr
+        join priv.students s2 on s2.id = rr.student
+        where rr.country = co.id and rr.role = def.value->>'key'),
+      'absent', coalesce((select rr.absent from war.roles rr where rr.country = co.id and rr.role = def.value->>'key'), false))
+    order by ord)
+    from jsonb_array_elements(wcfg->'ROLES') with ordinality def(value, ord)), '[]'::jsonb);
+  -- 내 메뉴: 내 역할 메뉴. 4명 모둠 합동참모의장은 공병 메뉴까지 (menus4)
+  if my_role is not null then
+    select value->(case when my_role = 'chief' and size <= 4 then 'menus4' else 'menus' end) into menus
+      from jsonb_array_elements(wcfg->'ROLES') value where value->>'key' = my_role;
+  end if;
+  -- 대행 역할 목록 (합동참모의장만): 아무도 안 고른 역할 또는 결석한 역할 (설계 2장 결석 대행)
+  if my_role = 'chief' then
+    deputies := coalesce((select jsonb_agg(jsonb_build_object(
+        'key', def.value->>'key', 'name', def.value->>'name', 'menus', def.value->'menus',
+        'absent', coalesce(rr.absent, false)) order by ord)
+      from jsonb_array_elements(wcfg->'ROLES') with ordinality def(value, ord)
+      left join war.roles rr on rr.country = co.id and rr.role = def.value->>'key'
+      where def.value->>'key' <> 'chief' and (rr.student is null or rr.absent)), '[]'::jsonb);
+  else
+    deputies := '[]'::jsonb;
+  end if;
+  return jsonb_build_object(
+    'country', jsonb_build_object('id', co.id,
+      'name', coalesce(co.name, (priv.cfg()->'TYPES'->co.type->>'name')),
+      'type', co.type, 'color', (priv.cfg()->'TYPES'->co.type->>'color'), 'size', size),
+    -- 여섯 나라의 공개 정보만 (번호·이름·유형). 창고·코인·지갑·시설은 넣지 않는다
+    'countries', (select coalesce(jsonb_agg(jsonb_build_object(
+        'id', c.id, 'name', coalesce(c.name, (priv.cfg()->'TYPES'->c.type->>'name')), 'type', c.type)
+      order by c.id), '[]'::jsonb) from war.countries c),
+    'role', my_role, 'menus', coalesce(menus, '[]'::jsonb),
+    'deputy_roles', deputies, 'roles', roles);
+end $$;
+revoke all on function public.war_me() from public;
+
+-- 역할 고르기: 아직 역할이 없는 학생만. 4명 모둠은 engineer를 고를 수 없음. 바꾸기는 교사만
+create or replace function public.war_choose_role(p_role text) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  s priv.students;
+  size int;
+begin
+  select * into s from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
+  if exists (select 1 from war.roles where student = s.id) then
+    perform priv.err('HAS_ROLE', '이미 고른 역할이 있어요. 바꾸는 것은 선생님만 할 수 있어요.');
+  end if;
+  if not exists (select 1 from jsonb_array_elements(war.cfg()->'ROLES') r where r->>'key' = p_role) then
+    perform priv.err('BAD_ROLE', '없는 역할이에요');
+  end if;
+  select count(*) into size from priv.students where country_id = s.country_id;
+  if p_role = 'engineer' and size <= 4 then
+    perform priv.err('FOUR_GROUP', '4명 모둠은 공병사령관이 없어요. 합동참모의장이 함께 해요.');
+  end if;
+  begin
+    insert into war.roles(student, country, role) values (s.id, s.country_id, p_role);
+  exception when unique_violation then
+    perform priv.err('ROLE_TAKEN', '이미 다른 친구가 고른 역할이에요');
+  end;
+  perform war.bump('country', s.country_id);
+  return jsonb_build_object('ok', true, 'role', p_role);
+end $$;
+revoke all on function public.war_choose_role(text) from public;
+
+-- 바뀐 것만 받기 (설계 1-3): p_known 예 {"game":3,"map":5,"units":2,"cities":1,"diplomacy":1,"country":4,"notice":0}
+-- country는 우리 나라의 바뀜 번호. 값이 없거나 0이면 그 영역 전체를 돌려준다
+create or replace function public.war_poll(p_known jsonb default null) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  s priv.students;
+  known jsonb := coalesce(p_known, '{}'::jsonb);
+  my_country int;
+  out jsonb;
+  vers jsonb;
+  k bigint;
+  v_game bigint; v_map bigint; v_units bigint; v_cities bigint; v_dip bigint; v_notice bigint; v_country bigint;
+begin
+  select * into s from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
+  my_country := s.country_id;
+  select coalesce(max(ver), 0) into v_game from war.versions where area = 'game' and country = 0;
+  select coalesce(max(ver), 0) into v_map from war.versions where area = 'map' and country = 0;
+  select coalesce(max(ver), 0) into v_units from war.versions where area = 'units' and country = 0;
+  select coalesce(max(ver), 0) into v_cities from war.versions where area = 'cities' and country = 0;
+  select coalesce(max(ver), 0) into v_dip from war.versions where area = 'diplomacy' and country = 0;
+  select coalesce(max(ver), 0) into v_notice from war.versions where area = 'notice' and country = 0;
+  select coalesce(max(ver), 0) into v_country from war.versions where area = 'country' and country = my_country;
+  -- 지금 번호 전부 (아직 바뀐 적이 없는 영역도 0으로 넣어 화면이 기준 번호를 알게 한다. 다른 나라 country 번호는 빼고)
+  vers := coalesce((select jsonb_object_agg(area || case when country = 0 then '' else ':' || country end, ver)
+    from war.versions where area <> 'country' or country = my_country), '{}'::jsonb)
+    || jsonb_build_object('game', v_game, 'map', v_map, 'units', v_units, 'cities', v_cities,
+      'diplomacy', v_dip, 'notice', v_notice, 'country:' || my_country, v_country);
+  out := jsonb_build_object('versions', vers, 'me', jsonb_build_object('country', my_country));
+  -- game: 턴·남은 시각·일시정지·전투 켜짐
+  k := (known->>'game')::bigint;
+  if k is null or k is distinct from v_game then
+    out := out || jsonb_build_object('game', (select jsonb_build_object(
+      'turn', turn, 'turn_seconds', turn_seconds, 'turn_end', turn_end, 'paused', paused, 'combat_on', combat_on)
+      from war.game where id = 1));
+  end if;
+  -- map: 바뀐 칸만 [id, terrain, res, owner, imp, imp_ruined]. 처음엔 전체
+  k := (known->>'map')::bigint;
+  if k is null or k = 0 or k is distinct from v_map then
+    out := out || jsonb_build_object('map', (select coalesce(jsonb_agg(
+      jsonb_build_array(id, terrain, res, owner, imp, imp_ruined) order by id), '[]'::jsonb)
+      from war.tiles where k is null or k = 0 or ver > k));
+  end if;
+  -- units: 전체 목록 (번호·나라·종류·칸·체력·조종 역할)
+  k := (known->>'units')::bigint;
+  if k is null or k is distinct from v_units then
+    out := out || jsonb_build_object('units', (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', id, 'country', country, 'kind', kind, 'tile', tile_id, 'hp', hp, 'commander', commander) order by id), '[]'::jsonb)
+      from war.units));
+  end if;
+  -- cities: 전체 목록 (번호·칸·주인·이름·체력·최대·포위)
+  k := (known->>'cities')::bigint;
+  if k is null or k is distinct from v_cities then
+    out := out || jsonb_build_object('cities', (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', id, 'tile', tile_id, 'country', country, 'name', name, 'hp', hp, 'max_hp', max_hp, 'besieged', besieged) order by id), '[]'::jsonb)
+      from war.cities));
+  end if;
+  -- diplomacy: 15쌍 전부
+  k := (known->>'diplomacy')::bigint;
+  if k is null or k is distinct from v_dip then
+    out := out || jsonb_build_object('diplomacy', (select coalesce(jsonb_agg(jsonb_build_object(
+      'a', a, 'b', b, 'status', status, 'no_war_until', no_war_until) order by a, b), '[]'::jsonb)
+      from war.diplomacy));
+  end if;
+  -- country: 우리 나라만 (국고·창고·역할별 지갑·우리 도시의 시설·역할 현황). 다른 나라 데이터는 절대 넣지 않는다
+  k := (known->>'country')::bigint;
+  if k is null or k is distinct from v_country then
+    out := out || jsonb_build_object('country', jsonb_build_object(
+      'country', my_country, 'coin', (select coin from war.countries where id = my_country),
+      'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}'::jsonb)
+        from war.inventory where country = my_country and qty <> 0),
+      'wallets', (select coalesce(jsonb_object_agg(role, w), '{}'::jsonb)
+        from (select role, jsonb_object_agg(item, qty) w from war.wallets where country = my_country group by role) x),
+      'facilities', (select coalesce(jsonb_agg(jsonb_build_object(
+        'city', f.city, 'kind', f.kind, 'class', f.class, 'ruined', f.ruined, 'origin_country', f.origin_country)
+        order by f.city, f.kind), '[]'::jsonb)
+      from war.city_facilities f join war.cities c on c.id = f.city where c.country = my_country),
+      'roles', coalesce((select jsonb_agg(jsonb_build_object(
+        'key', def.value->>'key', 'name', def.value->>'name',
+        'nick', (select coalesce(s2.nickname, '학생') from war.roles rr
+          join priv.students s2 on s2.id = rr.student
+          where rr.country = my_country and rr.role = def.value->>'key'),
+        'absent', coalesce((select rr.absent from war.roles rr where rr.country = my_country and rr.role = def.value->>'key'), false))
+        order by ord)
+      from jsonb_array_elements(war.cfg()->'ROLES') with ordinality def(value, ord)), '[]'::jsonb)));
+  end if;
+  -- notice: 이번 단계는 빈 목록
+  k := (known->>'notice')::bigint;
+  if k is null or k is distinct from v_notice then
+    out := out || jsonb_build_object('notice', '[]'::jsonb);
+  end if;
+  return out;
+end $$;
+revoke all on function public.war_poll(jsonb) from public;
+
+-- 교사용: 나라별 학생 닉네임·역할·결석 (실명 금지)
+create or replace function public.war_admin_roles() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  perform priv.need_admin();
+  return jsonb_build_object('roles', (select coalesce(jsonb_agg(jsonb_build_object(
+    'student', s.id, 'country', s.country_id, 'nick', coalesce(s.nickname, '학생'),
+    'role', r.role, 'absent', coalesce(r.absent, false)) order by s.country_id, s.no, s.id), '[]'::jsonb)
+  from priv.students s left join war.roles r on r.student = s.id));
+end $$;
+revoke all on function public.war_admin_roles() from public;
+
+create or replace function public.war_admin_set_absent(p_student int, p_absent boolean) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare c int;
+begin
+  perform priv.need_admin();
+  update war.roles set absent = coalesce(p_absent, false) where student = p_student returning country into c;
+  if c is not null then perform war.bump('country', c); end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_admin_set_absent(int, boolean) from public;
+
+-- 역할 지정: p_role이 null이면 역할 비우기. chief 지정도 가능. 4명 모둠은 engineer 지정 불가
+create or replace function public.war_admin_set_role(p_student int, p_role text) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare c int; n int;
+begin
+  perform priv.need_admin();
+  if p_role is null then
+    delete from war.roles where student = p_student returning country into c;
+  else
+    if not exists (select 1 from jsonb_array_elements(war.cfg()->'ROLES') r where r->>'key' = p_role) then
+      perform priv.err('BAD_ROLE', '없는 역할이에요');
+    end if;
+    select country_id into c from priv.students where id = p_student;
+    if c is null then perform priv.err('NO_STUDENT', '학생을 찾을 수 없어요'); end if;
+    select count(*) into n from priv.students where country_id = c;
+    if p_role = 'engineer' and n <= 4 then
+      perform priv.err('FOUR_GROUP', '4명 모둠은 공병사령관이 없어요. 합동참모의장이 함께 해요.');
+    end if;
+    begin
+      insert into war.roles(student, country, role) values (p_student, c, p_role)
+        on conflict (student) do update set country = excluded.country, role = excluded.role;
+    exception when unique_violation then
+      perform priv.err('ROLE_TAKEN', '이미 다른 친구가 고른 역할이에요');
+    end;
+  end if;
+  if c is not null then perform war.bump('country', c); end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_admin_set_role(int, text) from public;
+
+do $$
+declare role_name text;
+begin
+  foreach role_name in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = role_name) then
+      execute format('grant execute on function public.war_me() to %I', role_name);
+      execute format('grant execute on function public.war_choose_role(text) to %I', role_name);
+      execute format('grant execute on function public.war_poll(jsonb) to %I', role_name);
+      execute format('grant execute on function public.war_admin_roles() to %I', role_name);
+      execute format('grant execute on function public.war_admin_set_absent(int, boolean) to %I', role_name);
+      execute format('grant execute on function public.war_admin_set_role(int, text) to %I', role_name);
     end if;
   end loop;
 end $$;
