@@ -55,6 +55,7 @@ The causal story must hold (design §0): countries lack things or others make th
 - 너(Claude)는 계획, 검토, 최종 확인을 맡는다. 코드를 직접 길게 쓰지 않는다.
 - 분량이 많거나 단순한 코딩은 터미널에서 codex exec로 GPT에게 맡긴다.
   파일 수정이 필요한 작업이면 codex exec --help로 쓰기 허용 옵션을 확인해서 쓴다.
+  codex exec에는 항상 `-c 'windows.sandbox="unelevated"'`를 붙인다. (없으면 Windows에서 모든 명령이 막힘)
 - 맡길 때는 작업 범위, 고칠 파일, 완료 조건을 분명히 적고,
   결과는 "바뀐 파일과 내용 5줄 요약"으로만 보고받는다.
 - 결과는 git diff로 확인하고, 문제가 있으면 다시 맡긴다.
