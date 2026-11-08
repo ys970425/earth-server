@@ -1,47 +1,26 @@
-# 작업 보고서 — ①b 화면 두 탭 + 미션 화면 + 관제실 미션 현황 + 시장 표시 + 문서
+# 작업 보고서 — ④ 자동 화면 시험 + CLAUDE.md 압축
 
 - 날짜: 2026-11-08
 - 브랜치: `war-version` 확인 후 작업
-- 결과: **완료** (GPT 동시 작업 파일(supabase/war/*.sql·war-rules.js·tools/*·tests/*·package.json·state.json)은 건드리지 않았음. functions.sql·package.json·state.json·gpt-report.md의 변경은 GPT 몫)
+- 결과: 부분 완료 — **실패: CLAUDE.md 쓰기가 자동 권한 검토에서 두 번 막힘(사용자 승인 후에도 동일)** — 압축본 내용은 준비돼 사용자가 직접 붙여넣기로 완료해야 함. docs/claude-detail.md 작성은 완료
 
-## 1. 위쪽 큰 탭 두 개 (3줄)
+## 1. 자동 화면 시험 (`tests/war/screen.test.mjs`, 새)
 
-- `war-app.js`: 표시줄 아래 **큰 탭 두 개(지도 / 우리 나라)** 추가 — 「지도」(처음): 지도 + 조작 창(역할 메뉴 중 게임 조작만 작은 탭으로: 내 병력·지휘권 넘기기·노동자·정찰병·개발·수리·건물·생산·외교·무역·도시국가 시장 + 칸 정보), 「우리 나라」: 역할 고르기(역할 없을 때)·튜토리얼 미션·내 예산·나라 정보·역할 현황·첩보 정보
-- 역할을 고르기 전에도 지도 탭에 지도가 보이고 맨 위에 「「우리 나라」 탭에서 역할을 골라요」 안내 띠. 역할이 없으면 병력은 고를 수 없음(메뉴 자체가 안 나오고 칸 정보만). 역할을 고르면 지도 탭을 그대로 두고 화면만 다시 그림
-- `war.css`: 큰 탭 56px 이상, `.war-view` 높이 계산으로 웨일북(1366×768)에서 스크롤 없이 지도, 안내 띠·미션·플래시 스타일
+- 정적 서버: python이 있어 `python -m http.server 5599`(백그라운드, 종료까지 시험 내에서 처리)로 띄우되, 없으면 node 내장 http 서버로 자동 대체
+- 지시서 셀렉터를 실제 화면에 맞게 적용: 지도 `canvas.hexmap`, 병력 목록 `.war-units-list .war-unit-row`, 완료 표시 `.war-flash`(「미션 완료」), 미션 현황은 「튜토리얼 미션 현황」 패널의 표 행 수
+- 5항목 결과: ✔ 역할_전_지도 / ✔ 역할_후_내병력(9줄) / ✔ 미션_완료(병력 선택 → 캔버스의 갈 수 있는 칸 픽셀을 찾아 클릭 → 「미션 완료」) / ✔ 시장_섬_그림(markets 3곳) / ✔ 관제실_미션_표(31줄)
+- 관제실 주소(산쌤 수정): `index.html?preview=real&admin=1`을 **먼저** 열지만, 앱이 아직 이 주소에서 관제실을 표시하지 않아(학생 화면이 뜸) `admin.html?preview=real`로 확인했음을 출력에 명시 — index.html에 admin=1 지원이 필요하면 별도 지시서가 필요합니다
+- Puppeteer는 devDependencies에 추가했고, 브라우저 내려받기가 보안 정책에 막혀 시스템 Chrome(`channel: 'chrome'`)을 사용
 
-## 2. 튜토리얼 미션 화면 (3줄)
+## 2. CLAUDE.md 압축
 
-- 「우리 나라」 탭에서 `war_missions()` 목록을 역할별 순서대로 표시(✔ 완료 / 할 일 / 「곧 열려요」)
-- 행동 성공 뒤 기록: `war_move` 성공 시 병력·역할에 맞춰 `army_move`·`navy_move`(배)·`eng_worker_move` 기록, `navy_coast`(우리 해안 도시 옆 도착)·`eng_scout_enemy`(다른 나라 도시 옆 도착)·`air_fly_over`(경로에 다른 나라 병력)는 조건 확인 후 기록, `war_transfer` 성공 시 `army_transfer`·`air_transfer`, 합동참모의장(대행 아님)이 「우리 나라」 탭을 열면 `chief_info`
-- 완료되면 「미션 완료!」를 1초 표시(반복 애니메이션 없음), 오류는 콘솔에만. 이미 done인 미션은 다시 부르지 않음
+- 상세 내용을 `docs/claude-detail.md`(새)로 옮겼습니다 — 여기에 아키텍처를 **GitHub Pages(새 저장소 earth-war) + Supabase**로 바로잡아 두었습니다 (Netlify 표기 없앰)
+- CLAUDE.md 새로 쓰기(긴축 모드·주요 명령·핵심 규칙, 200줄 이내)는 권한 검토에서 막혀 **미완료** — 승인 후 같은 내용으로 다시 시도합니다
 
-## 3. 관제실 미션 현황 (1줄)
+## 완료 조건
 
-- `war-admin.js`에 `war_admin_missions()` 표 추가: 나라별로 묶어 나라 / 닉네임 / 역할 / 완료 수 ÷ 열린 미션 수 / 완료한 미션 이름(미션 문구로 표시). 실명 없음
-
-## 4. 시장 섬 표시 (2줄)
-
-- `war-app.js`가 poll의 `markets`를 `S.map.setData({ markets })`로 지도에 넘김(처음 지도 그릴 때도 함께) — 그리기는 ①a에서 만든 war-hexmap 코드 사용
-- 시장 칸을 누르면 칸 정보에 「도시국가 시장 · 북서 마을(등) · 물물교환은 나중에 열려요」 표시
-
-## 5. 문서 (3줄)
-
-- `docs/war-design.md`: 8-1 학생 화면을 큰 탭 두 개 구조로 교체, 2장에 「2-2 튜토리얼 미션」(결정 내용 + 20개 미션 표 그대로) 추가, 5-1장에 「점령 직후에도 빈칸 병합을 한 번 한다 (E4)」, 10장 E4 행에 빈칸 병합 함수 추가(E5는 턴 끝 병합 유지), **E3.5 행 추가**, 8-3장을 브라우저 PGlite 방식으로 교체, 13장에 「화면 두 탭」「튜토리얼 미션 서버 기록」「점령 직후 병합」「미리보기 가짜 서버 → 브라우저 PGlite」 행 추가
-- `docs/tasks/status.md`: 끝난 것에 ②·①a·①b 추가, 잊지 말 것에 「미리보기 열기 전 `npm run war:preview`」, 다음 할 것에 E4(화면: 공격 미리보기·공격 버튼·미션 E4 열기) → E5 명시
-
-## 완료 조건 결과
-
-```
-node --check app/war/js/war-app.js     통과 (종료 코드 0)
-node --check app/war/js/war-admin.js   통과 (종료 코드 0)
-npm run war:preview                     완료 (나라 6 · 칸 1120 · 도시 46 · 병력 54, db.tar.gz 생성)
-git status --short                      내 변경: war-app.js·war-admin.js·war.css·status.md·war-design.md·report.md (그 외는 GPT 몫: package.json·functions.sql·state.json·gpt-report.md·e4.test.mjs)
-```
-- 화면 (Live Server): **미확인** — GPT가 서버 SQL을 바꾸는 중이라 지시서대로 미확인으로 둡니다 (Claude가 둘 다 끝난 뒤 Chrome으로 확인: `?preview=1` 역할 없음 → 지도+안내 띠 / 우리 나라 탭 역할 고르기 → 미션 목록 / `?preview=1&as=1:army` 이동 → 미션 ✔ / `admin.html?preview=1` 미션 현황 표 / 시장 섬 3곳 그림 / 콘솔 오류 없음)
-
-## 막힌 점
-
-- 없음
+- `node --check tests/war/screen.test.mjs` 통과, 실제 실행 「전체 통과」(5항목 ✔)
+- `CLAUDE.md` 200줄 이하 — **미달 (미수정, 권한 막힘)** / `docs/claude-detail.md` 존재 ✔
+- `git status --short`: package.json·package-lock.json(puppeteer 추가)·tests/war/screen.test.mjs·docs/claude-detail.md·report.md — 허용 목록 밖 없음
 
 커밋·푸시하지 않았습니다
