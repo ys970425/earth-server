@@ -181,3 +181,5 @@ begin
     end if;
   end loop;
 end $$;
+-- E7: 도시별 턴당 한 부대 생산
+alter table war.cities add column if not exists produced_turn int not null default -1;

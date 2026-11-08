@@ -198,7 +198,9 @@
           h('span', { class: 'muted' }, '남은 이동 ' + (u.moves_left ?? 0)))))
         : h('p', { class: 'muted' }, emptyMsg));
     };
-    if (active === 'menu:예산' && me.role === 'chief') {
+    if (active === 'menu:생산' && ['army', 'navy', 'air'].includes(role) && me.role !== 'chief') {
+      renderProduction(body, role);
+    } else if (active === 'menu:예산' && me.role === 'chief') {
       renderBudget(body);
     } else if (active === 'menu:건물') {
       renderBuildings(body);
@@ -248,6 +250,32 @@
       applyPoll(await WarAPI.rpc('war_poll', { p_known: {} }));
     } catch (e) { S.msg = friendly(e); }
     finally { S.economyBusy = false; renderTabs(); }
+  }
+  function renderProduction(body, role) {
+    const turn = S.game?.turn;
+    const cities = S.cities.filter(c => c.country === S.me.country.id &&
+      (role === 'air' ? c.kind === 'capital' : (c.buildings || []).includes(role === 'army' ? 'barracks' : 'harbor')));
+    if (!cities.length) { body.append(h('p', {}, '생산할 수 있는 도시가 없어요')); return; }
+    const city = cities.find(c => c.id === S.produceCity) || cities[0]; S.produceCity = city.id;
+    const busy = city.produced_turn === turn;
+    body.append(h('label', {}, '도시 선택 ', selectBox('produce-city', cities.map(c =>
+      [c.id, (c.produced_turn === turn ? '🔒 ' : '') + (c.name || c.id)]), city.id,
+      e => { S.produceCity = e.target.value; renderTabs(); })));
+    const country = S.poll?.country || {}, wallet = country.wallets?.[role] || {};
+    body.append(h('p', {}, '내 지갑: ' + costText(wallet)));
+    const defs = Object.entries({ ...R.UNITS, ...W.EXTRA_UNITS }).filter(([k, d]) =>
+      W.BRANCH[k] === role && (!d.boss || R.BOSS_UNIT[S.me.country.type]?.unit === k));
+    body.append(h('table', {}, h('thead', {}, h('tr', {}, ['종류', '힘', '이동', '비용', '생산'].map(t => h('th', {}, t)))),
+      h('tbody', {}, defs.map(([kind, def]) => {
+        const needs = def.boss ? R.BOSS_UNIT[S.me.country.type]?.needs || [] : [];
+        const locked = busy || S.game?.paused || S.economyBusy ||
+          Object.entries(def.cost || {}).some(([k, n]) => (wallet[k] || 0) < n) ||
+          needs.some(k => (country.inventory?.[k] || 0) < 1);
+        return h('tr', {}, h('td', {}, def.name), h('td', {}, def.boss ? W.BOSS.str() : def.str),
+          h('td', {}, W.MOVES_OF(kind)), h('td', {}, costText(def.cost)),
+          h('td', {}, h('button', { disabled: locked || null, onclick: () =>
+            economyAction('war_produce', { p_city: city.id, p_kind: kind }, role + '_build') }, locked ? '🔒 만들기' : '만들기')));
+      }))));
   }
   function renderBudget(body) {
     const country = S.poll?.country || {}, roles = W.ROLES.filter(r => r.key !== 'chief');
@@ -592,7 +620,7 @@
     if (!S.centered && S.cities.length) { S.centered = true; goCapital(); }
     if (data.game) { S.game = data.game; renderTop(); }
     if (data.diplomacy || data.offers || data.game ||
-      ((data.map || data.units || data.cities) && ['menu:건물', 'menu:개발·수리'].includes(S.tab))) renderTabs();
+      ((data.map || data.units || data.cities) && ['menu:건물', 'menu:개발·수리', 'menu:생산'].includes(S.tab))) renderTabs();
     if (data.country) {
       if (data.country.roles) { S.meCountryRoles = data.country.roles; S.me.roles = data.country.roles; }
       if (data.country.coin != null) S.country = data.country;

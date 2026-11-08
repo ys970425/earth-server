@@ -673,7 +673,7 @@ begin
   if k is null or k is distinct from v_cities then
     out := out || jsonb_build_object('cities', (select coalesce(jsonb_agg(jsonb_build_object(
       'id', id, 'tile', tile_id, 'kind', kind, 'country', country, 'name', name, 'hp', hp, 'max_hp', max_hp, 'besieged', besieged,
-      'buildings', buildings, 'sea', sea) order by id), '[]'::jsonb)
+      'buildings', buildings, 'sea', sea, 'produced_turn', produced_turn) order by id), '[]'::jsonb)
       from war.cities));
   end if;
   -- diplomacy: 15쌍 전부
@@ -1326,3 +1326,105 @@ end loop; end $$;
 
 -- E6
 update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E6"]'::jsonb) where not coalesce(data->'OPEN_STAGES' ? 'E6',false);
+
+-- E7: 참모총장·공병사령관의 병력 생산.
+create or replace function public.war_produce(p_city text, p_kind text) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me priv.students; my_country int; city_rec war.cities;
+  cfg jsonb := priv.cfg(); wcfg jsonb := war.cfg(); def jsonb;
+  branch text; required_role text; wallet_role text; own_role text;
+  cost jsonb; item_key text; item_qty int; stock int; current_turn int;
+  nation_tag text; tech_needed text; tile_id_out int; new_unit_id int;
+begin
+  select * into me from priv.students where uid=auth.uid();
+  if not found then perform priv.err('NO_AUTH', '접속해 주세요'); end if;
+  my_country := me.country_id;
+  def := coalesce(wcfg->'UNITS'->p_kind, cfg->'UNITS'->p_kind, wcfg->'EXTRA_UNITS'->p_kind);
+  if p_kind='worker' then def := '{}'::jsonb; end if;
+  branch := wcfg->'BRANCH'->>p_kind;
+  if def is null or branch is null or (branch='civil' and p_kind<>'worker') then
+    perform priv.err('BAD_KIND', '이 병력은 만들 수 없어요'); end if;
+  required_role := case when branch='civil' then 'engineer' else branch end;
+  perform war.act_start(required_role);
+  select turn into current_turn from war.game where id=1;
+  select role into own_role from war.roles where student=me.id and country=my_country;
+  wallet_role := case when branch='civil' and own_role='chief' then null else required_role end;
+  select * into city_rec from war.cities where id=p_city for update;
+  if not found then perform priv.err('BAD_CITY', '도시를 찾을 수 없어요'); end if;
+  if city_rec.country is distinct from my_country then perform priv.err('NOT_OWNER', '우리 도시가 아니에요'); end if;
+  if city_rec.produced_turn=current_turn then perform priv.err('CITY_BUSY', '이 도시에서 이번 턴에 이미 병력을 만들었어요'); end if;
+  if branch='army' and not ('barracks'=any(city_rec.buildings)) then
+    perform priv.err('NO_BARRACKS', '병영이 없는 도시에서는 육군을 만들 수 없어요'); end if;
+  if branch='navy' and not ('harbor'=any(city_rec.buildings)) then
+    perform priv.err('NO_HARBOR', '항구가 없는 도시에서는 해군을 만들 수 없어요'); end if;
+  if branch='air' and city_rec.kind<>'capital' then
+    perform priv.err('NOT_CAPITAL', '공군은 수도에서만 만들 수 있어요'); end if;
+  -- 실제 무역 스키마는 priv.countries.techs와 priv.has_tech를 사용한다.
+  tech_needed := def->>'tech';
+  if tech_needed is not null and not coalesce(priv.has_tech(my_country,tech_needed),false) then
+    perform priv.err('NEED_TECH', '기술이 부족해요: ' || tech_needed); end if;
+  if def->>'boss' is not null then
+    select type into nation_tag from priv.countries where id=my_country;
+    if (cfg->'BOSS_UNIT'->nation_tag->>'unit') is distinct from p_kind then
+      perform priv.err('NO_BOSS', '이 나라는 이 특수 부대를 만들 수 없어요'); end if;
+    for item_key in select jsonb_array_elements_text(cfg->'BOSS_UNIT'->nation_tag->'needs') loop
+      if coalesce((select qty from war.inventory where country=my_country and item=item_key),0)<1 then
+        perform priv.err('NEED_RESOURCE', '자원이 부족해요: ' || item_key); end if;
+    end loop;
+  end if;
+  cost := case when p_kind='worker' then cfg->'HIRE_WORKER' else def->'cost' end;
+  for item_key, item_qty in select key,value::int from jsonb_each_text(cost) order by key loop
+    if wallet_role is not null then
+      perform 1 from war.wallets where country=my_country and role=wallet_role and item=item_key for update;
+      stock := coalesce((select qty from war.wallets where country=my_country and role=wallet_role and item=item_key),0);
+    elsif item_key='coin' then
+      select coin into stock from war.countries where id=my_country;
+    else
+      perform 1 from war.inventory where country=my_country and item=item_key for update;
+      stock := coalesce((select qty from war.inventory where country=my_country and item=item_key),0);
+    end if;
+    if stock<item_qty then perform priv.err('NOT_ENOUGH', '예산이 부족해요: ' || item_key); end if;
+  end loop;
+  -- 도시 칸 우선. 민간·군사 슬롯을 각각 검사하고 인접 칸은 병과 지형을 따른다.
+  select t.id into tile_id_out from war.tiles t
+  where (t.id=city_rec.tile_id or t.id=any(war.neighbors(
+    (select c from war.tiles where id=city_rec.tile_id),
+    (select r from war.tiles where id=city_rec.tile_id), (select max(c)+1 from war.tiles))))
+    and not exists(select 1 from war.units u where u.tile_id=t.id
+      and ((u.kind in ('worker','scout'))=(branch='civil')))
+    and (t.id=city_rec.tile_id or (
+      not exists(select 1 from war.markets m where m.tile_id=t.id)
+      and case when branch='navy' then t.terrain in ('ocean','coast')
+        when branch='air' then t.terrain not in ('ocean','coast')
+        else t.terrain not in ('ocean','coast','mountain') end))
+  order by (t.id=city_rec.tile_id) desc,t.id limit 1;
+  if tile_id_out is null then perform priv.err('NO_SPACE', '병력을 놓을 빈 칸이 없어요'); end if;
+  for item_key,item_qty in select key,value::int from jsonb_each_text(cost) loop
+    if wallet_role is not null then
+      update war.wallets set qty=qty-item_qty where country=my_country and role=wallet_role and item=item_key;
+    elsif item_key='coin' then
+      update war.countries set coin=coin-item_qty where id=my_country;
+    else
+      update war.inventory set qty=qty-item_qty where country=my_country and item=item_key;
+    end if;
+  end loop;
+  -- 서로 다른 나라의 동시 생산에서도 max(id)+1 충돌을 막는다.
+  perform pg_advisory_xact_lock(707,7);
+  select coalesce(max(id),0)+1 into new_unit_id from war.units;
+  insert into war.units(id,country,kind,hp,moves_left,commander,moves_turn)
+    values(new_unit_id,my_country,p_kind,100,war.moves_left_full(p_kind,cfg,wcfg)/2,required_role,current_turn);
+  perform war.place_unit(new_unit_id,tile_id_out);
+  update war.cities set produced_turn=current_turn where id=p_city;
+  perform war.bump('units'); perform war.bump('cities'); perform war.bump('country',my_country);
+  return jsonb_build_object('ok',true,'unit_id',new_unit_id,'tile',tile_id_out);
+end $$;
+revoke all on function public.war_produce(text,text) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_produce(text,text) to %I',r);
+  end if; end loop; end $$;
+
+-- 이미 설치된 config에서도 E7 미션을 연다.
+update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E7"]'::jsonb)
+where not coalesce(data->'OPEN_STAGES' ? 'E7',false);

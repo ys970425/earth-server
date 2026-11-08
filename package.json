@@ -18,6 +18,7 @@
     "test:war:missions": "node tests/war/missions.test.mjs",
     "test:war:e8": "node tests/war/e8.test.mjs",
     "test:war:e5": "node tests/war/e5.test.mjs",
+    "test:war:e7": "node tests/war/e7.test.mjs",
     "test:war:e6": "node tests/war/e6.test.mjs",
     "test:war:e4": "node tests/war/e4.test.mjs",
     "test:war:screen": "node tests/war/screen.test.mjs",
