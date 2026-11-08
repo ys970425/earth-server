@@ -668,7 +668,7 @@ begin
   k := (known->>'cities')::bigint;
   if k is null or k is distinct from v_cities then
     out := out || jsonb_build_object('cities', (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', id, 'tile', tile_id, 'country', country, 'name', name, 'hp', hp, 'max_hp', max_hp, 'besieged', besieged) order by id), '[]'::jsonb)
+      'id', id, 'tile', tile_id, 'kind', kind, 'country', country, 'name', name, 'hp', hp, 'max_hp', max_hp, 'besieged', besieged) order by id), '[]'::jsonb)
       from war.cities));
   end if;
   -- diplomacy: 15쌍 전부

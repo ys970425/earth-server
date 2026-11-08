@@ -8,8 +8,11 @@
 - **E0** 규칙 파일 `war-rules.js`, 전투기·구축함 그림, 64px 그림 사본
 - **E1** war 표 확장, 규칙 숫자 서버로(`npm run war:config`), 가져오기 v2(시설 배치·병과 지급·해군 지급 A·시장 3곳·평화로 시작), 행동 시작·잠금 `act_start`(두 나라는 번호순 한 번에), 바뀜 번호 `bump`
 - **E2** 접속·역할 고르기·역할별 화면 틀, 바뀐 것만 받기(`war_poll`), 교사 관제실 틀(가져오기·지급 결과·역할 현황·결석), 미리보기 가짜 서버(`&as=나라:역할`, `&size=4`)
+- **②** 미리보기를 **브라우저 PGlite(진짜 SQL)**로 전환 (가짜 서버 삭제, 열기 전 `npm run war:preview`)
 - **E3** 한 칸 한 유닛 DB 강제(`war.place_unit`, 「먼저 온 병력이 있어요」), 이동 `war_move`(땅·바다·공군 규칙, 공군은 적 병력 위 통과 A, 노동자 이동력 2), 지휘권 넘기기 `war_transfer`, 내 병력·지휘권 탭, 미리보기에서 눌러서 이동
   - 2026-11-08 Chrome 원격 조작으로 `?preview=real&as=1:army`에서 창병 이동 확인 (남은 이동 3 → 2, 콘솔 오류 0)
+- **①a** 시장 섬 그리기(`setData({ markets })`), 미션 목록 20개(`war-rules.js`→`war.config`), 미션 서버(`war_mission_done`·`war_missions`·`war_admin_missions`, `war.mission_done` 표)
+- **①b** 화면 두 탭(지도 / 우리 나라), 역할 고르기 전에도 지도 표시, 튜토리얼 미션 화면(행동 성공 뒤 기록·「미션 완료!」), 관제실 미션 현황 표, 지도에 시장 섬 넘기기·칸 정보에 시장 표시
 - 시험: `test:war:place`·`e3`·`e2`·`act`·`import2`·`import`·`rules`·`war`·`real`·`trade` 모두 통과
 
 ## 진행 중
@@ -20,12 +23,13 @@
 - `?preview=real` 실제 데이터 파일은 서버 쪽이 바뀌면 `npm run war:preview:real`로 다시 만들어야 함 (헬피코드는 `private/`를 열 수 없으므로 Claude가 만듦)
 
 ## 다음에 할 것 (`docs/war-design.md` 10장)
-1. **E4** 전투·도시 공격·점령(배 포함)·포위·파괴(건물·자원 타일 시설)·멸망 방지 — 동시성: 두 나라 잠금은 `act_start(p_other)`, 칸 바꾸기는 `war.place_unit`
-2. **E5** 턴 진행(교사 타이머·다음 턴 일괄 처리·일시정지)
+1. **E4** 전투·도시 공격·점령(배 포함)·포위·파괴(건물·자원 타일 시설)·멸망 방지 + 빈칸 병합(점령 직후) — 동시성: 두 나라 잠금은 `act_start(p_other)`, 칸 바꾸기는 `war.place_unit`. **화면도 E4에 맞춰 고치기: 공격 미리보기·공격 버튼, 미션 E4 열기(attack_preview)**
+2. **E5** 턴 진행(교사 타이머·다음 턴 일괄 처리·일시정지) — 턴 끝 병합 유지
 3. E6 합참 예산·공병사령관 / E7 병력 생산 / E8 외교·무역 / E9 시장 / E10 첩보 / E11 칠판·의견 보내기 / E12 25명 모의 실행 / E13 배포
 - GPT 크레딧이 없으면 GPT 몫도 헬피코드에게 아주 구체적인 지시서로 (CLAUDE.md)
 
 ## 잊지 말 것
+- **미리보기를 열기 전에 `npm run war:preview`** (브라우저 PGlite가 쓰는 DB 파일, 깃허브에 없음)
 - Supabase 설치(`war`·`feedback` 스키마)는 교사가 정한 때에만. gh-pages·`publish-pages.sh`·`claude/setup` 건드리지 않기
 - 배포는 새 저장소 `earth-war` (생성 승인됨, E13에서 만듦)
 - 담당은 헬피코드 우선, 어려운 것(여러 표·잠금이 얽힌 서버 함수, 모의 실행)만 GPT. codex exec에는 `-c 'windows.sandbox="unelevated"'`

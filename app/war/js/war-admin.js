@@ -20,10 +20,11 @@
 
   async function start() {
     if (WarAPI.mode) root.textContent = '미리보기를 준비하고 있어요 (몇 초 걸려요)';
-    let grants, roles;
+    let grants, roles, missions;
     try {
       grants = (await WarAPI.rpc('war_admin_grants')).grants;
       roles = (await WarAPI.rpc('war_admin_roles')).roles;
+      missions = (await WarAPI.rpc('war_admin_missions')).missions;
     } catch (e) {
       if (e.code === 'NOT_ADMIN') {
         root.innerHTML = '';
@@ -36,14 +37,14 @@
       console.error(e);
       return showError(/^[A-Za-z0-9 .,:;'"()\-_[\]]+$/.test(e.message || '') ? '문제가 생겼어요. 새로고침해 주세요.' : e.message);
     }
-    render(grants, roles);
+    render(grants, roles, missions);
   }
   function showError(msg) {
     root.innerHTML = '';
     root.append(h('div', { class: 'entry' }, h('p', {}, msg)));
   }
 
-  function render(grants, roles) {
+  function render(grants, roles, missions) {
     root.innerHTML = '';
     if (WarAPI.mode) root.append(h('div', { class: 'war-banner' + (WarAPI.mode === 'real' ? ' real' : '') },
       WarAPI.mode === 'real' ? '실제 데이터 미리보기: 우리 반 무역 게임 기록이에요 (여기서 바꿔도 저장되지 않아요)' : '미리보기 모드: 가짜 데이터예요'));
@@ -86,6 +87,20 @@
       h('small', {}, '역할 지정·결석 표시를 여기서 해요')), h('table', { class: 'tbl war-table' },
       h('tr', {}, h('th', {}, '나라'), h('th', {}, '닉네임'), h('th', {}, '역할'), h('th', {}, '결석')),
       roleRows)));
+    // 튜토리얼 미션 현황 (나라별로 묶어서)
+    const byCountry = {};
+    for (const m of missions || []) (byCountry[m.country] = byCountry[m.country] || []).push(m);
+    const missionRows = Object.keys(byCountry).sort((a, b) => a - b).flatMap(c => byCountry[c].map(m =>
+      h('tr', {},
+        h('td', {}, m.country + '번 나라'),
+        h('td', {}, m.nick),
+        h('td', {}, m.role ? (ROLE_NAME[m.role] || m.role) : '-'),
+        h('td', {}, m.done.length + ' / ' + m.total_open),
+        h('td', {}, m.done.length ? m.done.map(k => ((W.MISSIONS.find(x => x.key === k) || {}).text || k)).join(', ') : '-'))));
+    page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '튜토리얼 미션 현황',
+      h('small', {}, '완료 수 ÷ 지금 열린 미션 수')), h('table', { class: 'tbl war-table' },
+      h('tr', {}, h('th', {}, '나라'), h('th', {}, '닉네임'), h('th', {}, '역할'), h('th', {}, '완료 / 열림'), h('th', {}, '완료한 미션')),
+      missionRows)));
     root.append(page);
   }
   async function doImport() {
@@ -110,7 +125,8 @@
     try {
       const grants = (await WarAPI.rpc('war_admin_grants')).grants;
       const roles = (await WarAPI.rpc('war_admin_roles')).roles;
-      render(grants, roles);
+      const missions = (await WarAPI.rpc('war_admin_missions')).missions;
+      render(grants, roles, missions);
     } catch (e) { showError(e.message); }
   }
 

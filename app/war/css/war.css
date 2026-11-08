@@ -72,6 +72,22 @@ body.war .map-layout { margin-top: 4px; }
 .war-unit-row .row { display: flex; gap: 6px; margin-left: auto; }
 .war-msg { padding: 10px 12px; border: 3px solid var(--coral); border-radius: 12px; background: #FFF1F0; color: var(--coral-dark); }
 
+/* ①b: 위쪽 큰 탭 두 개 (지도 / 우리 나라) — 웨일북(1366×768)에서 스크롤 없이 지도가 보이게 */
+.war-big-tabs { display: flex; gap: 8px; padding: 6px 8px 0; }
+.war-big-tab { min-height: 56px; min-width: 150px; font-size: 21px; font-family: var(--font-display); }
+.war-big-tab.on { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold); }
+.war-view { height: calc(100vh - 196px); min-height: 400px; overflow: hidden; display: flex; flex-direction: column; }
+.war-view .map-layout { flex: 1; min-height: 0; margin-top: 4px; }
+.war-guide { margin: 6px 8px 0; padding: 8px 12px; border-radius: 10px; background: var(--gold); color: #3A2600; font-weight: 700; }
+.war-nation { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 20px; }
+.war-mission { display: flex; gap: 8px; align-items: center; min-height: 44px; border-bottom: 1px dashed rgba(0,0,0,.15); }
+.war-mission.done { color: var(--good); }
+.war-mission-check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--good); display: grid; place-items: center; flex: none; font-weight: 700; }
+.war-flash { position: fixed; top: 92px; left: 50%; transform: translateX(-50%); z-index: 70;
+  background: var(--mint); color: #063D2C; font-weight: 700; font-size: 19px;
+  padding: 10px 24px; border-radius: 12px; border: 3px solid var(--mint-dark); }
+
+
 
 
 /* 체험 병력 목록: 긴 목록은 이 영역 안에서만 스크롤해요. */
