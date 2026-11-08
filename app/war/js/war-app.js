@@ -138,6 +138,11 @@
         .catch(e => { console.error(e); S.msg = friendly(e); renderTabs(); });
       return;
     }
+    // 공격 대상 칸: 미리보기를 열어요 (E4 화면) — 이동 처리 직후, 내 병력 선택 직전
+    if (sel && S.attacks && S.attacks.has(id)) {
+      showAttackPreview(sel, id);
+      return;
+    }
     const mine = S.units.find(u => u.tile === id && W.isMyUnit(u, S.me.country.id, actingRole()));
     if (mine) { selectUnit(mine); return; }
     S.sel = S.sel === id ? null : id;
@@ -157,6 +162,7 @@
   // 메뉴 탭: 내 역할 메뉴 + 대행 중인 역할 탭 (설계 2장 표 그대로)
   const UNIT_NAMES = { worker: '노동자', scout: '정찰병' };
   const kindLabel = k => ((R.UNITS[k] || {}).name || (W.EXTRA_UNITS[k] || {}).name || UNIT_NAMES[k] || '병력');
+  const ruleOf = k => R.UNITS[k] || W.EXTRA_UNITS[k] || {};
   const isCivil = k => k === 'worker' || k === 'scout';
   const actingRole = () => (typeof S.tab === 'string' && S.tab.startsWith('deputy:')) ? S.tab.slice(7) : S.me.role;
   function renderTabs() {
@@ -288,7 +294,7 @@
   function mark(key) {
     if (!S.missions) { S.pendingMark = key; loadMissions(); return; }   // 목록을 아직 안 불러왔으면 불러온 뒤 기록
     const m = S.missions.find(x => x.key === key);
-    if (!m || m.done) return;
+    if (!m || m.done || !m.open) return;   // 아직 열리지 않은 미션은 기록하지 않는다 (콘솔 소음 방지)
     WarAPI.rpc('war_mission_done', { p_mission: key })
       .then(() => { flash('미션 완료!'); return loadMissions(); })
       .catch(e => console.error(e));
@@ -362,10 +368,64 @@
     }
     S.selUnit = u.id; S.reach = computeReach(u);
     S.map.selectUnit(u.id); S.map.setHint(S.reach.stops);
+    // 공격 가능 칸 (E4 화면): 이동력이 남아 있을 때, 근접은 이웃 · 원거리(range 2 이상)는 그 사거리까지
+    S.attacks = new Map();
+    if ((u.moves_left ?? 0) > 0) {
+      const range = Math.max(1, ruleOf(u.kind).range || 1);
+      for (const x of S.units) {
+        if (x.tile == null || x.country === S.me.country.id || isCivil(x.kind)) continue;
+        if (WarHexMap.hexDist(u.tile, x.tile) <= range) S.attacks.set(x.tile, { unit: x.id });
+      }
+      for (const c of S.cities) {
+        if (!c.country || c.country === S.me.country.id || S.attacks.has(c.tile)) continue;
+        if (WarHexMap.hexDist(u.tile, c.tile) <= range) S.attacks.set(c.tile, { city: c });
+      }
+    }
+    S.map.setAtk([...S.attacks.keys()]);
     S.map.centerOn(u.tile, Math.max(0.6, S.map.st.cam.z));
     renderTabs();
   }
-  function clearUnit() { S.selUnit = null; S.reach = null; S.map.selectUnit(null); S.map.setHint([]); }
+  function clearUnit() { S.selUnit = null; S.reach = null; S.attacks = new Map(); S.map.selectUnit(null); S.map.setHint([]); S.map.setAtk([]); }
+
+  // 공격 미리보기 (E4 화면): 계산식은 체험 모드(war-student.js previewAttack)와 같아요
+  function showAttackPreview(attacker, targetTileId) {
+    const atk = S.attacks.get(targetTileId) || {};
+    const strength = u => (ruleOf(u.kind).str || 1) * (0.5 + 0.5 * (u.hp == null ? 100 : u.hp) / 100);
+    const cityAttack = !!atk.city;
+    const defender = cityAttack ? atk.city : S.units.find(x => x.id === atk.unit);
+    if (!defender) return;
+    const terrain = (S.tiles.get(targetTileId) || {}).terrain;
+    const ratio = strength(attacker) /
+      (cityAttack ? Math.max(1, defender.def) : strength(defender) * (['hills', 'forest', 'jungle'].includes(terrain) ? 1.25 : 1));
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+    const damage = clamp(Math.round(30 * ratio), 3, ruleOf(attacker.kind).boss ? 60 : 100);
+    let counter = clamp(Math.round(30 * 0.6 / ratio), 1, 100);
+    if ((ruleOf(attacker.kind).range || 1) >= 2 && WarHexMap.hexDist(attacker.tile, targetTileId) > 1) counter = Math.round(counter * 0.25);
+    const dialog = h('dialog', { class: 'war-combat' },
+      h('h3', {}, '공격 미리보기'),
+      h('p', {}, '내가 줄 피해: ' + damage + ' / 반격 피해: ' + counter),
+      h('small', { class: 'muted' }, '공격!을 누르면 서버에 실제 공격을 요청해요'),
+      h('div', { class: 'row' },
+        h('button', { class: 'small', onclick: () => dialog.close() }, '취소'),
+        h('button', { class: 'primary', onclick: async () => {
+          dialog.close();
+          try {
+            const r = await WarAPI.rpc('war_attack', { p_unit: attacker.id, p_tile: targetTileId });
+            S.msg = null; clearUnit();
+            // 체력·쓰러진 병력·점령·포위·땅 주인을 바로 반영 (poll을 당겨 와서 전체 갱신)
+            applyPoll(await WarAPI.rpc('war_poll', { p_known: {} }));
+            const role = actingRole();
+            if (role === 'army') mark('army_attack_preview');
+            else if (role === 'navy') mark('navy_attack_preview');
+            else if (role === 'air') mark('air_attack_preview');
+            if (r && r.captured) flash('도시를 점령했어요!');
+            else if (r && r.besieged) flash('수도를 포위했어요!');
+          } catch (e) { console.error(e); S.msg = friendly(e); renderTabs(); }
+        } }, '공격!')));
+    dialog.addEventListener('close', () => dialog.remove(), { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+  }
 
   // ================= 4초마다 바뀐 것만 받기 =================
   // 지도·병력·도시 데이터를 먼저 적용하고, 화면 갱신(탭·위쪽 표시줄)은 그 뒤에 따로 해요.

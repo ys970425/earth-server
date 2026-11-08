@@ -24,7 +24,8 @@ async function open() {
   const db = new PGlite({ loadDataDir: archive });
   await db.waitReady;
   let uid = metadata.admin_uid;
-  if (!location.pathname.endsWith('/admin.html')) {
+  // 관제실은 admin.html과 index.html?admin=1 두 주소 모두에서 교사 uid로 열린다 (관제실 주소 통일)
+  if (!location.pathname.endsWith('/admin.html') && params.get('admin') !== '1') {
     const [countryText, role] = (params.get('as') || '1').split(':');
     const country = Number(countryText || 1);
     const students = metadata.students.filter(s => s.country === country);

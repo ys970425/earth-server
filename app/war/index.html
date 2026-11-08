@@ -23,10 +23,13 @@
 <script type="module" src="js/war-preview-db.js"></script>
 <script src="js/war-api.js"></script>
 <script>
-  // ?play=1이면 예전 체험 모드(war-student.js), 아니면 접속·역할 화면(war-app.js)
-  document.write(new URLSearchParams(location.search).get('play') === '1'
-    ? '<script src="js/war-student.js"><\/script>'
-    : '<script src="js/war-app.js"><\/script>');
+  // ?admin=1이면 관제실(war-admin.js), ?play=1이면 체험 모드(war-student.js), 아니면 학생 화면(war-app.js)
+  const _p = new URLSearchParams(location.search);
+  document.write(_p.get('admin') === '1'
+    ? '<script src="js/war-admin.js"><\/script>'
+    : _p.get('play') === '1'
+      ? '<script src="js/war-student.js"><\/script>'
+      : '<script src="js/war-app.js"><\/script>');
 </script>
 </body>
 </html>
