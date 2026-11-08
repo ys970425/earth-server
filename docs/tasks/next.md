@@ -1,52 +1,80 @@
-# 작업지시서 (헬피코드): ①b 화면 두 탭 + 미션 화면 + 관제실 미션 현황 + 시장 표시 + 문서
+# 작업지시서 (헬피코드): ④ 자동 화면 시험 + CLAUDE.md 압축
 
-- 저장소: `C:\projects\earth-server`, 브랜치 **`war-version`** (`git branch --show-current`로 확인)
-- **같은 시간에 GPT가 `supabase/war/*.sql`, `app/war/js/war-rules.js`, `tools/war/*`, `tests/war/*`, `package.json`, `app/war/preview/state.json`을 고치고 있다. 이 파일들은 절대 건드리지 않는다.**
-- 커밋·푸시 금지, Supabase 접속 금지, `private/` 금지, 무역 앱 파일 수정 금지.
-- 미리보기를 열기 전 `npm run war:preview`를 실행해야 한다 (DB 파일은 깃허브에 없음). GPT가 서버를 바꾸는 중이라 화면 확인은 「미확인」이어도 된다 — Claude가 둘 다 끝난 뒤 Chrome으로 확인한다.
+- 저장소: `C:\projects\earth-server`, 브랜치 **`war-version`**
+- 커밋·푸시 금지, Supabase 접속 금지, 무역 앱 파일 수정 금지.
 
-## 1. 위쪽 큰 탭 두 개 (`app/war/js/war-app.js`, `app/war/css/war.css`)
-무역 앱처럼 화면 맨 위(나라·역할·턴 표시줄 아래)에 **큰 탭 두 개**: 「지도」, 「우리 나라」. 높이 56px 이상, 웨일북(1366×768)에서 스크롤 없이 지도가 보이게.
-- **「지도」 탭 (처음 열리는 탭):** 지도는 크게, 옆에 조작 창 하나 — 고른 병력(이름·체력·남은 이동력·행동 버튼), 「칸 정보」, 지금 역할의 병력 목록(내 병력 / 노동자·정찰병 / 지휘권 넘기기). 지금의 역할 메뉴 탭 중 **게임 조작**에 해당하는 것(내 병력, 지휘권 넘기기, 노동자, 정찰병, 개발·수리, 건물, 생산, 외교, 무역, 도시국가 시장)은 이 조작 창 안 작은 탭으로.
-- **「우리 나라」 탭:** 역할 고르기(역할이 없을 때), 역할별 **튜토리얼 미션**, 내 예산, 나라 정보, 우리 나라 역할 현황, 첩보 정보.
-- **역할을 고르기 전에도** 「지도」 탭에 지도가 보이고, 맨 위에 「「우리 나라」 탭에서 역할을 골라요」 안내 띠. 역할이 없으면 병력은 고를 수 없음 (칸 정보만).
-- 아직 내용이 없는 메뉴는 지금처럼 「다음 단계에서 열려요」.
-- 버튼 48px 이상, 깜빡이는 효과 없음, 영어 노출 없음, 하단 「myoLab(산쌤)」.
+---
 
-## 2. 튜토리얼 미션 화면
-- 「우리 나라」 탭에 `war_missions()` 목록: 역할별로 순서대로, 완료 ✔ / 할 일 / 「곧 열려요」(`open=false`).
-- 행동이 **성공한 뒤** 화면이 `war_mission_done(key)`를 부른다 (실패해도 게임은 그대로, 오류는 콘솔에만):
-  - `army_move`·`navy_move`: 그 역할(대행 포함)로 `war_move` 성공 / `navy_coast`: 배가 우리 해안 도시(이웃에 바다·해안이 있는 우리 도시) 바로 옆 칸에 도착
-  - `air_fly_over`: 공군 `war_move` 경로 중에 다른 나라 병력이 있던 칸이 있음
-  - `army_transfer`·`air_transfer`: `war_transfer` 성공
-  - `eng_worker_move`: 노동자 `war_move` 성공 / `eng_scout_enemy`: 정찰병이 다른 나라 도시 바로 옆 칸에 도착
-  - `chief_info`: 합동참모의장(대행 포함 아님)이 「우리 나라」 탭을 연 때
-- 완료되면 짧게 「미션 완료!」 (1초, 반복 애니메이션 없음).
+## 1. 자동 화면 시험 (`tests/war/screen.test.mjs`)
 
-## 3. 교사 관제실 미션 현황 (`app/war/js/war-admin.js`)
-- `war_admin_missions()`로 표: 나라 / 닉네임 / 역할 / 완료 수 ÷ 열린 미션 수 / 완료한 미션 이름. **실명 쓰지 않기.** 나라별로 묶기.
+headless Chrome(Puppeteer)으로 `http://localhost:5599/app/war/index.html?preview=real`을 열고,
+아래 5가지를 순서대로 확인해서 결과를 한 줄씩 출력한다.
 
-## 4. 시장 섬 표시
-- `war-app.js`가 poll로 받은 `markets`를 지도에 넘긴다 (`S.map.setData({ markets })`, 그리는 코드는 `war-hexmap.js`에 이미 있음).
-- 시장 칸을 누르면 「칸 정보」에 「도시국가 시장 · ○○ 마을/항구/성곽 · 물물교환은 나중에 열려요」.
+**서버 시작 방법**: 시험 시작 전 `python -m http.server 5599 --directory C:/projects/earth-server` 를 백그라운드로 띄우고,
+시험 끝나면 종료. Puppeteer는 `import puppeteer from 'puppeteer'` (npm install puppeteer 필요하면 package.json devDependencies에 추가).
 
-## 5. 문서
-- `docs/war-design.md`:
-  - 8장: 화면 구조 「위쪽 큰 탭 두 개(지도 / 우리 나라)」와 각 탭 내용, 역할 고르기 전에도 지도가 보임
-  - 2장 끝 또는 8장: 튜토리얼 미션 (역할별 4개, 서버에 학생별 기록, 행동 성공 뒤 화면이 기록, 기능이 생기는 단계에서 열림 — 미션 표 그대로)
-  - 5-1장 끝: 「점령 직후에도 빈칸 병합을 한 번 한다 (E4)」, 10장 E4 행에 「빈칸 병합 함수(점령 직후)」, E5 행은 「턴 끝 병합」 유지
-  - 8-3장: 미리보기는 브라우저 PGlite로 진짜 SQL 실행, 가짜 서버 없음, 열기 전 `npm run war:preview` (②에서 이미 바뀜 — 지시서 5번 내용)
-  - 10장에 「E3.5 화면 두 탭·미션 틀·시장 표시·미리보기 PGlite (2026-11-08)」 행 추가
-  - 13장 기록 표에 행 추가: 「화면 두 탭」, 「튜토리얼 미션 서버 기록」, 「점령 직후 병합」, 「미리보기 가짜 서버 → 브라우저 PGlite」 (기존 행 그대로)
-- `docs/tasks/status.md`: 끝난 것에 ②·①a·①b, 「잊지 말 것」에 「미리보기 열기 전 `npm run war:preview`」, 다음 할 것: E4 화면(공격 미리보기·공격 버튼, 미션 E4 열기) → E5
+**확인 항목:**
+1. `역할_전_지도`: 페이지 열자마자(역할 선택 없이) `.hex-map canvas` 또는 `#map canvas`가 존재하면 ✔
+2. `역할_후_내병력`: 「우리 나라」 탭 클릭 → 나라1 클릭 → 「육군」 클릭 → 2초 대기 → 역할 목록 UI에서 `.unit-list li` 개수 > 0 이면 ✔
+3. `미션_완료`: 역할 고른 뒤 지도에서 아무 내 병력 클릭 → 이웃 칸으로 이동 → `.toast` 또는 텍스트 「미션 완료」가 1초 안에 보이면 ✔. **실패해도 나머지 항목은 계속 진행.**
+4. `시장_섬_그림`: 지도 canvas 위에서 `S.map` 또는 poll data에 `markets` 배열 길이 3 이면 ✔ (window 변수로 확인)
+5. `관제실_미션_표`: `admin.html?preview=real` 열기 → `table tbody tr` 개수 > 0 이면 ✔
 
-## 고쳐도 되는 파일 (이것만)
-`app/war/js/war-app.js`, `app/war/js/war-admin.js`, `app/war/css/war.css`, `app/war/index.html`·`app/war/admin.html`(필요할 때만), `docs/war-design.md`, `docs/tasks/status.md`, `docs/tasks/report.md`
+출력 형식:
+```
+  ✔ 역할_전_지도
+  ✔ 역할_후_내병력
+  ...
+전체 통과  (또는)  실패 N개
+```
+
+`process.exit(실패수 ? 1 : 0)`.
+
+`package.json` scripts에 `"test:war:screen": "node tests/war/screen.test.mjs"` 추가.
+
+---
+
+## 2. CLAUDE.md 압축
+
+현재 `CLAUDE.md`는 너무 길어서 매 세션 토큰을 낭비한다. 다음과 같이 줄인다.
+
+**작업:**
+1. 현재 `CLAUDE.md`를 읽고, 상세 설명(설계 세부·예시·긴 목록)을 `docs/claude-detail.md`로 옮긴다.
+2. `CLAUDE.md`를 아래 구조로 **새로 쓴다** (200줄 이내):
+
+```
+# CLAUDE.md
+...세션 시작 시 읽는 짧은 규칙...
+```
+
+포함할 내용:
+- **긴축 모드 규칙** (맨 위):
+  ```
+  ## 긴축 모드
+  1. 코드 직접 작성 금지 — 거의 모든 코드 작업은 헬피코드(또는 GPT)에게 맡긴다.
+  2. 검토는 git diff --stat + 시험 결과만. 파일 전체 읽기 금지.
+  3. Chrome 확인 대신 자동 화면 시험(tests/war/screen.test.mjs) 결과만 본다.
+  4. 작업지시서는 짧게 — 설계 내용은 "docs/war-design.md X장 참고"로.
+  5. 보고는 5줄 이내, 표 금지.
+  ```
+- 프로젝트 한 줄 소개 (무엇인지)
+- 주요 명령 (`npm run war:preview`, `npm run war:preview:real`, `npm run war:config`, 각 시험 명령)
+- 아키텍처 한 줄 (Netlify + Supabase, app/war, supabase/war, tests/war)
+- 작업 규칙 핵심만 (한국어 쉬운 말, 계획 먼저 승인 뒤 실행, design.md 기준, 하단 myoLab 표기)
+- 작업 분담 핵심만 (헬피=단순 고량, GPT=동시성·서버 핵심, 헬피 지시서→docs/tasks/next.md)
+- 금지 사항 (무역 앱 수정 금지, gh-pages 커밋 금지, Supabase 직접 접속 금지, nation 무단 수정 금지)
+- 세부 내용은 `docs/claude-detail.md` 참고 링크
+
+---
+
+## 고쳐도 되는 파일
+`tests/war/screen.test.mjs` (새 파일), `package.json` (scripts + devDependencies), `CLAUDE.md`, `docs/claude-detail.md` (새 파일), `docs/tasks/report.md`
 
 ## 완료 조건
-- `node --check`로 고친 js 통과
-- 화면 (Live Server, 못 하면 「미확인」): `?preview=1` 역할 없음 → 지도 탭에 지도 + 안내 띠, 우리 나라 탭에서 역할 고르기 → 미션 목록 / `?preview=1&as=1:army` 이동 → 미션 ✔ / `admin.html?preview=1` 미션 현황 표 / 시장 섬 3곳 그림 / 콘솔 빨간 오류 없음
-- `git status --short`에서 이 작업으로 바뀐 것이 위 목록뿐
+- `node --check tests/war/screen.test.mjs` 통과 (실제 실행은 선택)
+- `CLAUDE.md` 200줄 이하
+- `docs/claude-detail.md` 존재
+- `git status --short`에 위 목록 밖 변경 없음
 
-## 보고 (`docs/tasks/report.md`에 덮어쓰기)
-1~5 각각 3줄 이내, 못 한 것은 맨 위 「실패: 이유」, 마지막 줄 「커밋·푸시하지 않았습니다」
+## 보고 (`docs/tasks/report.md` 덮어쓰기)
+5줄 이내, 못 한 것은 맨 위 「실패: 이유」, 마지막 줄 「커밋·푸시하지 않았습니다」
