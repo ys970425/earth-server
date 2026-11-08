@@ -70,15 +70,15 @@ createServer(async (req, res) => {
   limit.min.count++;
   limit.day.count++;
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt.replace('{ROLE}', role) }] },
         contents: [{ role: 'user', parts: [{ text: question }] }],
         generationConfig: { maxOutputTokens: 200 },
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(25_000),
     });
     if (!response.ok) throw new Error('AI_ERROR');
     const result = await response.json();
