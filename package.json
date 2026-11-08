@@ -17,7 +17,8 @@
     "test:war:select": "node tests/war/select.test.mjs",
     "test:war:missions": "node tests/war/missions.test.mjs",
     "test:war:e4": "node tests/war/e4.test.mjs",
-    "test:war:screen": "node tests/war/screen.test.mjs"
+    "test:war:screen": "node tests/war/screen.test.mjs",
+    "test:war:qna": "node tests/war/qna.test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.15",

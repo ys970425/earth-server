@@ -149,6 +149,7 @@
     S.map.select(S.sel); clearUnit(); renderTabs();
   }
   function renderTop() {
+    window.WAR_ROLE = S.me?.role || 'common';
     const top = $('#war-top'); if (!top) return;
     const g = S.game || {};
     top.innerHTML = '';
@@ -166,6 +167,7 @@
   const isCivil = k => k === 'worker' || k === 'scout';
   const actingRole = () => (typeof S.tab === 'string' && S.tab.startsWith('deputy:')) ? S.tab.slice(7) : S.me.role;
   function renderTabs() {
+    window.WAR_ROLE = actingRole() || 'common';
     const side = $('#side'); if (!side) return;
     const me = S.me;
     side.innerHTML = '';

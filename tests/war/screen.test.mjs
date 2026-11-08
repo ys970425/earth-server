@@ -332,6 +332,23 @@ try {
     note7 = capAttempt.why || '';
   }
   ok('점령_후_땅색_변화', ownerPass, note7);
+  // 8. 독립 질문 창: 가짜 데이터 미리보기에서도 추천 질문에 답해요.
+  await page.goto(`${BASE}/app/war/index.html?preview=1`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.qna-launcher');
+  await page.click('.qna-launcher');
+  await page.waitForSelector('.qna-overlay', { visible: true });
+  await page.waitForSelector('.qna-recommendations button');
+  await page.click('.qna-recommendations button');
+  const qnaAnswer = await until(() => page.$eval('.qna-answer', el => el.textContent.trim()), 5000);
+  ok('물어보기_추천_답변', !!qnaAnswer);
+  await page.goto(`${BASE}/app/war/qna.html`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.qna-launcher');
+  await page.select('#qna-role', 'navy');
+  await page.click('.qna-launcher');
+  await page.waitForSelector('.qna-recommendations button');
+  await page.click('.qna-recommendations button');
+  const standaloneAnswer = await until(() => page.$eval('.qna-answer', el => el.textContent.trim()), 5000);
+  ok('단독_페이지_역할_답변', !!standaloneAnswer && standaloneAnswer.includes('해안'));
   await browser.close();
 } catch (e) {
   ok('실행', false, (e.stack || e.message).split('\n')[0]);

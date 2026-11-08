@@ -1,0 +1,13 @@
+.qna-launcher{position:fixed;right:20px;bottom:44px;z-index:10000;background:#244e45;color:#fff;border:2px solid #d4b876;border-radius:24px;padding:10px 20px;font-weight:bold}
+.qna-overlay[hidden]{display:none}
+.qna-overlay{position:fixed;inset:0;z-index:10001;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+.qna-panel{width:540px;max-width:100%;max-height:90dvh;overflow:auto;box-sizing:border-box;background:#fff9e9;color:#253c36;border:3px solid #92723e;border-radius:16px;padding:20px;font-family:system-ui,sans-serif;line-height:1.7}
+.qna-panel header{display:flex;align-items:center;justify-content:space-between;gap:8px}.qna-panel h2{font-size:24px;margin:0}
+.qna-panel button,.qna-launcher,.qna-page select{min-height:48px;min-width:48px;font:inherit;cursor:pointer}
+.qna-panel button{border:1px solid #8a7959;border-radius:8px;background:#fff;color:#253c36;padding:8px 12px;white-space:normal}
+.qna-panel button:hover{background:#e6eedf}.qna-panel :focus-visible,.qna-launcher:focus-visible{outline:3px solid #216eae;outline-offset:2px}
+.qna-recommendations,.qna-suggestions{display:grid;gap:8px;margin:16px 0}.qna-input-row{display:flex;gap:8px}
+.qna-panel input{min-height:48px;min-width:0;flex:1;box-sizing:border-box;font:inherit;padding:8px;border:1px solid #8a7959;border-radius:8px}
+.qna-answer{white-space:pre-wrap;margin-top:20px}.qna-panel footer{text-align:center;margin-top:24px;font-size:14px}
+.qna-page{max-width:640px;margin:60px auto;padding:20px;font-family:system-ui,sans-serif;color:#253c36}.qna-page select{max-width:100%;padding:8px}.qna-page footer{margin-top:48px;text-align:center}
+@media(max-width:420px){.qna-panel{padding:12px}.qna-input-row{flex-wrap:wrap}.qna-input-row input{flex-basis:100%}}
