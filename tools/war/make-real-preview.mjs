@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { createDb } from '../../tests/war/helpers.mjs';
 import { stateFromWar } from './state-from-war.mjs';
 
-export async function convert(exportData) {
+export async function convert(exportData, { saveDb = false } = {}) {
   const { db, rpc } = await createDb();
   try {
     for (const f of ['schema.sql', 'config.sql', 'functions.sql']) {
@@ -34,7 +34,21 @@ export async function convert(exportData) {
     [JSON.stringify(exportData.tiles ?? [])]);
     await db.query('update public.game set turn = $1, phase = $2', [exportData.game.turn, exportData.game.phase]);
     await rpc(admin, 'war_admin_import', '초기화');
-    return await stateFromWar(db);
+    const state = await stateFromWar(db);
+    if (saveDb) {
+      for (const student of exportData.students ?? []) {
+        await db.query(`insert into priv.students(id, country_id, name, nickname, uid)
+          values ($1, $2, $3, $3, gen_random_uuid())`, [student.id, student.country_id, 'preview-' + student.id]);
+      }
+      await db.exec('update priv.students set uid = gen_random_uuid()');
+      await rpc(admin, 'admin_login', 'test-pw');
+      const meta = { admin_uid: admin, students: (await db.query('select id, country_id as country, uid from priv.students order by id')).rows };
+      mkdirSync(new URL('../../app/war/preview/', import.meta.url), { recursive: true });
+      writeFileSync(new URL('../../app/war/preview/db-real.json', import.meta.url), JSON.stringify(meta));
+      const dump = await db.dumpDataDir('gzip');
+      writeFileSync(new URL('../../app/war/preview/db-real.tar.gz', import.meta.url), Buffer.from(await dump.arrayBuffer()));
+    }
+    return state;
   } finally {
     await db.close();
   }
@@ -52,7 +66,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       if (!files.length) throw new Error('private 폴더에 무역 백업 파일을 넣어 주세요');
       file = files[0].url;
     }
-    const state = await convert(JSON.parse(readFileSync(file, 'utf8')));
+    const state = await convert(JSON.parse(readFileSync(file, 'utf8')), { saveDb: true });
     mkdirSync(new URL('../../app/war/preview/', import.meta.url), { recursive: true });
     writeFileSync(new URL('../../app/war/preview/state-real.json', import.meta.url), JSON.stringify(state, null, 1));
     console.log(`state-real.json 저장: 나라 ${state.countries.length} · 칸 ${state.tiles.length} · 도시 ${state.cities.length} · 병력 ${state.units.length} (턴 ${state.game.turn})`);

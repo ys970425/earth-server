@@ -7,3 +7,7 @@ tests/trade/shots/
 private/
 app/war/preview/state-real.json
 지구서버-무역-백업-*.json
+
+app/war/preview/db.tar.gz
+app/war/preview/db.json
+app/war/preview/*real*

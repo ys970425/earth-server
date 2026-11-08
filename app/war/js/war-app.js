@@ -18,11 +18,8 @@
   }
 
   async function start() {
-    // 미리보기 모드면 가짜 서버를 먼저 준비해요
-    if (WarAPI.mode) {
-      try { const state = await window.WarData.load(); WarAPI.makeFake(state); }
-      catch (e) { console.error(e); return showError(friendly(e)); }
-    }
+    // 미리보기 DB를 여는 동안 안내해요
+    if (WarAPI.mode) root.textContent = '미리보기를 준비하고 있어요 (몇 초 걸려요)';
     try { S.me = await WarAPI.rpc('war_me'); }
     catch (e) {
       if (e.code === 'NO_AUTH') return needAuth();

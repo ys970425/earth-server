@@ -19,10 +19,7 @@
   }
 
   async function start() {
-    if (WarAPI.mode) {
-      try { const state = await window.WarData.load(); WarAPI.makeFake(state); }
-      catch (e) { return showError(e.message); }
-    }
+    if (WarAPI.mode) root.textContent = '미리보기를 준비하고 있어요 (몇 초 걸려요)';
     let grants, roles;
     try {
       grants = (await WarAPI.rpc('war_admin_grants')).grants;

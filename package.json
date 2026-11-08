@@ -13,6 +13,7 @@
     "test:war:real": "node tests/war/real-preview.test.mjs",
     "war:preview": "node tools/war/make-preview.mjs",
     "war:config": "node tools/war/build-config.mjs",
+    "test:war:preview-db": "node tests/war/preview-db.test.mjs",
     "test:war:select": "node tests/war/select.test.mjs"
   },
   "devDependencies": {

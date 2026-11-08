@@ -23,4 +23,9 @@ mkdirSync(new URL('../../app/war/preview/', import.meta.url), { recursive: true 
 writeFileSync(new URL('../../app/war/preview/state.json', import.meta.url), JSON.stringify(state, null, 1));
 console.log(`app/war/preview/state.json 저장: 나라 ${countries.length} · 칸 ${tiles.length} · 도시 ${cities.length} · 병력 ${units.length} (턴 ${turn})`);
 
+const meta = { admin_uid: seed.ADMIN, students: (await db.query('select id, country_id as country, uid from priv.students order by id')).rows };
+writeFileSync(new URL('../../app/war/preview/db.json', import.meta.url), JSON.stringify(meta));
+const dump = await db.dumpDataDir('gzip');
+writeFileSync(new URL('../../app/war/preview/db.tar.gz', import.meta.url), Buffer.from(await dump.arrayBuffer()));
+console.log(`db.tar.gz 저장: ${dump.size} bytes`);
 await db.close();
