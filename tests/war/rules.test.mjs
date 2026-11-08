@@ -47,6 +47,9 @@ try {
 
   // 기본 숫자 (설계 11장)
   ok(W.MOVES.worker === 2 && W.MOVES.scout === 5, '노동자 이동력 2 (무역 앱은 0), 정찰병 이동력 5');
+  ok(Array.isArray(W.MISSIONS) && W.MISSIONS.length === 20 && W.OPEN_STAGES.join() === 'now' &&
+    W.MISSIONS.every(m => m.key && m.role && m.order && m.text && m.opens),
+    '미션 목록 20개, 열리는 단계는 지금(now)만');
   ok(W.canPass('spear', { terrain: 'mountain' }, {}) === false && W.canPass('spear', { terrain: 'plains' }, {}) === true,
     'canPass: 땅 유닛은 산을 못 지나가고 평원은 지나감');
   ok(W.canPass('fighter', { terrain: 'mountain' }, { enemyUnit: true }) === true &&

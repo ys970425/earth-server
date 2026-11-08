@@ -176,6 +176,93 @@ begin
 end $$;
 revoke all on function public.war_transfer(int, text) from public;
 
+-- ---------------------------------------------------------------------
+-- E3 ①a: 미션 (완료는 서버에 학생별로 기록. 행동 자체의 성공은 서버가 확인하지 않는다)
+-- ---------------------------------------------------------------------
+-- 내 역할 + 대행 역할(결석·빈 역할 대행, 4명 모둠 합참의 공병) 목록
+create or replace function war.my_roles(p_student int, p_country int) returns text[]
+language plpgsql stable as $$
+declare
+  wcfg jsonb := war.cfg();
+  my_role text;
+  my_roles text[] := '{}';
+begin
+  select role into my_role from war.roles where student = p_student;
+  if my_role is not null then my_roles := array[my_role]; end if;
+  if my_role = 'chief' then
+    my_roles := my_roles || coalesce((select array_agg(def.value->>'key' order by ord)
+      from jsonb_array_elements(wcfg->'ROLES') with ordinality def(value, ord)
+      left join war.roles rr on rr.country = p_country and rr.role = def.value->>'key'
+      where def.value->>'key' <> 'chief' and (rr.student is null or rr.absent)), '{}');
+  end if;
+  return my_roles;
+end $$;
+
+-- 미션 완료 기록: 내 미션이고 열려 있는 것만. 이미 했으면 그대로 성공
+create or replace function public.war_mission_done(p_mission text) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  s priv.students;
+  wcfg jsonb := war.cfg();
+  mdef jsonb;
+  my_roles text[];
+begin
+  select * into s from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요.'); end if;
+  select mi into mdef from jsonb_array_elements(wcfg->'MISSIONS') mi where mi->>'key' = p_mission;
+  if not found then perform priv.err('BAD_MISSION', '아직 열리지 않았거나 내 미션이 아니에요.'); end if;
+  my_roles := war.my_roles(s.id, s.country_id);
+  if not ((mdef->>'role') = any(my_roles))
+    or not ((mdef->>'opens') = any(array(select jsonb_array_elements_text(wcfg->'OPEN_STAGES')))) then
+    perform priv.err('BAD_MISSION', '아직 열리지 않았거나 내 미션이 아니에요.');
+  end if;
+  insert into war.mission_done(student, mission) values (s.id, p_mission)
+    on conflict (student, mission) do nothing;
+  perform war.bump('country', s.country_id);
+  return jsonb_build_object('ok', true, 'mission', p_mission, 'done', true);
+end $$;
+revoke all on function public.war_mission_done(text) from public;
+
+-- 내 미션 목록 (내 역할 + 대행 역할만)
+create or replace function public.war_missions() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  s priv.students;
+  wcfg jsonb := war.cfg();
+  my_roles text[];
+begin
+  select * into s from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요.'); end if;
+  my_roles := war.my_roles(s.id, s.country_id);
+  return coalesce((select jsonb_agg(jsonb_build_object(
+      'key', mi->>'key', 'role', mi->>'role', 'order', (mi->>'order')::int,
+      'text', mi->>'text', 'opens', mi->>'opens',
+      'open', (mi->>'opens') = any(array(select jsonb_array_elements_text(wcfg->'OPEN_STAGES'))),
+      'done', exists (select 1 from war.mission_done md where md.student = s.id and md.mission = mi->>'key'))
+    order by (mi->>'order')::int)
+    from jsonb_array_elements(wcfg->'MISSIONS') mi
+    where (mi->>'role') = any(my_roles)), '[]'::jsonb);
+end $$;
+revoke all on function public.war_missions() from public;
+
+-- 교사용 미션 현황 (닉네임만, 실명 금지)
+create or replace function public.war_admin_missions() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  perform priv.need_admin();
+  return jsonb_build_object('missions', (select coalesce(jsonb_agg(jsonb_build_object(
+      'student', s.id, 'country', s.country_id, 'nick', coalesce(s.nickname, '친구' || s.id),
+      'role', r.role,
+      'done', coalesce((select jsonb_agg(md.mission order by md.mission)
+        from war.mission_done md where md.student = s.id), '[]'::jsonb),
+      'total_open', (select count(*) from jsonb_array_elements(war.cfg()->'MISSIONS') mi
+        where (mi->>'opens') = any(array(select jsonb_array_elements_text(war.cfg()->'OPEN_STAGES')))
+          and (mi->>'role') = r.role)
+    ) order by s.country_id, s.no, s.id), '[]'::jsonb)
+  from priv.students s left join war.roles r on r.student = s.id));
+end $$;
+revoke all on function public.war_admin_missions() from public;
+
 create or replace function war.admin_import(p_confirm text) returns jsonb
 language plpgsql security definer set search_path = war, priv, public as $$
 declare
@@ -208,7 +295,7 @@ begin
   truncate war.game, war.countries, war.inventory, war.tiles, war.cities,
     war.units, war.factories, war.advanced,
     war.roles, war.wallets, war.city_facilities, war.diplomacy, war.offers,
-    war.markets, war.market_stock, war.grants, war.versions;
+    war.markets, war.market_stock, war.grants, war.versions, war.mission_done;
   insert into war.game(id, turn, imported_at)
     select id, turn, now() from public.game;
   insert into war.countries
@@ -686,6 +773,9 @@ begin
       execute format('grant execute on function public.war_admin_set_role(int, text) to %I', role_name);
       execute format('grant execute on function public.war_move(int, int[]) to %I', role_name);
       execute format('grant execute on function public.war_transfer(int, text) to %I', role_name);
+      execute format('grant execute on function public.war_mission_done(text) to %I', role_name);
+      execute format('grant execute on function public.war_missions() to %I', role_name);
+      execute format('grant execute on function public.war_admin_missions() to %I', role_name);
     end if;
   end loop;
 end $$;

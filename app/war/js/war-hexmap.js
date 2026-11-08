@@ -22,7 +22,8 @@
     ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery', 'knight', 'swordsman', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, '../trade/assets/small/unit/' + u + '_' + t + '.png'))),
     ...['K', 'J', 'C', 'A', 'N', 'T'].map(t => load('u:boss_' + t, '../trade/assets/small/unit/boss_' + t + '.png')),   // 특수 부대 (나라마다 하나)
     ...['capital', 'port', 'farm', 'lumber', 'mine', 'market', 'barracks', 'steelworks'].map(b => load('b:' + b, '../trade/assets/small/bld/' + b + '.png')),
-    ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, '../trade/assets/small/city/' + f + '.png'))
+    ...Object.entries(R.CITY_ART).map(([k, f]) => load('c:' + k, '../trade/assets/small/city/' + f + '.png')),
+    ...['neutral_village', 'neutral_harbor', 'neutral_fortress'].map(a => load('m:' + a, '../trade/assets/small/city/' + a + '.png'))   // war: 시장 섬 그림 (중립 도시국가 그림 재사용)
   ]);
 
   // ---------- 좌표 ----------
@@ -73,7 +74,7 @@
     opts = opts || {};
     const ctx = canvas.getContext('2d');
     const st = {
-      tiles: new Map(), cities: [], units: [], countries: {}, me: null, all: false,
+      tiles: new Map(), cities: [], units: [], countries: {}, markets: [], me: null, all: false,
       sel: null, hint: new Set(), atk: new Set(), pathPrev: [], fx: [], cam: { x: 0, y: 0, z: 0.5 }, flags: {}
     };
     let dirty = true, raf = 0;
@@ -215,12 +216,26 @@
       if (st.sel !== null && st.sel >= 0) { const [x, y] = center(st.sel); hexPath(ctx, x, y, SIDE - 4); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.stroke(); ctx.strokeStyle = '#FFC83D'; ctx.lineWidth = 3; ctx.stroke(); }
       // 4) 위에 올리는 것 (줄 순서): 자원·시설·도시·병력
       const cityAt = new Map(st.cities.map(c => [c.tile, c]));
+      const marketAt = new Map((st.markets || []).map(m => [m.tile, m]));   // war: 시장 섬
       const unitsAt = new Map(); for (const u of st.units) { if (!unitsAt.has(u.tile)) unitsAt.set(u.tile, []); unitsAt.get(u.tile).push(u); }
       for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) {
         const id = r * W + c; if (!visible(id)) continue;
         const t = st.tiles.get(id); if (!t) continue;
-        const [x, y] = center(id), city = cityAt.get(id);
-        if (city) {
+        const [x, y] = center(id), city = cityAt.get(id), market = marketAt.get(id);
+        if (market && !city) {
+          // war: 시장 섬 (중립 도시국가 그림, 회색 이름표. 체력 막대·방어 표시는 없음)
+          const im = IMG['m:' + market.art];
+          ctx.save();
+          ctx.filter = 'saturate(.7) brightness(.95)';
+          if (im) drawImgAnchor(im, x, y, 140); else drawImgBottom(im, x, y + HALF_H * 0.75, 104);
+          ctx.restore();
+          if (!far) {
+            const fs = 17, tw = ctx.measureText(market.name).width + 20, th = fs + 12, ly = y + 30;
+            plate(x - tw / 2, ly, tw, th, '#454956', false);
+            ctx.fillStyle = '#F2F2F6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(market.name, x, ly + th / 2 + 1); ctx.fillText(market.name, x, ly + th / 2 + 1);
+          }
+        } else if (city) {
           const big = city.kind === 'capital';
           const im = IMG['c:' + city.art] || IMG[big ? 'b:capital' : (t.terrain === 'coast' || city.sea ? 'b:port' : 'b:capital')];
           const fac = city.art === 'factory';   // 그리드 링크의 메가팩토리 (그림이 없으면 성채 그림을 잿빛으로)

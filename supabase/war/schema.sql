@@ -163,3 +163,21 @@ create unique index if not exists war_units_one_military on war.units (tile_id)
   where tile_id is not null and kind not in ('worker', 'scout');
 create unique index if not exists war_units_one_civil on war.units (tile_id)
   where tile_id is not null and kind in ('worker', 'scout');
+
+-- 미션 완료 기록 (2026-11-08 결정: 학생별로 서버에 기록). 가져올 때 비운다
+create table if not exists war.mission_done (
+  student int not null,
+  mission text not null,
+  done_at timestamptz not null default now(),
+  primary key (student, mission)
+);
+revoke all on war.mission_done from public;
+do $$
+declare role_name text;
+begin
+  foreach role_name in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = role_name) then
+      execute format('revoke all on war.mission_done from %I', role_name);
+    end if;
+  end loop;
+end $$;

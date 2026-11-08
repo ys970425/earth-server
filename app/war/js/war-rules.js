@@ -127,6 +127,32 @@
   // 화면의 「내 병력」 목록·지도 선택과 시험이 모두 이 함수를 쓴다 (2026-11-08 남의 병력이 선택되던 버그)
   W.isMyUnit = (u, myCountry, role) => !!u && u.tile != null && u.country === myCountry && u.commander === role;
 
+  // ---------- 미션 (2026-11-08 결정: 완료는 서버에 학생별로 기록) ----------
+  // opens가 OPEN_STAGES에 있을 때 열리고, 화면이 알린 대로 서버에 기록해요. 단계가 끝날 때마다 OPEN_STAGES를 늘려요
+  W.OPEN_STAGES = ['now'];
+  W.MISSIONS = [
+    { key: 'chief_info', role: 'chief', order: 1, text: '「우리 나라」 탭에서 나라 정보를 살펴봐요', opens: 'now' },
+    { key: 'chief_budget', role: 'chief', order: 2, text: '공병사령관에게 예산을 나눠 줘요', opens: 'E6' },
+    { key: 'chief_ally', role: 'chief', order: 3, text: '다른 나라에 동맹을 제안해요', opens: 'E8' },
+    { key: 'chief_market', role: 'chief', order: 4, text: '도시국가 시장에서 물물교환을 한 번 해요', opens: 'E9' },
+    { key: 'eng_worker_move', role: 'engineer', order: 5, text: '노동자를 한 칸 옮겨요', opens: 'now' },
+    { key: 'eng_scout_enemy', role: 'engineer', order: 6, text: '정찰병을 다른 나라 도시 바로 옆까지 보내요', opens: 'now' },
+    { key: 'eng_build', role: 'engineer', order: 7, text: '건물을 하나 지어요', opens: 'E6' },
+    { key: 'eng_repair', role: 'engineer', order: 8, text: '부서진 시설을 고쳐요', opens: 'E6' },
+    { key: 'army_move', role: 'army', order: 9, text: '병력 하나를 옮겨 봐요', opens: 'now' },
+    { key: 'army_transfer', role: 'army', order: 10, text: '병력 하나의 지휘권을 다른 참모총장에게 넘겨 봐요', opens: 'now' },
+    { key: 'army_attack_preview', role: 'army', order: 11, text: '공격 미리보기를 확인해요', opens: 'E4' },
+    { key: 'army_build', role: 'army', order: 12, text: '병력을 하나 만들어요', opens: 'E7' },
+    { key: 'navy_move', role: 'navy', order: 13, text: '배 하나를 옮겨 봐요', opens: 'now' },
+    { key: 'navy_coast', role: 'navy', order: 14, text: '배를 우리 해안 도시 옆으로 보내요', opens: 'now' },
+    { key: 'navy_attack_preview', role: 'navy', order: 15, text: '공격 미리보기를 확인해요', opens: 'E4' },
+    { key: 'navy_build', role: 'navy', order: 16, text: '배를 하나 만들어요', opens: 'E7' },
+    { key: 'air_fly_over', role: 'air', order: 17, text: '공군을 다른 나라 병력 위로 날려 옮겨요', opens: 'now' },
+    { key: 'air_transfer', role: 'air', order: 18, text: '공군 하나의 지휘권을 다른 참모총장에게 넘겨 봐요', opens: 'now' },
+    { key: 'air_attack_preview', role: 'air', order: 19, text: '공격 미리보기를 확인해요', opens: 'E4' },
+    { key: 'air_build', role: 'air', order: 20, text: '전투기를 하나 만들어요', opens: 'E7' }
+  ];
+
   if (typeof module !== 'undefined' && module.exports) module.exports = W;
   root.WAR_RULES = W;
 })(typeof window !== 'undefined' ? window : globalThis);

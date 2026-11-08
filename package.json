@@ -14,7 +14,8 @@
     "war:preview": "node tools/war/make-preview.mjs",
     "war:config": "node tools/war/build-config.mjs",
     "test:war:preview-db": "node tests/war/preview-db.test.mjs",
-    "test:war:select": "node tests/war/select.test.mjs"
+    "test:war:select": "node tests/war/select.test.mjs",
+    "test:war:missions": "node tests/war/missions.test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.15"
