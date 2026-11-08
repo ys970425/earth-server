@@ -18,6 +18,7 @@
 - **QnA AI 봇** (`app/war/qna/`, `tools/war/qna-proxy.mjs`): 낱말 봇을 예비로 두고 Gemini AI 답변 추가. 프록시(`npm run war:qna-proxy`, 포트 3717)가 낱말 봇으로 FAQ 찾아 AI에게 전달 → 쉬운 말로 답변. 모델: `gemini-3.1-flash-lite`. 키: `.env`의 `GEMINI_API_KEY`. 시험: `npm run test:war:qna` 23개 통과. 11/9 이후: Supabase Edge Function으로 이전 예정(`docs/tasks/qna-edge-fn.md` 참고)
 - **E5** 턴 진행: `war_next_turn`(이동력 회복·수도 포위 해제·빈 칸 병합·턴 번호 올리기), `war_pause`, `war_set_turn_time`. 관제실 타이머 UI·다음 턴·일시정지 버튼·시간 조절, 학생 화면 위쪽 턴 띠. 시험 10개 통과.
 - **E6** 예산·건물·수리: `war_budget_give`·`war_budget_take`(합동참모의장 예산 나눠 주기·회수, 역할 지갑), `war_city_build`(도시 건물/공장/고등 건물), `war_repair`(노동자로 타일·도시 시설 수리, 비용 절반, 특산 공장은 특산 1개 추가). OPEN_STAGES에 E6 추가, chief 예산 탭·engineer 건물/수리 탭 화면. 시험 23개 통과.
+- **E7** 병력 생산: `war_produce`(역할별 병과, 병영/항구/수도 조건, CITY_BUSY 한 도시 1부대, 지갑 비용, 인접 빈 칸 배치). OPEN_STAGES에 E7 추가, 참모총장 생산 탭 화면. 시험 통과.
 
 ## 진행 중
 - 없음
@@ -29,8 +30,8 @@
 - `?preview=real` 실제 데이터 파일은 서버 쪽이 바뀌면 `npm run war:preview:real`로 다시 만들어야 함 (헬피코드는 `private/`를 열 수 없으므로 Claude가 만듦)
 
 ## 다음에 할 것 (`docs/war-design.md` 10장)
-1. **E7 병력 생산** — 참모총장이 병영/항구/수도에서 지갑으로 병력 생산
-3. E8 외교 나머지(동맹·무역) / E9 시장 / E10 첩보 / E11 칠판·의견 보내기 / E12 25명 모의 실행 / E13 배포
+1. **E9 도시국가 물물교환 시장** — `war_market_buy`, 합동참모의장 시장 탭
+3. E8 외교 나머지(동맹·무역) / E10 첩보 / E11 칠판·의견 보내기 / E12 25명 모의 실행 / E13 배포
 - GPT 크레딧이 없으면 GPT 몫도 헬피코드에게 아주 구체적인 지시서로 (CLAUDE.md)
 
 ### QnA 봇 개선 (나중에)
