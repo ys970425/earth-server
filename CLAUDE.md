@@ -31,8 +31,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 작업 분담 (핵심)
 - Claude: 계획·검토·최종 확인만. 코드는 직접 쓰지 않는다.
 - 헬피코드: 단순·분량 많은 일. 지시서는 docs/tasks/next.md에, 보고는 docs/tasks/report.md로 받는다. 커밋·푸시 금지(Claude가 검토 후 커밋).
-- GPT(codex exec, `-c 'windows.sandbox="unelevated"'` 필수): 동시성·서버 핵심. 파일 겹치면 동시 진행 금지, 지시서에 상대 파일 명시.
-- GPT 크레딧이 없으면 GPT 몫도 헬피코드에게 구체적 지시서로.
+- GPT(codex exec, `-c 'windows.sandbox="unelevated"'` 필수): 속도가 필요하면 GPT 우선, 헬피는 단순 문서·작은 수정만. 파일 겹치면 동시 진행 금지, 지시서에 상대 파일 명시.
+- GPT 크레딧이 없으면 GPT 몫도 헬피코드에게 아주 구체적 지시서로.
 
 ## 금지 사항
 - `app/trade/` 등 무역 앱 파일 수정 금지 (읽기만).
