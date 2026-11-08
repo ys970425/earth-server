@@ -313,6 +313,8 @@ begin
     hp = (cfg->'CS_TIERS'->least(tier, 4)->>'hp')::int
     where boss or final;
   get diagnostics converted = row_count;
+  update war.cities set def = (wcfg->'CAPITAL'->>'def')::int,
+    hp = (wcfg->'CAPITAL'->>'hp')::int, max_hp = (wcfg->'CAPITAL'->>'hp')::int where kind = 'capital';
   insert into war.factories select country, kind from priv.factories;
   insert into war.advanced select country, kind from priv.advanced;
   -- 원래 칸의 첫 유닛만 제자리에, 나머지(겹친 것·맞지 않는 지형·다른 나라 도시 칸)는 칸을 비워서 넣는다.
@@ -779,3 +781,142 @@ begin
     end if;
   end loop;
 end $$;
+
+-- Pointy-top odd-r, matching priv.hdist: odd rows shift right.
+-- Width is explicit so this helper stays immutable; callers join existing tiles
+-- to discard candidates beyond the bottom edge or missing from the map.
+create or replace function war.neighbors(c int, r int, width int) returns int[]
+language sql immutable strict as $$
+  select array_agg(nr * width + nc)
+  from (values (c-1,r),(c+1,r),
+    (c-1+(r & 1),r-1),(c+(r & 1),r-1),
+    (c-1+(r & 1),r+1),(c+(r & 1),r+1)) n(nc,nr)
+  where nc >= 0 and nc < width and nr >= 0
+$$;
+revoke all on function war.neighbors(int,int,int) from public;
+
+-- E4: one snapshot/layer; E5 also calls this at turn end.
+create or replace function war.merge_empty_tiles() returns int language plpgsql as $$
+declare ids int[]; owners int[]; n int; width int := (priv.cfg()->>'W')::int;
+begin
+  select array_agg(id order by id), array_agg(owner order by id) into ids, owners from (
+    select t.id, nb.owner from war.tiles t join war.tiles nb on nb.id = any(war.neighbors(t.c,t.r,width))
+    where t.owner is null and t.terrain not in ('ocean','coast') and nb.owner is not null
+      and not exists(select 1 from war.cities where tile_id=t.id)
+      and not exists(select 1 from war.markets where tile_id=t.id)
+    group by t.id, nb.owner having count(*) >= 4
+  ) s;
+  n := coalesce(cardinality(ids),0);
+  if n > 0 then
+    perform war.bump('map');
+    update war.tiles t set owner=s.owner, ver=(select ver from war.versions where area='map' and country=0)
+      from unnest(ids,owners) s(id,owner) where t.id=s.id;
+  end if;
+  return n;
+end $$;
+revoke all on function war.merge_empty_tiles() from public;
+
+create or replace function war.combat_calc(a numeric, ah int, d numeric, dh int, terrain text, city boolean, boss boolean, distance int)
+returns jsonb language plpgsql stable as $$
+declare cb jsonb := priv.cfg()->'COMBAT'; ratio numeric; damage int; counter int;
+begin
+  ratio := greatest(0.01,a*(0.5+0.5*ah/100.0)) / greatest(1,d * case when city then 1 else
+    (0.5+0.5*dh/100.0)*case when terrain in ('hills','forest','jungle') then 1.25 else 1 end end);
+  damage := greatest((cb->>'min')::int,least((cb->>'max')::int,round((cb->>'base')::numeric*ratio)::int));
+  if boss then damage := least(damage,(war.cfg()->'BOSS'->>'damageMax')::int); end if;
+  counter := greatest(1,least((cb->>'max')::int,round((cb->>'base')::numeric*(cb->>'counter')::numeric/ratio)::int));
+  if distance > 1 then counter := round(counter*(cb->>'rangedCounter')::numeric); end if;
+  return jsonb_build_object('damage',damage,'counter',counter);
+end $$;
+revoke all on function war.combat_calc(numeric,int,numeric,int,text,boolean,boolean,int) from public;
+
+-- game SHARE -> both countries ascending via act_start -> units ascending -> cities ascending.
+-- Preview uses the identical checks/calculation and only reads (including row locks).
+create or replace function war.attack_core(p_unit int,p_tile int,p_apply boolean) returns jsonb
+language plpgsql as $$
+declare u war.units; v war.units; c war.cities; cfg jsonb:=priv.cfg(); w jsonb:=war.cfg();
+  ud jsonb; vd jsonb; other int; mine int; turn_ int; shield int; lost int; dist int;
+  calc jsonb; damage int; counter int; ah int; dh int; cap boolean:=false; siege boolean:=false; need boolean:=false; ids int[]; neighbor_ids int[];
+begin
+  select * into u from war.units where id=p_unit;
+  if not found then perform priv.err('NO_UNIT','없는 병력이에요'); end if;
+  select country_id into mine from priv.students where uid=auth.uid();
+  if mine is null then perform priv.err('NO_AUTH','먼저 접속해 주세요'); end if;
+  if u.country<>mine then perform priv.err('NOT_MINE','우리 나라 병력이 아니에요'); end if;
+  if u.kind in ('worker','scout') then perform priv.err('NOT_MILITARY','군사 병력만 공격할 수 있어요'); end if;
+  select * into c from war.cities where tile_id=p_tile;
+  select * into v from war.units where tile_id=p_tile and country<>mine and kind not in ('worker','scout');
+  if exists(select 1 from war.markets where tile_id=p_tile) or
+    (c.id is not null and (c.country is null or c.country=mine)) then
+    perform priv.err('NO_TARGET','공격할 수 있는 상대가 없어요');
+  end if;
+  other := case when c.id is not null then c.country else v.country end;
+  if other is null then perform priv.err('NO_TARGET','공격할 수 있는 상대가 없어요'); end if;
+  perform war.act_start(u.commander,true,other);
+  perform 1 from war.units where id in (u.id,v.id) order by id for update;
+  perform 1 from war.cities where id=c.id order by id for update;
+  select * into u from war.units where id=p_unit;
+  select * into c from war.cities where tile_id=p_tile;
+  select * into v from war.units where tile_id=p_tile and country<>mine and kind not in ('worker','scout');
+  if u.id is null or u.country<>mine or (c.id is not null and c.country is distinct from other)
+    or (c.id is null and v.country is distinct from other) then perform priv.err('NO_TARGET','상대가 바뀌었어요. 다시 골라 주세요'); end if;
+  select turn into turn_ from war.game where id=1;
+  if not exists(select 1 from war.diplomacy where a=least(mine,other) and b=greatest(mine,other) and status='war') then
+    perform priv.err('NOT_AT_WAR','전쟁 중인 나라만 공격할 수 있어요'); end if;
+  select shield_until,cities_lost into shield,lost from war.countries where id=other;
+  if shield>=turn_ then perform priv.err('SHIELD','보호막이 있어요 ('||(shield-turn_)||'턴 남음)'); end if;
+  if u.attacked_turn=turn_ then perform priv.err('ATTACKED','이번 턴에는 이미 공격했어요'); end if;
+  ud:=coalesce(w->'EXTRA_UNITS'->u.kind,cfg->'UNITS'->u.kind);
+  vd:=coalesce(w->'EXTRA_UNITS'->v.kind,cfg->'UNITS'->v.kind);
+  dist:=priv.tdist(u.tile_id,p_tile);
+  if dist is null or dist<1 or dist>coalesce((ud->>'range')::int,1) then perform priv.err('TOO_FAR','공격하기에 너무 멀어요'); end if;
+  calc:=war.combat_calc(case when (ud ? 'boss') then (w->'BOSS'->>'str')::numeric else (ud->>'str')::numeric end,
+    u.hp,case when c.id is not null then c.def when (vd ? 'boss') then (w->'BOSS'->>'str')::numeric else (vd->>'str')::numeric end,
+    v.hp,(select terrain from war.tiles where id=p_tile),c.id is not null,(ud ? 'boss'),dist);
+  if not p_apply then return calc||jsonb_build_object('can_attack',true,'reason',null); end if;
+  damage:=(calc->>'damage')::int; counter:=(calc->>'counter')::int; ah:=greatest(0,u.hp-counter);
+  dh:=greatest(case when c.id is not null and lost >= (w->>'MAX_CITY_LOSS')::int then 1 else 0 end,coalesce(c.hp,v.hp)-damage);
+  if ah=0 then delete from war.units where id=u.id;
+  else update war.units set hp=ah,moves_left=0,attacked_turn=turn_ where id=u.id; end if;
+  if c.id is null then
+    if dh=0 then delete from war.units where id=v.id; else update war.units set hp=dh where id=v.id; end if;
+  else
+    siege:=dh=0 and c.kind='capital';
+    if dh=0 and c.kind<>'capital' then
+      neighbor_ids:=war.neighbors(p_tile % (cfg->>'W')::int,p_tile / (cfg->>'W')::int,(cfg->>'W')::int);
+      cap:=ah>0 and dist=1 and coalesce((ud->>'range')::int,1)=1 and coalesce(w->'BRANCH'->>u.kind,'')<>'air'
+        and (not coalesce((ud->>'sea')::boolean,false) or exists(select 1 from war.tiles where id=any(neighbor_ids) and terrain in ('ocean','coast')))
+        and v.id is null;
+      need:=not cap;
+    end if;
+    update war.cities set hp=dh,besieged=siege where id=c.id;
+    if cap then
+      perform war.place_unit(u.id,p_tile);
+      update war.cities set country=mine,hp=max_hp/2,besieged=false where id=c.id;
+      update war.city_facilities set ruined=true where city=c.id;
+      select array_agg(id) into ids from war.tiles t where id=p_tile or
+        (id=any(neighbor_ids) and terrain not in ('ocean','coast')
+        and not exists(select 1 from war.cities where tile_id=t.id) and not exists(select 1 from war.markets where tile_id=t.id));
+      perform war.bump('map');
+      update war.tiles set owner=mine,imp_ruined=imp_ruined or coalesce(w->'TILE_IMP'->'destroy' ? imp,false),
+        ver=(select ver from war.versions where area='map' and country=0) where id=any(ids);
+      update war.countries set cities_lost=cities_lost+1,shield_until=turn_+(w->>'SHIELD_TURNS')::int where id=other;
+      perform war.merge_empty_tiles();
+    end if;
+    perform war.bump('cities');
+  end if;
+  perform war.bump('units'); perform war.bump('country',mine); perform war.bump('country',other);
+  return calc||jsonb_build_object('attacker_hp',ah,'defender_hp',dh,'killed',c.id is null and dh=0,
+    'attacker_killed',ah=0,'besieged',siege,'captured',cap,'need_melee',need);
+end $$;
+revoke all on function war.attack_core(int,int,boolean) from public;
+create or replace function public.war_attack(p_unit int,p_tile int) returns jsonb
+language sql security definer set search_path=war,priv,public as $$ select war.attack_core(p_unit,p_tile,true) $$;
+create or replace function public.war_attack_preview(p_unit int,p_tile int) returns jsonb
+language plpgsql security definer set search_path=war,priv,public as $$
+begin return war.attack_core(p_unit,p_tile,false);
+exception when raise_exception then return jsonb_build_object('damage',0,'counter',0,'can_attack',false,'reason',regexp_replace(sqlerrm,'^[A-Z_]+: ', '')); end $$;
+revoke all on function public.war_attack(int,int), public.war_attack_preview(int,int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then execute format('grant execute on function public.war_attack(int,int), public.war_attack_preview(int,int) to %I',r); end if;
+end loop; end $$;
