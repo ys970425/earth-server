@@ -1,5 +1,8 @@
 import { search } from '../qna/qna-engine.js';
 
+const PROXY_URL = 'http://localhost:3717/api/qna';
+const MAX_Q_LEN = 200;
+
 const style = document.createElement('link');
 style.rel = 'stylesheet';
 style.href = new URL('../css/war-qna.css', import.meta.url).href;
@@ -48,13 +51,63 @@ function refresh() {
   buttons(recommendations, eligible.slice(0, 4));
 }
 async function ask(query) {
+  if (!query.trim()) return;
   input.value = query;
+  suggestions.replaceChildren();
+  if (query.length > MAX_Q_LEN) {
+    answer.textContent = '질문이 너무 길어요 (200자 이하로 써주세요).';
+    return;
+  }
+  const aiResult = await askAI(query);
+  if (aiResult.ok) {
+    const p = document.createElement('p');
+    p.textContent = aiResult.answer;
+    answer.replaceChildren(p);
+    addBadge('🤖 AI 답변');
+    return;
+  }
+  const errors = {
+    RATE_MIN: '잠깐 쉬었다가 다시 질문해요 (1분에 3번까지).',
+    RATE_DAY: '오늘은 질문을 많이 했어요. 내일 또 물어보세요.',
+    TOO_LONG: '질문이 너무 길어요 (200자 이하로 써주세요).',
+  };
+  if (errors[aiResult.error]) {
+    answer.textContent = errors[aiResult.error];
+    return;
+  }
   await load();
   if (!faq.length) return;
   const result = search(faq, query, role());
   suggestions.replaceChildren();
   answer.textContent = result.found ? result.item.answer : '선생님께 물어보세요 🙂 비슷한 질문도 살펴봐요.';
+  addBadge('💬 간단 답변');
   if (!result.found) buttons(suggestions, result.suggestions);
+}
+function addBadge(text) {
+  const badge = document.createElement('small');
+  badge.textContent = text;
+  badge.style.cssText = 'display:block;opacity:0.6;font-size:0.75em;margin-top:4px';
+  answer.append(badge);
+}
+async function askAI(query) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    const res = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: query, role: role() }),
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error };
+    if (typeof data.answer !== 'string' || !data.answer.trim()) return { ok: false, error: 'AI_ERROR' };
+    return { ok: true, answer: data.answer };
+  } catch {
+    return { ok: false, error: 'NETWORK' };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 async function open() {
   previousFocus = document.activeElement;

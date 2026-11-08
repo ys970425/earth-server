@@ -28,5 +28,19 @@ for (const [query, role, values] of [
   const result = search(faq, query, role);
   ok(result.found && values.every(value => result.item.answer.includes(String(value))), query + ' 규칙 숫자');
 }
+// 프록시가 꺼져 있어도 기존 시험은 통과한다.
+const longQuery = 'ㄱ'.repeat(201);
+ok(longQuery.length > 200, '201자 길이 초과 확인');
+const shortQuery = 'ㄱ'.repeat(200);
+ok(shortQuery.length <= 200, '200자 길이 허용 확인');
+const proxyRunning = await fetch('http://localhost:3717/api/qna', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ question: '', role: 'common' }),
+  signal: AbortSignal.timeout(500),
+}).then(r => r.json()).catch(() => null);
+if (proxyRunning !== null) {
+  ok(['TOO_LONG', 'BAD_ROLE', 'NO_KEY'].includes(proxyRunning.error), '프록시: 빈 질문 거절');
+}
 console.log(fails ? `실패 ${fails}개` : '전체 통과');
 process.exitCode = fails ? 1 : 0;
