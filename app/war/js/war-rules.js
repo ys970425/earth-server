@@ -129,7 +129,7 @@
 
   // ---------- 미션 (2026-11-08 결정: 완료는 서버에 학생별로 기록) ----------
   // opens가 OPEN_STAGES에 있을 때 열리고, 화면이 알린 대로 서버에 기록해요. 단계가 끝날 때마다 OPEN_STAGES를 늘려요
-  W.OPEN_STAGES = ['now', 'E4', 'E8'];
+  W.OPEN_STAGES = ['now', 'E4', 'E6', 'E8'];
   W.MISSIONS = [
     { key: 'chief_info', role: 'chief', order: 1, text: '「우리 나라」 탭에서 나라 정보를 살펴봐요', opens: 'now' },
     { key: 'chief_budget', role: 'chief', order: 2, text: '공병사령관에게 예산을 나눠 줘요', opens: 'E6' },

@@ -672,7 +672,8 @@ begin
   k := (known->>'cities')::bigint;
   if k is null or k is distinct from v_cities then
     out := out || jsonb_build_object('cities', (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', id, 'tile', tile_id, 'kind', kind, 'country', country, 'name', name, 'hp', hp, 'max_hp', max_hp, 'besieged', besieged) order by id), '[]'::jsonb)
+      'id', id, 'tile', tile_id, 'kind', kind, 'country', country, 'name', name, 'hp', hp, 'max_hp', max_hp, 'besieged', besieged,
+      'buildings', buildings, 'sea', sea) order by id), '[]'::jsonb)
       from war.cities));
   end if;
   -- diplomacy: 15쌍 전부
@@ -1125,3 +1126,203 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
   if exists (select 1 from pg_roles where rolname = r) then
     execute format('grant execute on function public.war_set_turn_time(int) to %I', r);
   end if; end loop; end $$;
+
+-- E6
+create or replace function public.war_budget_give(p_to_role text, p_item text, p_qty int) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare me priv.students; my_country int; my_roles text[]; stock int;
+begin
+  select * into me from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '접속해 주세요'); end if;
+  my_country := me.country_id;
+  my_roles := war.my_roles(me.id, my_country);
+  perform 1 from war.countries where id=my_country for update;
+  if not ('chief'=any(my_roles)) then perform priv.err('ROLE_ONLY', '이 역할로는 할 수 없어요'); end if;
+  if p_to_role is null or p_to_role not in ('engineer','army','navy','air') then perform priv.err('BAD_ROLE', '역할이 올바르지 않아요'); end if;
+  if p_qty is null or p_qty<=0 then perform priv.err('BAD_QTY', '양이 0보다 커야 해요'); end if;
+  if p_item is null or (p_item <> 'coin' and not (priv.cfg()->'ITEMS' ? p_item)) then perform priv.err('BAD_ITEM', '알 수 없는 항목이에요'); end if;
+  if p_item='coin' then select coin into stock from war.countries where id=my_country;
+  else perform 1 from war.inventory where country=my_country and item=p_item for update;
+    select coalesce((select qty from war.inventory where country=my_country and item=p_item),0) into stock; end if;
+  if stock<p_qty then perform priv.err('NOT_ENOUGH','국고가 부족해요'); end if;
+  if p_item='coin' then update war.countries set coin=coin-p_qty where id=my_country;
+  else update war.inventory set qty=qty-p_qty where country=my_country and item=p_item; end if;
+  insert into war.wallets(country,role,item,qty) values(my_country,p_to_role,p_item,p_qty)
+    on conflict(country,role,item) do update set qty=war.wallets.qty+p_qty;
+  perform war.bump('country',my_country); return jsonb_build_object('ok',true);
+end $$;
+create or replace function public.war_budget_take(p_from_role text, p_item text, p_qty int) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare me priv.students; my_country int; my_roles text[]; stock int;
+begin
+  select * into me from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '접속해 주세요'); end if;
+  my_country := me.country_id;
+  my_roles := war.my_roles(me.id, my_country);
+  perform 1 from war.countries where id=my_country for update;
+  if not ('chief'=any(my_roles)) then perform priv.err('ROLE_ONLY', '이 역할로는 할 수 없어요'); end if;
+  if p_from_role is null or p_from_role not in ('engineer','army','navy','air') then perform priv.err('BAD_ROLE', '역할이 올바르지 않아요'); end if;
+  if p_qty is null or p_qty<=0 then perform priv.err('BAD_QTY', '양이 0보다 커야 해요'); end if;
+  if p_item is null or (p_item <> 'coin' and not (priv.cfg()->'ITEMS' ? p_item)) then perform priv.err('BAD_ITEM', '알 수 없는 항목이에요'); end if;
+  perform 1 from war.wallets where country=my_country and role=p_from_role and item=p_item for update;
+  select coalesce((select qty from war.wallets where country=my_country and role=p_from_role and item=p_item),0) into stock;
+  if stock<p_qty then perform priv.err('NOT_ENOUGH', '예산이 부족해요'); end if;
+  update war.wallets set qty=qty-p_qty where country=my_country and role=p_from_role and item=p_item;
+  if p_item='coin' then update war.countries set coin=coin+p_qty where id=my_country;
+  else insert into war.inventory(country,item,qty) values(my_country,p_item,p_qty)
+    on conflict(country,item) do update set qty=war.inventory.qty+p_qty; end if;
+  perform war.bump('country',my_country); return jsonb_build_object('ok',true);
+end $$;
+create or replace function public.war_city_build(p_city text, p_kind text) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare me priv.students; my_country int; my_roles text[]; wallet_role text; cfg jsonb;
+  city_rec war.cities; def jsonb; cost jsonb; category text; item_key text; item_qty int; stock int; country_type text;
+begin
+  select * into me from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '접속해 주세요'); end if;
+  my_country := me.country_id;
+  my_roles := war.my_roles(me.id, my_country);
+  perform 1 from war.countries where id=my_country for update;
+  if not ('engineer'=any(my_roles)) then perform priv.err('ROLE_ONLY', '이 역할로는 할 수 없어요'); end if;
+  wallet_role := case when exists(select 1 from war.roles where student=me.id and role='chief') then null else 'engineer' end;
+  if (select paused from war.game where id=1) then perform priv.err('PAUSED', '지금은 일시정지 중이에요'); end if;
+  -- 전쟁 SPECIALTY는 문자열, 무역 SPECIALTY는 객체이므로 비용 계산에는 무역 정의를 우선한다.
+  cfg := war.cfg() || priv.cfg();
+  select * into city_rec from war.cities where id=p_city for update;
+  if not found then perform priv.err('BAD_CITY', '도시를 찾을 수 없어요'); end if;
+  if city_rec.country is distinct from my_country then perform priv.err('NOT_OWNER', '우리 나라 소유가 아니에요'); end if;
+  if cfg->'BUILDINGS' ? p_kind then category:='basic'; def:=cfg->'BUILDINGS'->p_kind;
+  elsif cfg->'FACTORIES' ? p_kind then category:='factory'; def:=cfg->'FACTORIES'->p_kind;
+  elsif cfg->'ADVANCED' ? p_kind then category:='advanced'; def:=cfg->'ADVANCED'->p_kind;
+  else perform priv.err('BAD_ITEM', '알 수 없는 항목이에요'); end if;
+  if p_kind=any(city_rec.buildings) or exists(select 1 from war.city_facilities where city=p_city and kind=p_kind) then
+    perform priv.err('ALREADY_BUILT', '이미 있는 건물이에요'); end if;
+  if p_kind='harbor' and not city_rec.sea then perform priv.err('NOT_COASTAL', '항구는 해안 도시에만 지을 수 있어요'); end if;
+  if def->>'tech' is not null and not coalesce(priv.has_tech(my_country,def->>'tech'),false) then
+    perform priv.err('NEED_TECH', '먼저 기술을 배워야 해요'); end if;
+  select type into country_type from war.countries where id=my_country;
+  cost:=case when category='factory' then def->'build' else def->'cost' end;
+  if category='factory' and cfg->'SPECIALTY'->country_type->>'factory'=p_kind then cost:=cfg->'SPECIALTY_BUILD'; end if;
+  for item_key, item_qty in select key, value::int from jsonb_each_text(cost) order by key loop
+    if wallet_role is not null then
+      perform 1 from war.wallets w where w.country=my_country and w.role=wallet_role and w.item=item_key for update;
+      select coalesce((select w.qty from war.wallets w where w.country=my_country and w.role=wallet_role and w.item=item_key),0) into stock;
+    elsif item_key='coin' then
+      select c.coin into stock from war.countries c where c.id=my_country;
+    else
+      perform 1 from war.inventory i where i.country=my_country and i.item=item_key for update;
+      select coalesce((select i.qty from war.inventory i where i.country=my_country and i.item=item_key),0) into stock;
+    end if;
+    if stock < item_qty then perform priv.err('NOT_ENOUGH', '예산이 부족해요' || item_key); end if;
+  end loop;
+  for item_key, item_qty in select key, value::int from jsonb_each_text(cost) loop
+    if wallet_role is not null then
+      update war.wallets w set qty=w.qty-item_qty where w.country=my_country and w.role=wallet_role and w.item=item_key;
+    elsif item_key='coin' then
+      update war.countries c set coin=c.coin-item_qty where c.id=my_country;
+    else
+      update war.inventory i set qty=i.qty-item_qty where i.country=my_country and i.item=item_key;
+    end if;
+  end loop;
+  if category='basic' then update war.cities set buildings=array_append(buildings,p_kind) where id=p_city;
+  else insert into war.city_facilities(city,kind,class,ruined,origin_country) values(p_city,p_kind,category,false,my_country); end if;
+  perform war.bump('cities'); perform war.bump('country',my_country);
+  return jsonb_build_object('ok',true,'city',p_city,'kind',p_kind);
+end $$;
+create or replace function public.war_repair(p_unit int, p_target text, p_target_tile int default null) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare me priv.students; my_country int; my_roles text[]; wallet_role text; cfg jsonb;
+  u war.units; t war.tiles; c war.cities; f war.city_facilities; parts text[];
+  cost jsonb; item_key text; item_qty int; stock int; specialty_type text; extra text;
+begin
+  select * into me from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '접속해 주세요'); end if;
+  my_country := me.country_id;
+  my_roles := war.my_roles(me.id, my_country);
+  perform 1 from war.countries where id=my_country for update;
+  if not ('engineer'=any(my_roles)) then perform priv.err('ROLE_ONLY', '이 역할로는 할 수 없어요'); end if;
+  wallet_role := case when exists(select 1 from war.roles where student=me.id and role='chief') then null else 'engineer' end;
+  if (select paused from war.game where id=1) then perform priv.err('PAUSED', '지금은 일시정지 중이에요'); end if;
+  -- 전쟁 SPECIALTY는 문자열, 무역 SPECIALTY는 객체이므로 비용 계산에는 무역 정의를 우선한다.
+  cfg := war.cfg() || priv.cfg();
+  select * into u from war.units where id=p_unit and country=my_country for update;
+  if not found then perform priv.err('NO_UNIT', '병력을 찾을 수 없어요'); end if;
+  if u.kind<>'worker' then perform priv.err('NOT_WORKER', '노동자만 수리할 수 있어요'); end if;
+  if u.commander is distinct from 'engineer' then perform priv.err('ROLE_ONLY', '이 역할로는 할 수 없어요'); end if;
+  if u.moves_left<=0 then perform priv.err('NO_MOVES', '이번 턴에 이미 행동했어요'); end if;
+  parts:=string_to_array(p_target,':');
+  if parts[1]='tile' and array_length(parts,1)=2 and parts[2] ~ '^[0-9]{1,9}$' then
+    select * into t from war.tiles where id=parts[2]::int for update;
+    if not found or t.imp is null then perform priv.err('NO_IMP', '시설이 없어요'); end if;
+    if t.owner is distinct from my_country then perform priv.err('NOT_OWNER', '우리 나라 소유가 아니에요'); end if;
+    if u.tile_id is distinct from t.id then perform priv.err('NOT_ON_TILE', '노동자가 그 칸에 없어요'); end if;
+    if not t.imp_ruined then perform priv.err('NOT_RUINED', '파괴되지 않은 시설이에요'); end if;
+    cost:=case t.imp when 'farm' then '{"coin":5}'::jsonb when 'quarry' then '{"coin":5}'::jsonb
+      when 'lumber' then '{"coin":5}'::jsonb when 'mine' then '{"coin":8}'::jsonb
+      when 'oilwell' then '{"coin":8}'::jsonb when 'plantation' then '{"coin":10}'::jsonb else null end;
+    if cost is null then perform priv.err('BAD_ITEM', '알 수 없는 항목이에요'); end if;
+  elsif parts[1]='city' and array_length(parts,1)=3 then
+    select * into c from war.cities where id=parts[2] for update;
+    if not found then perform priv.err('BAD_CITY', '도시를 찾을 수 없어요'); end if;
+    if c.country is distinct from my_country then perform priv.err('NOT_OWNER', '우리 나라 소유가 아니에요'); end if;
+    if u.tile_id is distinct from c.tile_id then perform priv.err('NOT_ON_TILE', '노동자가 그 칸에 없어요'); end if;
+    select * into f from war.city_facilities where city=c.id and kind=parts[3] for update;
+    if not found then perform priv.err('NO_FACILITY', '시설을 찾을 수 없어요'); end if;
+    if not f.ruined then perform priv.err('NOT_RUINED', '파괴되지 않은 시설이에요'); end if;
+    select type into specialty_type from war.countries where id=f.origin_country;
+    if f.class='factory' and cfg->'SPECIALTY'->specialty_type->>'factory'=f.kind then
+      cost:=cfg->'SPECIALTY_BUILD'; extra:=cfg->'STRAT_OF'->>specialty_type;
+    elsif f.class='factory' then cost:=cfg->'FACTORIES'->f.kind->'build';
+    else cost:=cfg->'ADVANCED'->f.kind->'cost'; end if;
+    if cost is null then perform priv.err('BAD_ITEM', '알 수 없는 항목이에요'); end if;
+    select jsonb_object_agg(key,floor(value::numeric/2)::int) into cost from jsonb_each_text(cost);
+    if extra is not null then cost:=cost || jsonb_build_object(extra,coalesce((cost->>extra)::int,0)+1); end if;
+  else perform priv.err('BAD_TARGET', '수리 대상 형식이 올바르지 않아요'); end if;
+  for item_key, item_qty in select key, value::int from jsonb_each_text(cost) order by key loop
+    if wallet_role is not null then
+      perform 1 from war.wallets w where w.country=my_country and w.role=wallet_role and w.item=item_key for update;
+      select coalesce((select w.qty from war.wallets w where w.country=my_country and w.role=wallet_role and w.item=item_key),0) into stock;
+    elsif item_key='coin' then
+      select c.coin into stock from war.countries c where c.id=my_country;
+    else
+      perform 1 from war.inventory i where i.country=my_country and i.item=item_key for update;
+      select coalesce((select i.qty from war.inventory i where i.country=my_country and i.item=item_key),0) into stock;
+    end if;
+    if stock < item_qty then perform priv.err('NOT_ENOUGH', '예산이 부족해요' || item_key); end if;
+  end loop;
+  for item_key, item_qty in select key, value::int from jsonb_each_text(cost) loop
+    if wallet_role is not null then
+      update war.wallets w set qty=w.qty-item_qty where w.country=my_country and w.role=wallet_role and w.item=item_key;
+    elsif item_key='coin' then
+      update war.countries c set coin=c.coin-item_qty where c.id=my_country;
+    else
+      update war.inventory i set qty=i.qty-item_qty where i.country=my_country and i.item=item_key;
+    end if;
+  end loop;
+  update war.units set moves_left=0 where id=p_unit;
+  if parts[1]='tile' then
+    perform war.bump('map');
+    update war.tiles set imp_ruined=false, ver=(select ver from war.versions where area='map' and country=0) where id=t.id;
+  else update war.city_facilities set ruined=false where city=f.city and kind=f.kind; perform war.bump('cities'); end if;
+  perform war.bump('units'); perform war.bump('country',my_country);
+  return jsonb_build_object('ok',true);
+end $$;
+revoke all on function public.war_budget_give(text,text,int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then execute format('grant execute on function public.war_budget_give(text,text,int) to %I',r); end if;
+end loop; end $$;
+revoke all on function public.war_budget_take(text,text,int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then execute format('grant execute on function public.war_budget_take(text,text,int) to %I',r); end if;
+end loop; end $$;
+revoke all on function public.war_city_build(text,text) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then execute format('grant execute on function public.war_city_build(text,text) to %I',r); end if;
+end loop; end $$;
+revoke all on function public.war_repair(int,text,int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then execute format('grant execute on function public.war_repair(int,text,int) to %I',r); end if;
+end loop; end $$;
+
+-- E6
+update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E6"]'::jsonb) where not coalesce(data->'OPEN_STAGES' ? 'E6',false);
