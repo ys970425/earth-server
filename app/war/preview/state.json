@@ -10285,6 +10285,222 @@
    "hp": 100,
    "commander": "air",
    "done": false
+  },
+  {
+   "id": 97,
+   "country": 1,
+   "kind": "destroyer",
+   "tile": 458,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 98,
+   "country": 1,
+   "kind": "spear",
+   "tile": 461,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 99,
+   "country": 1,
+   "kind": "spear",
+   "tile": 500,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 100,
+   "country": 1,
+   "kind": "tank",
+   "tile": 501,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 101,
+   "country": 2,
+   "kind": "destroyer",
+   "tile": 464,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 102,
+   "country": 2,
+   "kind": "spear",
+   "tile": 467,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 103,
+   "country": 2,
+   "kind": "spear",
+   "tile": 506,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 104,
+   "country": 2,
+   "kind": "tank",
+   "tile": 387,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 105,
+   "country": 3,
+   "kind": "destroyer",
+   "tile": 288,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 106,
+   "country": 3,
+   "kind": "spear",
+   "tile": 570,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 107,
+   "country": 3,
+   "kind": "spear",
+   "tile": 571,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 108,
+   "country": 3,
+   "kind": "tank",
+   "tile": 451,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 109,
+   "country": 4,
+   "kind": "destroyer",
+   "tile": 551,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 110,
+   "country": 4,
+   "kind": "spear",
+   "tile": 556,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 111,
+   "country": 4,
+   "kind": "spear",
+   "tile": 595,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 112,
+   "country": 4,
+   "kind": "tank",
+   "tile": 596,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 113,
+   "country": 5,
+   "kind": "destroyer",
+   "tile": 259,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 114,
+   "country": 5,
+   "kind": "spear",
+   "tile": 97,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 115,
+   "country": 5,
+   "kind": "spear",
+   "tile": 135,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 116,
+   "country": 5,
+   "kind": "tank",
+   "tile": 136,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 117,
+   "country": 6,
+   "kind": "destroyer",
+   "tile": 774,
+   "hp": 100,
+   "commander": "navy",
+   "done": false
+  },
+  {
+   "id": 118,
+   "country": 6,
+   "kind": "spear",
+   "tile": 895,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 119,
+   "country": 6,
+   "kind": "spear",
+   "tile": 933,
+   "hp": 100,
+   "commander": "army",
+   "done": false
+  },
+  {
+   "id": 120,
+   "country": 6,
+   "kind": "tank",
+   "tile": 934,
+   "hp": 100,
+   "commander": "army",
+   "done": false
   }
  ],
  "countries": [
@@ -10302,7 +10518,7 @@
     "iron": 2,
     "wood": 10
    },
-   "units": 9,
+   "units": 13,
    "cities": 2
   },
   {
@@ -10319,7 +10535,7 @@
     "jewelry": 7,
     "wood": 10
    },
-   "units": 9,
+   "units": 13,
    "cities": 1
   },
   {
@@ -10336,7 +10552,7 @@
     "iron": 2,
     "wood": 6
    },
-   "units": 9,
+   "units": 13,
    "cities": 1
   },
   {
@@ -10353,7 +10569,7 @@
     "wine": 7,
     "wood": 6
    },
-   "units": 9,
+   "units": 13,
    "cities": 1
   },
   {
@@ -10370,7 +10586,7 @@
     "iron": 2,
     "wood": 6
    },
-   "units": 9,
+   "units": 13,
    "cities": 1
   },
   {
@@ -10387,7 +10603,7 @@
     "spice": 7,
     "wood": 6
    },
-   "units": 9,
+   "units": 13,
    "cities": 1
   }
  ],

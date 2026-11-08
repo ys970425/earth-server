@@ -45,7 +45,7 @@ body.war .map-layout { height: calc(100vh - 170px); min-height: 420px; margin-to
 .war-top { padding: 4px 8px 0; }
 .war-top-in { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 6px 10px;
   border: 3px solid var(--line); border-radius: 14px; background: rgba(255, 249, 238, .9); }
-.war-top-name { font-family: var(--font-display); font-size: 20px; }
+.war-top-name { font-family: var(--font-ui); font-size: 20px; font-weight: 400; }
 .war-top-turn { margin-left: auto; font-weight: 700; }
 body.war .map-layout { margin-top: 4px; }
 .war-role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin: 18px 0; }
@@ -74,7 +74,7 @@ body.war .map-layout { margin-top: 4px; }
 
 /* ①b: 위쪽 큰 탭 두 개 (지도 / 우리 나라) — 웨일북(1366×768)에서 스크롤 없이 지도가 보이게 */
 .war-big-tabs { display: flex; gap: 8px; padding: 6px 8px 0; }
-.war-big-tab { min-height: 56px; min-width: 150px; font-size: 21px; font-family: var(--font-display); }
+.war-big-tab { min-height: 56px; min-width: 150px; font-size: 21px; font-family: var(--font-ui); font-weight: 400; }
 .war-big-tab.on { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold); }
 .war-view { height: calc(100vh - 196px); min-height: 400px; overflow: hidden; display: flex; flex-direction: column; }
 .war-view .map-layout { flex: 1; min-height: 0; margin-top: 4px; }

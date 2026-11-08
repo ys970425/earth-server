@@ -433,6 +433,23 @@ else {
   await page.click('.qna-recommendations button');
   const standaloneAnswer = await until(() => page.$eval('.qna-answer', el => el.textContent.trim()), 5000);
   ok('단독_페이지_역할_답변', !!standaloneAnswer && standaloneAnswer.includes('해안'));
+  // 전투기 이름이 「전투기」로 나온다 (play 모드, 공군 역할)
+  await page.goto(`${BASE}/app/war/index.html?play=1&preview=1&as=1:air`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.war-army-name', { timeout: 10000 });
+  const fighterNames = await page.evaluate(() => {
+    const names = [...document.querySelectorAll('.war-army-name')].map(e => e.textContent.trim());
+    return names.includes('전투기');
+  });
+  ok('전투기_이름_전투기로_나온다', fighterNames);
+
+  // 공군 참모총장이 전투기를 고를 수 있다 (실제 학생 모드)
+  await page.goto(`${BASE}/app/war/index.html?preview=1&as=1:air`, { waitUntil: 'domcontentloaded' });
+  await until(() => page.$('.war-unit-row'), 15000, 500);
+  const airFighter = await page.evaluate(async () => {
+    const poll = await window.WarAPI.rpc('war_poll', { p_known: {} });
+    return poll.units.some(u => u.kind === 'fighter' && window.WAR_RULES.isMyUnit(u, 1, 'air'));
+  });
+  ok('공군_참모총장_전투기_조종_가능', airFighter);
   await browser.close();
 } catch (e) {
   ok('실행', false, (e.stack || e.message).split('\n')[0]);

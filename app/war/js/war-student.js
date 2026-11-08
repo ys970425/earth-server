@@ -2,6 +2,7 @@
 (function () {
   const R = { ...window.RULES, UNITS: Object.fromEntries(Object.entries(window.RULES.UNITS).map(([kind, rule]) => [kind, { ...rule }])) };
   if (!R.UNITS.destroyer) R.UNITS.destroyer = { name: '구축함', era: 4, str: 60, move: 6, sea: true, img: 'destroyer', cost: { coin: 100, steel: 2, fuel: 1, food: 2 } };
+  if (!R.UNITS.fighter) R.UNITS.fighter = { name: '전투기', str: 40, move: 6, range: 2, fly: true, img: 'fighter', cost: { coin: 70, aluminum: 1, fuel: 1 } };
   const HexMap = window.WarHexMap;
   const root = document.getElementById('app');
   const S = { data: null, map: null, sel: null, country: 1, unit: null, moves: new Map(), hints: new Map(), attacks: new Map(), attacked: new Set(), besieged: new Set(), loading: false, turn: 1 };
@@ -128,7 +129,7 @@
   // ================= 한글 이름표 =================
   // 규칙 파일(RULES)에 이름이 없는 것도 영어가 화면에 나오지 않게 이름표를 만들어요
   const UNIT_NAMES = { worker: '노동자', scout: '정찰병', ballista: '발리스타', archer: '궁수', swordsman: '검병', boat: '배', ship: '배' };
-  const unitName = k => (R.UNITS[k] || {}).name || UNIT_NAMES[k] || '병력';
+  const unitName = k => (R.UNITS[k] || {}).name || UNIT_NAMES[k] || (window.WAR_RULES?.EXTRA_UNITS?.[k] || {}).name || '병력';
   const terrainName = k => R.TERRAIN[k] || '땅';
   const resName = k => (R.ITEMS[k] || {}).name || '자원';
   const impName = k => (R.IMPROVE[k] || {}).name || '시설';
@@ -140,7 +141,7 @@
 
   const military = u => u.kind !== 'worker' && u.kind !== 'scout';
   const rule = u => R.UNITS[u.kind] || {};
-  const fullMove = u => u.kind === 'worker' ? 0 : u.kind === 'scout' ? R.SCOUT_MOVE : (rule(u).move || 0);
+  const fullMove = u => u.kind === 'worker' ? 0 : u.kind === 'scout' ? R.SCOUT_MOVE : (rule(u).move || (window.WAR_RULES?.EXTRA_UNITS?.[u.kind] || {}).move || 0);
   const movesLeft = u => S.moves.has(u.id) ? S.moves.get(u.id) : fullMove(u);
   const selectedUnit = () => S.data.units.find(u => u.id === S.unit);
   function clearUnit() {
