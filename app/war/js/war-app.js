@@ -173,6 +173,7 @@
     side.innerHTML = '';
     // 조작 창 안 작은 탭: 역할 메뉴 중 게임 조작 것만 (우리 나라·예산·첩보 정보는 「우리 나라」 탭으로)
     const tabs = me.menus.filter(m => !NATION_MENUS.includes(m)).map(m => ({ label: m, key: 'menu:' + m }));
+    if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:외교')) tabs.push({ label: '외교', key: 'menu:외교' });
     for (const d of me.deputy_roles) tabs.push({ label: d.name + ' 대신하는 중', key: 'deputy:' + d.key });
     if (!tabs.length) {
       side.append(h('p', { class: 'muted' }, '지도에서 바로 하는 일이 없어요. 「우리 나라」 탭을 봐요.'));
@@ -196,7 +197,9 @@
           h('span', { class: 'muted' }, '남은 이동 ' + (u.moves_left ?? 0)))))
         : h('p', { class: 'muted' }, emptyMsg));
     };
-    if (role === 'engineer') {
+    if (active === 'menu:외교' && me.role === 'chief') {
+      renderDiplomacy(body);
+    } else if (role === 'engineer') {
       if (active === 'menu:노동자') unitTab(['worker'], '노동자가 없어요.');
       else if (active === 'menu:정찰병') unitTab(['scout'], '정찰병이 없어요.');
       else unitTab(['worker', 'scout'], '노동자·정찰병이 없어요.');
@@ -220,6 +223,30 @@
     }
     side.append(body);
     if (S.msg) side.append(h('div', { class: 'war-msg' }, S.msg));
+  }
+  function renderDiplomacy(body) {
+    const mine = S.me.country.id, turn = S.poll?.game?.turn ?? 0;
+    const name = id => S.me.countries.find(c => c.id === id)?.name || id + '번 나라';
+    for (const d of S.poll?.diplomacy || []) {
+      if (d.a !== mine && d.b !== mine) continue;
+      const other = d.a === mine ? d.b : d.a, war = d.status === 'war';
+      body.append(h('div', { class: 'row' }, h('b', {}, name(other)),
+        h('span', { class: war ? 'bad' : 'good' }, war ? '⚔ 전쟁 중' : '🕊 평화' + (d.no_war_until > turn ? ` (${d.no_war_until - turn}턴 선포 금지)` : '')),
+        h('button', { class: 'small', onclick: () => {
+          if (!war && !confirm('선전포고하면 바로 전쟁이 시작돼요. 계속할까요?')) return;
+          diplomacyAction(war ? 'war_propose' : 'war_declare', war ? { p_other: other, p_kind: 'peace' } : { p_other: other });
+        } }, war ? '평화 제안' : '선전포고')));
+    }
+    body.append(h('div', { class: 'panel-title' }, '받은 제안'));
+    for (const o of S.poll?.offers || []) if (o.to_c === mine) body.append(h('div', { class: 'row' },
+      name(o.from_c) + ' 평화 제안', h('button', { class: 'small', onclick: () => diplomacyAction('war_accept_offer', { p_offer: o.id }) }, '수락')));
+  }
+  async function diplomacyAction(fn, args) {
+    try {
+      await WarAPI.rpc(fn, args); S.msg = null;
+      applyPoll(await WarAPI.rpc('war_poll', { p_known: {} }));
+    } catch (e) { S.msg = friendly(e); }
+    renderTabs();
   }
   async function doTransfer(u, to) {
     try { await WarAPI.rpc('war_transfer', { p_unit: u.id, p_to: to }); S.msg = null;
@@ -433,6 +460,7 @@
   // 지도·병력·도시 데이터를 먼저 적용하고, 화면 갱신(탭·위쪽 표시줄)은 그 뒤에 따로 해요.
   // 이렇게 나눠야 화면 갱신에서 문제가 생겨도 지도 데이터가 비지 않아요.
   function applyPoll(data) {
+    S.poll = { ...S.poll, ...data };
     if (data.map) {
       for (const t of data.map) {
         const [id, terrain, res, owner, imp, impRuined] = t;
@@ -450,6 +478,7 @@
     // 처음 데이터가 오면 우리 나라 수도로 지도를 옮겨요
     if (!S.centered && S.cities.length) { S.centered = true; goCapital(); }
     if (data.game) { S.game = data.game; renderTop(); }
+    if (data.diplomacy || data.offers || data.game) renderTabs();
     if (data.country) {
       if (data.country.roles) { S.meCountryRoles = data.country.roles; S.me.roles = data.country.roles; }
       if (data.country.coin != null) S.country = data.country;

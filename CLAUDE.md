@@ -41,5 +41,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Supabase 직접 접속·SQL 실행 금지 (교사가 정한 때에만).
 - `C:\projects\nation` 무단 수정 금지. `private/` 폴더 열지 않기.
 - 헬피코드·GPT: 커밋과 푸시 금지.
+- earth-war 배포는 사용자가 요청할 때만 다시 올린다.
 
 세부 내용: `docs/claude-detail.md`

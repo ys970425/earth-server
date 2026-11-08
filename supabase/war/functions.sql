@@ -624,6 +624,10 @@ declare
   k bigint;
   v_game bigint; v_map bigint; v_units bigint; v_cities bigint; v_dip bigint; v_notice bigint; v_country bigint;
 begin
+  if priv.is_admin() then
+    return jsonb_build_object('diplomacy', (select coalesce(jsonb_agg(d order by a,b), '[]'::jsonb) from war.diplomacy d),
+      'countries', (select coalesce(jsonb_agg(jsonb_build_object('id',id,'name',name) order by id), '[]'::jsonb) from war.countries));
+  end if;
   select * into s from priv.students where uid = auth.uid();
   if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
   my_country := s.country_id;
@@ -677,6 +681,9 @@ begin
     out := out || jsonb_build_object('diplomacy', (select coalesce(jsonb_agg(jsonb_build_object(
       'a', a, 'b', b, 'status', status, 'no_war_until', no_war_until) order by a, b), '[]'::jsonb)
       from war.diplomacy));
+    out := out || jsonb_build_object('offers', (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', id, 'kind', kind, 'from_c', from_c, 'to_c', to_c, 'turn', turn) order by id), '[]'::jsonb)
+      from war.offers where to_c = my_country and status = 'pending'));
   end if;
   -- country: 우리 나라만 (국고·창고·역할별 지갑·우리 도시의 시설·역할 현황). 다른 나라 데이터는 절대 넣지 않는다
   k := (known->>'country')::bigint;
@@ -920,3 +927,136 @@ revoke all on function public.war_attack(int,int), public.war_attack_preview(int
 do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
   if exists(select 1 from pg_roles where rolname=r) then execute format('grant execute on function public.war_attack(int,int), public.war_attack_preview(int,int) to %I',r); end if;
 end loop; end $$;
+
+create or replace function public.war_declare(p_other int) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; pair_a int; pair_b int;
+begin
+  perform war.act_start('chief', false, p_other);
+  select country_id into me from priv.students where uid = auth.uid();
+  select turn into turn_ from war.game where id = 1;
+  if me = p_other then perform priv.err('BAD_TARGET', '자기 나라에는 선전포고할 수 없어요'); end if;
+  if not exists (select 1 from war.countries where id = p_other) then
+    perform priv.err('NO_COUNTRY', '없는 나라예요'); end if;
+  pair_a := least(me, p_other); pair_b := greatest(me, p_other);
+  if not exists (select 1 from war.diplomacy where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b) then
+    perform priv.err('NO_DIPLO', '외교 관계가 없어요'); end if;
+  if exists (select 1 from war.diplomacy where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
+    perform priv.err('ALREADY_AT_WAR', '이미 전쟁 중이에요'); end if;
+  if exists (select 1 from war.diplomacy where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and no_war_until > turn_) then
+    perform priv.err('NO_WAR_BAN', '평화 조약 뒤 3턴이 지나지 않았어요'); end if;
+  -- 동맹이면 바로 깨고 전쟁
+  update war.diplomacy set status = 'war', changed_turn = turn_ where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b;
+  -- 기존 pending 평화 제안 취소
+  update war.offers set status = 'cancelled' where kind = 'peace' and status = 'pending'
+    and ((from_c = me and to_c = p_other) or (from_c = p_other and to_c = me));
+  perform war.bump('diplomacy');
+  return jsonb_build_object('ok', true, 'status', 'war');
+end $$;
+revoke all on function public.war_declare(int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_declare(int) to %I', r);
+  end if; end loop; end $$;
+
+
+create or replace function public.war_propose(p_other int, p_kind text default 'peace') returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; pair_a int; pair_b int; oid bigint;
+begin
+  if p_kind is null or p_kind not in ('peace') then perform priv.err('BAD_KIND', '지원하지 않는 제안 종류예요'); end if;
+  perform war.act_start('chief', false, p_other);
+  select country_id into me from priv.students where uid = auth.uid();
+  select turn into turn_ from war.game where id = 1;
+  if me = p_other then perform priv.err('BAD_TARGET', '자기 나라에 제안할 수 없어요'); end if;
+  if not exists (select 1 from war.countries where id = p_other) then
+    perform priv.err('NO_COUNTRY', '없는 나라예요'); end if;
+  pair_a := least(me, p_other); pair_b := greatest(me, p_other);
+  -- 평화 제안: 전쟁 중이어야 함
+  if p_kind = 'peace' and not exists (
+    select 1 from war.diplomacy where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
+    perform priv.err('NOT_AT_WAR', '전쟁 중인 나라에만 평화를 제안할 수 있어요'); end if;
+  -- 이미 같은 종류의 pending 제안이 있으면 취소
+  update war.offers set status = 'cancelled'
+    where kind = p_kind and status = 'pending'
+      and ((from_c = me and to_c = p_other) or (from_c = p_other and to_c = me));
+  insert into war.offers(kind, from_c, to_c, turn) values (p_kind, me, p_other, turn_) returning id into oid;
+  perform war.bump('diplomacy');
+  return jsonb_build_object('ok', true, 'offer_id', oid);
+end $$;
+revoke all on function public.war_propose(int, text) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_propose(int, text) to %I', r);
+  end if; end loop; end $$;
+
+
+create or replace function public.war_accept_offer(p_offer bigint) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; o war.offers; pair_a int; pair_b int;
+begin
+  select * into o from war.offers where id = p_offer;
+  perform war.act_start('chief', false, o.from_c);
+  select country_id into me from priv.students where uid = auth.uid();
+  select * into o from war.offers where id = p_offer for update;
+  if not found then perform priv.err('NO_OFFER', '없는 제안이에요'); end if;
+  if o.to_c <> me then perform priv.err('NOT_FOR_ME', '이 제안은 우리 나라에 온 게 아니에요'); end if;
+  if o.status <> 'pending' then perform priv.err('OFFER_DONE', '이미 처리된 제안이에요'); end if;
+  select turn into turn_ from war.game where id = 1;
+  pair_a := least(me, o.from_c); pair_b := greatest(me, o.from_c);
+  if o.kind = 'peace' then
+    if not exists (select 1 from war.diplomacy where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
+      perform priv.err('NOT_AT_WAR', '전쟁 중이 아니에요'); end if;
+    update war.diplomacy set status = 'peace', no_war_until = turn_ + 3, changed_turn = turn_
+      where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b;
+    -- 관련 pending 제안 모두 취소
+    update war.offers set status = 'cancelled'
+      where kind = 'peace' and status = 'pending'
+        and ((from_c = me and to_c = o.from_c) or (from_c = o.from_c and to_c = me));
+  end if;
+  update war.offers set status = 'accepted' where id = p_offer;
+  perform war.bump('diplomacy');
+  return jsonb_build_object('ok', true, 'status', 'peace', 'no_war_until', turn_ + 3);
+end $$;
+revoke all on function public.war_accept_offer(bigint) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_accept_offer(bigint) to %I', r);
+  end if; end loop; end $$;
+
+
+create or replace function public.war_admin_ceasefire(p_a int, p_b int default null) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  turn_ int; cnt int; cancelled int;
+begin
+  perform priv.need_admin();
+  select turn into turn_ from war.game where id = 1 for share;
+  perform 1 from war.countries
+    where p_b is null or id in (p_a, p_b) order by id for update;
+  if p_b is null then
+    -- 그 나라가 포함된 전쟁 모두 휴전
+    update war.diplomacy set status = 'peace', no_war_until = turn_ + 3, changed_turn = turn_
+      where status = 'war' and (a = p_a or b = p_a);
+  else
+    -- 특정 쌍 휴전
+    update war.diplomacy set status = 'peace', no_war_until = turn_ + 3, changed_turn = turn_
+      where status = 'war' and a = least(p_a, p_b) and b = greatest(p_a, p_b);
+  end if;
+  get diagnostics cnt = row_count;
+  update war.offers set status = 'cancelled'
+    where kind in ('peace') and status = 'pending'
+      and ((p_b is null and (from_c = p_a or to_c = p_a))
+        or (least(from_c, to_c) = least(p_a, p_b) and greatest(from_c, to_c) = greatest(p_a, p_b)));
+  get diagnostics cancelled = row_count;
+  if cnt > 0 or cancelled > 0 then perform war.bump('diplomacy'); end if;
+  return jsonb_build_object('ok', true, 'ceasefire_count', cnt);
+end $$;
+revoke all on function public.war_admin_ceasefire(int, int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_admin_ceasefire(int, int) to %I', r);
+  end if; end loop; end $$;

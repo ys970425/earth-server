@@ -6,6 +6,29 @@
   const $ = s => document.querySelector(s);
   const BRANCH_NAME = { army: '육군', navy: '해군', air: '공군' };
   const ROLE_NAME = Object.fromEntries(W.ROLES.map(r => [r.key, r.name]));
+  let diplomacy = [];
+  const countryNames = new Map();
+  function applyPoll(data) {
+    if (!data.diplomacy) return;
+    diplomacy = data.diplomacy;
+    const panel = $('#admin-diplomacy'); if (!panel) return;
+    panel.replaceChildren(h('div', { class: 'panel-title' }, '외교 현황'));
+    const wars = diplomacy.filter(d => d.status === 'war');
+    if (!wars.length) panel.append(h('p', {}, '전쟁 없음'));
+    for (const d of wars) panel.append(h('div', { class: 'row' },
+      (countryNames.get(d.a) || d.a + '번 나라') + ' ⚔ ' + (countryNames.get(d.b) || d.b + '번 나라'),
+      h('button', { class: 'small', onclick: async () => {
+        try {
+          await WarAPI.rpc('war_admin_ceasefire', { p_a: d.a, p_b: d.b });
+          await refreshDiplomacy();
+        } catch (e) { panel.append(h('p', { class: 'bad' }, e.message)); }
+      } }, '강제 휴전')));
+  }
+  async function refreshDiplomacy() {
+    const data = await WarAPI.rpc('war_poll', { p_known: {} });
+    for (const c of data.countries || []) countryNames.set(c.id, c.name);
+    applyPoll(data);
+  }
   function h(tag, attrs, ...kids) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs || {})) {
@@ -38,6 +61,8 @@
       return showError(/^[A-Za-z0-9 .,:;'"()\-_[\]]+$/.test(e.message || '') ? '문제가 생겼어요. 새로고침해 주세요.' : e.message);
     }
     render(grants, roles, missions);
+    try { await refreshDiplomacy(); } catch (e) { $('#admin-diplomacy').append(h('p', {}, e.message)); }
+    WarAPI.startPoll(applyPoll);
   }
   function showError(msg) {
     root.innerHTML = '';
@@ -101,7 +126,9 @@
       h('small', {}, '완료 수 ÷ 지금 열린 미션 수')), h('table', { class: 'tbl war-table' },
       h('tr', {}, h('th', {}, '나라'), h('th', {}, '닉네임'), h('th', {}, '역할'), h('th', {}, '완료 / 열림'), h('th', {}, '완료한 미션')),
       missionRows)));
+    page.append(h('div', { class: 'panel', id: 'admin-diplomacy' }));
     root.append(page);
+    applyPoll({ diplomacy });
   }
   async function doImport() {
     const word = prompt('가져오면 전쟁 데이터를 새로 시작해요. 확인하려면 「초기화」라고 입력해 주세요.');
@@ -127,6 +154,7 @@
       const roles = (await WarAPI.rpc('war_admin_roles')).roles;
       const missions = (await WarAPI.rpc('war_admin_missions')).missions;
       render(grants, roles, missions);
+      await refreshDiplomacy();
     } catch (e) { showError(e.message); }
   }
 

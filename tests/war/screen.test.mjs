@@ -296,42 +296,126 @@ try {
   await page.evaluate(() => document.querySelector('dialog.war-combat')?.close()).catch(() => { });
   ok('공격_미리보기_다이얼로그', atkPass, atkPass ? '' : note6);
 
-  // 7. 점령_후_땅색_변화: 실제 공격으로 적 도시를 점령해 그 칸 주인(땅 색)이 바뀌는지 확인
-  //    주의: 전쟁 선포 기능(E8)이 아직 없어 모든 나라가 평화 상태 → 실제 공격은 NOT_AT_WAR로 막힌다.
-  //    막히면 poll의 타일 owner 필드 확인으로 대체하고 이유를 적는다.
-  const capAttempt = await page.evaluate(async () => {
-    const poll = await WarAPI.rpc('war_poll', { p_known: {} });
-    const me = await WarAPI.rpc('war_me');
-    const unit = poll.units.find(u => u.country === me.country.id && u.commander === 'air' && !['worker', 'scout'].includes(u.kind) && u.tile != null);
-    const nearCity = poll.cities.find(c => c.country && c.country !== me.country.id && unit && unit.tile != null && WarHexMap.hexDist(unit.tile, c.tile) <= 1);
-    const city = nearCity || poll.cities.find(c => c.country && c.country !== me.country.id);
-    if (!unit || !city) return { tried: false, why: '공격할 병력이나 적 도시가 없어요' };
+  // 7. 점령_후_땅색_변화: 선전포고 → 공격 → 점령 → 땅 주인 바뀜
+  // 이 항목만 점령 직전 상태를 준비한다. 이동력·턴당 공격 제한을 우회하는 RPC는 만들지 않는다.
+  const { PGlite } = await import('@electric-sql/pglite');
+  const captureDb = new PGlite({ loadDataDir: new Blob([readFileSync(join(ROOT, 'app/war/preview/db-real.tar.gz'))]) });
+  await captureDb.waitReady;
+  await captureDb.exec(readFileSync(join(ROOT, 'supabase/war/functions.sql'), 'utf8'));
+  const target7 = (await captureDb.query(`select * from war.cities where country=(select country from war.cities where country<>1 order by id limit 1) and kind<>'capital' order by hp,id limit 1`)).rows[0];
+  if (!target7) throw new Error('점령 시험용 비수도 도시가 없어요');
+  const near7 = (await captureDb.query(`select id from war.tiles where priv.tdist(id,$1)=1
+    and id not in (select tile_id from war.cities) and id not in (select tile_id from war.markets) order by id limit 1`, [target7.tile_id])).rows[0];
+  await captureDb.query(`delete from war.units where tile_id in ($1,$2)`, [target7.tile_id, near7.id]);
+  await captureDb.exec(`update war.game set paused=false,combat_on=true; update war.countries set shield_until=0,cities_lost=0;
+    update war.diplomacy set status='peace',no_war_until=0;`);
+  await captureDb.query(`update war.tiles set terrain='plains' where id in ($1,$2)`, [target7.tile_id, near7.id]);
+  await captureDb.query(`update war.cities set hp=1 where id=$1`, [target7.id]);
+  // 가장 먼저 반환되는 근접 병력을 도시 옆에 놓는다.
+  await captureDb.query(`update war.units set kind='spear',commander='army',tile_id=$1,hp=100,moves_left=2,attacked_turn=-1
+    where id=(select min(id) from war.units where country=1 and kind not in ('worker','scout','fighter') and tile_id is not null)`, [near7.id]);
+  const captureArchive = Buffer.from(await (await captureDb.dumpDataDir('gzip')).arrayBuffer());
+  await captureDb.close();
+  await page.setRequestInterception(true);
+  const captureRequest = request => {
+    if (new URL(request.url()).pathname.endsWith('/preview/db-real.tar.gz'))
+      request.respond({ status: 200, contentType: 'application/gzip', body: captureArchive });
+    else request.continue();
+  };
+  page.on('request', captureRequest);
+// chief 역할로 새 페이지 열기: 선전포고 + 공격 모두 chief가 함 (역할 없는 나라 대행)
+await page.goto(`${BASE}/app/war/index.html?preview=real&as=1:chief`, { waitUntil: 'domcontentloaded' });
+// PGlite 준비 대기
+const canvas7 = await until(() => page.$('canvas.hexmap'), 90000, 500);
+if (!canvas7) { ok('점령_후_땅색_변화', false, 'DB 준비 실패'); }
+else {
+  // 선전포고: 1번 나라가 2번 나라에 선전포고
+  const decl = await page.evaluate(async () => {
     try {
-      const r = await WarAPI.rpc('war_attack', { p_unit: unit.id, p_tile: city.tile });
-      return { tried: true, cityId: city.id, tile: city.tile, captured: !!r.captured };
-    } catch (e) { return { tried: true, code: e.code || '', why: e.message }; }
-  });
-  let ownerPass = false, note7 = '';
-  if (capAttempt.tried && capAttempt.captured) {
-    ownerPass = await page.evaluate(async ({ cityId, tile }) => {
       const poll = await WarAPI.rpc('war_poll', { p_known: {} });
       const me = await WarAPI.rpc('war_me');
-      const city = poll.cities.find(c => c.id === cityId);
-      const t = (poll.map.find(x => x[0] === tile) || [])[3];
-      return city && city.country === me.country.id && t === me.country.id;
-    }, capAttempt);
-    note7 = ownerPass ? '실제 공격으로 점령 — 도시 주인과 땅 색이 바뀜' : '점령 응답은 있었지만 poll에서 주인이 바뀌지 않았어요';
-  } else if (capAttempt.tried) {
-    ownerPass = await page.evaluate(async () => {
-      const poll = await WarAPI.rpc('war_poll', { p_known: {} });
-      return !!(poll.map && poll.map.some(t => t[3] != null));
-    });
-    note7 = '실제 공격 시도: ' + (capAttempt.code || '') + ' ' + (capAttempt.why || '') +
-      ' → 대신 poll의 타일 owner 필드 확인 (전쟁 선포 기능 E8이 생기면 실제 점령 시험으로 교체)';
-  } else {
-    note7 = capAttempt.why || '';
+      const myC = me.country.id;
+      const otherC = poll.cities.find(c => c.country && c.country !== myC)?.country;
+      if (!otherC) return { ok: false, why: '상대 나라를 찾지 못했어요' };
+      await WarAPI.rpc('war_declare', { p_other: otherC });
+      return { ok: true, otherC };
+    } catch (e) { return { ok: false, why: e.message }; }
+  });
+  if (!decl.ok) { ok('점령_후_땅색_변화', false, '선전포고 실패: ' + decl.why); }
+  else {
+    // 공격: 비수도 적 도시가 보일 때까지 attack 반복(최대 20회), 점령 성공하면 poll로 확인
+    const capResult = await page.evaluate(async ({ otherC }) => {
+      const poll0 = await WarAPI.rpc('war_poll', { p_known: {} });
+      const me = await WarAPI.rpc('war_me');
+      const myC = me.country.id;
+      // 비수도 적 도시 중 HP가 가장 낮은 것
+      const targetCity = poll0.cities
+        .filter(c => c.country === otherC && c.kind !== 'capital')
+        .sort((a, b) => a.hp - b.hp)[0];
+      if (!targetCity) return { ok: false, why: '비수도 적 도시가 없어요' };
+      // 내 근접 군사 병력 중 가장 가까운 것 찾기
+      const myUnits = poll0.units.filter(u => u.country === myC && !['worker','scout','fighter'].includes(u.kind) && u.tile != null);
+      if (!myUnits.length) return { ok: false, why: '근접 병력이 없어요' };
+      // 거리와 무관하게 첫 번째 병력 사용 (move는 이미 충분하다고 가정)
+      let u = myUnits[0];
+      // 도시 HP를 1로 낮추기 위해 attack을 반복
+      let guard = 20;
+      while (guard-- > 0) {
+        const poll = await WarAPI.rpc('war_poll', { p_known: {} });
+        const city = poll.cities.find(c => c.id === targetCity.id);
+        if (!city || city.country === myC) return { ok: true, cityId: targetCity.id, tile: targetCity.tile };
+        const unit = poll.units.find(x => x.id === u.id);
+        if (!unit) return { ok: false, why: '병력이 없어졌어요' };
+        const dist = WarHexMap.hexDist(unit.tile, city.tile);
+        if (dist > 1) {
+          // 한 칸 이동
+          const tiles = new Map(poll.map.map(t => [t[0], {terrain: t[1], owner: t[3]}]));
+          const occ = id => poll.units.filter(x => x.tile === id);
+          const info = id => ({
+            market: (poll.markets||[]).some(m=>m.tile===id),
+            enemyCity: (() => { const c2 = poll.cities.find(x=>x.tile===id); return !!(c2 && c2.country !== myC); })(),
+            enemyUnit: occ(id).some(x=>x.country!==myC),
+            sameKind: occ(id).some(x=>!['worker','scout'].includes(x.kind)===!['worker','scout'].includes(unit.kind))
+          });
+          const prev = new Map([[unit.tile, null]]); const q = [unit.tile]; let found = null;
+          while (q.length && !found) { const cur = q.shift();
+            for (const n of WarHexMap.neighbors(cur)) {
+              if (n<0||prev.has(n)||!tiles.has(n)) continue;
+              if (!WAR_RULES.canPass(unit.kind,tiles.get(n),info(n))) continue;
+              prev.set(n,cur);
+              if (n===city.tile||WarHexMap.hexDist(n,city.tile)===1) { found=n; break; }
+              q.push(n);
+            }
+          }
+          if (!found) { await new Promise(r=>setTimeout(r,200)); continue; }
+          const path=[]; for(let p=found;p!==unit.tile;p=prev.get(p)) path.unshift(p);
+          const step=Math.min(unit.moves_left,path.length); if(!step) { await new Promise(r=>setTimeout(r,200)); continue; }
+          try { await WarAPI.rpc('war_move',{p_unit:unit.id,p_path:path.slice(0,step)}); } catch(e) {}
+        } else {
+          try {
+            const r = await WarAPI.rpc('war_attack', { p_unit: unit.id, p_tile: city.tile });
+            if (r.captured) return { ok: true, cityId: targetCity.id, tile: targetCity.tile };
+          } catch(e) { return { ok: false, why: '공격 오류: ' + e.message }; }
+        }
+        await new Promise(r => setTimeout(r, 300));
+      }
+      return { ok: false, why: '20번 반복에도 점령 안 됨' };
+    }, { otherC: decl.otherC });
+    if (!capResult.ok) { ok('점령_후_땅색_변화', false, capResult.why); }
+    else {
+      const ownerPass = await page.evaluate(async ({ cityId, tile }) => {
+        const poll = await WarAPI.rpc('war_poll', { p_known: {} });
+        const me = await WarAPI.rpc('war_me');
+        const city = poll.cities.find(c => c.id === cityId);
+        const tileOwner = (poll.map.find(x => x[0] === tile) || [])[3];
+        return city && city.country === me.country.id && tileOwner === me.country.id;
+      }, capResult);
+      ok('점령_후_땅색_변화', ownerPass, ownerPass ? '선전포고 → 공격 → 점령 — 도시 주인·땅 색 바뀜' : '점령했지만 poll 확인 실패');
+    }
   }
-  ok('점령_후_땅색_변화', ownerPass, note7);
+}
+  await page.setRequestInterception(false);
+  page.off('request', captureRequest);
   // 8. 독립 질문 창: 가짜 데이터 미리보기에서도 추천 질문에 답해요.
   await page.goto(`${BASE}/app/war/index.html?preview=1`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.qna-launcher');
