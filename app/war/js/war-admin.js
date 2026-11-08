@@ -7,8 +7,39 @@
   const BRANCH_NAME = { army: '육군', navy: '해군', air: '공군' };
   const ROLE_NAME = Object.fromEntries(W.ROLES.map(r => [r.key, r.name]));
   let diplomacy = [];
+  let turnTimer = 0;
   const countryNames = new Map();
   function applyPoll(data) {
+    if (data.game) {
+      clearInterval(turnTimer);
+      const game = data.game, currentTurn = game.turn ?? 0, paused = !!game.paused;
+      let panel = $('#admin-turn');
+      if (!panel) {
+        panel = h('div', { class: 'panel', id: 'admin-turn' });
+        $('.war-admin')?.prepend(panel);
+      }
+      const remaining = h('span', {}, '--:--');
+      const tick = () => {
+        const seconds = Math.max(0, Math.ceil((new Date(game.turn_end).getTime() - Date.now()) / 1000));
+        remaining.textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+      };
+      if (game.turn_end) { tick(); turnTimer = setInterval(tick, 1000); }
+      const call = async (name, args) => {
+        try {
+          const result = await WarAPI.rpc(name, args);
+          if (result.ok === false) { alert(result.reason); return; }
+          await refreshDiplomacy();
+        } catch (e) { alert(e.message); }
+      };
+      panel.replaceChildren(h('div', { class: 'row' },
+        h('b', {}, '턴 ' + currentTurn), h('span', {}, '남은 시간 ', remaining),
+        h('button', { onclick: () => call('war_next_turn', { p_turn: currentTurn }) }, '다음 턴'),
+        h('button', { onclick: () => call('war_pause', { p_pause: !paused }) }, paused ? '다시시작' : '일시정지'),
+        h('select', { 'aria-label': '시간 조절', onchange: e => call('war_set_turn_time', { p_seconds: Number(e.target.value) }) },
+          [60, 90, 120, 180, 240, 300].map((seconds, i) => h('option', {
+            value: seconds, selected: game.turn_seconds === seconds ? '' : null
+          }, ['1분', '1분30초', '2분', '3분', '4분', '5분'][i])))));
+    }
     if (!data.diplomacy) return;
     diplomacy = data.diplomacy;
     const panel = $('#admin-diplomacy'); if (!panel) return;

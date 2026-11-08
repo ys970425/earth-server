@@ -1060,3 +1060,68 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
   if exists (select 1 from pg_roles where rolname = r) then
     execute format('grant execute on function public.war_admin_ceasefire(int, int) to %I', r);
   end if; end loop; end $$;
+
+
+create or replace function public.war_next_turn(p_turn int) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  g war.game;
+  cfg jsonb; wcfg jsonb;
+begin
+  perform priv.need_admin();
+  select * into g from war.game where id = 1 for update;
+  if g.turn <> p_turn then
+    return jsonb_build_object('ok', false, 'reason', '이미 다음 턴으로 넘어갔어요');
+  end if;
+  cfg := priv.cfg(); wcfg := war.cfg();
+  update war.units set
+    moves_left = war.moves_left_full(kind, cfg, wcfg),
+    attacked_turn = -1;
+  update war.cities set hp = 20, besieged = false where kind = 'capital' and besieged = true;
+  perform war.merge_empty_tiles();
+  update war.game set
+    turn = turn + 1,
+    turn_end = case when turn_seconds > 0 then now() + (turn_seconds || ' seconds')::interval else null end
+  where id = 1;
+  perform war.bump('game');
+  perform war.bump('map');
+  perform war.bump('units');
+  perform war.bump('cities');
+  return jsonb_build_object('ok', true, 'turn', g.turn + 1);
+end $$;
+revoke all on function public.war_next_turn(int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_next_turn(int) to %I', r);
+  end if; end loop; end $$;
+
+create or replace function public.war_pause(p_pause boolean) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  perform priv.need_admin();
+  update war.game set paused = p_pause where id = 1;
+  perform war.bump('game');
+  return jsonb_build_object('ok', true, 'paused', p_pause);
+end $$;
+revoke all on function public.war_pause(boolean) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_pause(boolean) to %I', r);
+  end if; end loop; end $$;
+
+create or replace function public.war_set_turn_time(p_seconds int) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  perform priv.need_admin();
+  if p_seconds < 60 or p_seconds > 600 then
+    perform priv.err('BAD_TIME', '턴 시간은 60~600초 사이여야 해요');
+  end if;
+  update war.game set turn_seconds = p_seconds where id = 1;
+  perform war.bump('game');
+  return jsonb_build_object('ok', true, 'turn_seconds', p_seconds);
+end $$;
+revoke all on function public.war_set_turn_time(int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_set_turn_time(int) to %I', r);
+  end if; end loop; end $$;

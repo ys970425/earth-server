@@ -5,6 +5,7 @@
   const root = document.getElementById('app');
   const S = { me: null, known: {}, map: null, tiles: new Map(), units: [], cities: [], markets: [], sel: null, tab: null, selUnit: null, reach: null, centered: false, msg: null, country: null };
   const $ = s => document.querySelector(s);
+  let turnTimer = 0;
   function h(tag, attrs, ...kids) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs || {})) {
@@ -461,6 +462,24 @@
   // 이렇게 나눠야 화면 갱신에서 문제가 생겨도 지도 데이터가 비지 않아요.
   function applyPoll(data) {
     S.poll = { ...S.poll, ...data };
+    if (data.game) {
+      clearInterval(turnTimer);
+      $('#war-turn-info')?.remove();
+      const game = data.game, turn = game.turn ?? 0;
+      if (turn !== 0 || game.turn_end) {
+        const remaining = h('span', {}, '--:--');
+        const tick = () => {
+          const seconds = Math.max(0, Math.ceil((new Date(game.turn_end).getTime() - Date.now()) / 1000));
+          remaining.textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+        };
+        if (game.turn_end) { tick(); turnTimer = setInterval(tick, 1000); }
+        root.prepend(h('div', { id: 'war-turn-info', style: {
+          background: '#222', color: '#fff', fontSize: '0.9em', padding: '4px 12px',
+          display: 'flex', gap: '12px', alignItems: 'center'
+        } }, h('span', {}, '턴 ' + turn), h('span', {}, '남은 시간 ', remaining),
+        game.paused ? h('span', {}, '⏸ 일시정지 중') : null));
+      }
+    }
     if (data.map) {
       for (const t of data.map) {
         const [id, terrain, res, owner, imp, impRuined] = t;
