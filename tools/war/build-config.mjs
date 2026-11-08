@@ -10,6 +10,7 @@ const W = require('../../app/war/js/war-rules.js');
 
 // 서버는 함수를 받을 수 없어서 시장 관세 함수를 숫자로 바꿔 넣는다 (기준가 × 0.5, 버림)
 const config = {
+  ITEMS: R.ITEMS,
   ROLES: W.ROLES,
   BRANCH: W.BRANCH,
   EXTRA_UNITS: W.EXTRA_UNITS,

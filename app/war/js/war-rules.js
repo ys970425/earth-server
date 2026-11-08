@@ -12,7 +12,7 @@
   W.ROLES = [
     { key: 'chief', name: '합동참모의장',
       can: ['동맹·선전포고·평화 조약', '나라 간 무역', '도시국가 물물교환', '예산 나눠 주기·회수', '비어 있는 역할의 일 대신하기'],
-      menus: ['우리 나라', '예산', '외교', '무역', '도시국가 시장', '첩보 정보'] },
+      menus: ['우리 나라', '예산', '외교', '무역', '시장', '첩보 정보'] },
     { key: 'engineer', name: '공병사령관',
       can: ['노동자 생산·이동', '타일 개발', '파괴된 시설 수리', '건물 짓기', '정찰병 조종'],
       menus: ['노동자', '개발·수리', '건물', '정찰병', '내 예산', '첩보 정보'] },
@@ -88,7 +88,7 @@
     tariff: ref => Math.floor(ref * 0.5),
     tariffNoSpecialtyMult: 2
   };
-  W.SPECIALTY_ITEM = { ...R.STRAT_OF };
+  W.SPECIALTY_ITEM = Object.fromEntries(Object.entries(R.DEFAULT_TYPES).map(([id, type]) => [id, R.STRAT_OF[type]]));
 
   // ---------- 턴·기본 숫자 (설계 1-2, 5-1, 5-3, 5-4, 6장, 11장) ----------
   W.TURN = { seconds: 180, min: 60, max: 600 };   // 기본 3분, 교사 조절 1~10분
@@ -129,7 +129,7 @@
 
   // ---------- 미션 (2026-11-08 결정: 완료는 서버에 학생별로 기록) ----------
   // opens가 OPEN_STAGES에 있을 때 열리고, 화면이 알린 대로 서버에 기록해요. 단계가 끝날 때마다 OPEN_STAGES를 늘려요
-  W.OPEN_STAGES = ['now', 'E4', 'E6', 'E7', 'E8'];
+  W.OPEN_STAGES = ['now', 'E4', 'E6', 'E7', 'E8', 'E9'];
   W.MISSIONS = [
     { key: 'chief_info', role: 'chief', order: 1, text: '「우리 나라」 탭에서 나라 정보를 살펴봐요', opens: 'now' },
     { key: 'chief_budget', role: 'chief', order: 2, text: '공병사령관에게 예산을 나눠 줘요', opens: 'E6' },

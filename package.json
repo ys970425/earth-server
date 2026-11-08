@@ -16,6 +16,7 @@
     "test:war:preview-db": "node tests/war/preview-db.test.mjs",
     "test:war:select": "node tests/war/select.test.mjs",
     "test:war:missions": "node tests/war/missions.test.mjs",
+    "test:war:e9": "node tests/war/e9.test.mjs",
     "test:war:e8": "node tests/war/e8.test.mjs",
     "test:war:e5": "node tests/war/e5.test.mjs",
     "test:war:e7": "node tests/war/e7.test.mjs",

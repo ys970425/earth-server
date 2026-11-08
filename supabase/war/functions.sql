@@ -48,7 +48,7 @@ create or replace function war.bump(p_section text, p_country int default 0) ret
 language plpgsql as $$
 begin
   if p_section is null or p_section not in
-    ('game', 'map', 'units', 'cities', 'diplomacy', 'country', 'notice') then
+    ('game', 'map', 'units', 'cities', 'diplomacy', 'country', 'notice', 'markets') then
     perform priv.err('BAD_SECTION', '없는 영역이에요');
   end if;
   insert into war.versions(area, country, ver) values (p_section, p_country, 1)
@@ -622,7 +622,7 @@ declare
   out jsonb;
   vers jsonb;
   k bigint;
-  v_game bigint; v_map bigint; v_units bigint; v_cities bigint; v_dip bigint; v_notice bigint; v_country bigint;
+  v_game bigint; v_map bigint; v_units bigint; v_cities bigint; v_dip bigint; v_notice bigint; v_country bigint; v_markets bigint;
 begin
   if priv.is_admin() then
     return jsonb_build_object('diplomacy', (select coalesce(jsonb_agg(d order by a,b), '[]'::jsonb) from war.diplomacy d),
@@ -631,6 +631,7 @@ begin
   select * into s from priv.students where uid = auth.uid();
   if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
   my_country := s.country_id;
+  select coalesce(max(ver),0) into v_markets from war.versions where area='markets' and country=0;
   select coalesce(max(ver), 0) into v_game from war.versions where area = 'game' and country = 0;
   select coalesce(max(ver), 0) into v_map from war.versions where area = 'map' and country = 0;
   select coalesce(max(ver), 0) into v_units from war.versions where area = 'units' and country = 0;
@@ -642,7 +643,7 @@ begin
   vers := coalesce((select jsonb_object_agg(area || case when country = 0 then '' else ':' || country end, ver)
     from war.versions where area <> 'country' or country = my_country), '{}'::jsonb)
     || jsonb_build_object('game', v_game, 'map', v_map, 'units', v_units, 'cities', v_cities,
-      'diplomacy', v_dip, 'notice', v_notice, 'country:' || my_country, v_country);
+      'diplomacy', v_dip, 'notice', v_notice, 'markets', v_markets, 'country:' || my_country, v_country);
   out := jsonb_build_object('versions', vers, 'me', jsonb_build_object('country', my_country));
   -- game: 턴·남은 시각·일시정지·전투 켜짐
   k := (known->>'game')::bigint;
@@ -660,6 +661,12 @@ begin
       'markets', (select coalesce(jsonb_agg(jsonb_build_object(
         'id', m.id, 'tile', m.tile_id, 'art', m.art, 'name', m.name) order by m.id), '[]'::jsonb)
       from war.markets m));
+  end if;
+  k := (known->>'markets')::bigint;
+  if k is null or k is distinct from v_markets then
+    out := out || jsonb_build_object('market_stock', (
+      select coalesce(jsonb_object_agg(market::text || ':' || item, qty), '{}'::jsonb)
+      from war.market_stock));
   end if;
   -- units: 전체 목록 (번호·나라·종류·칸·체력·조종 역할)
   k := (known->>'units')::bigint;
@@ -1428,3 +1435,64 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
 -- 이미 설치된 config에서도 E7 미션을 연다.
 update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E7"]'::jsonb)
 where not coalesce(data->'OPEN_STAGES' ? 'E7',false);
+
+-- E9 시장: 나라 잠금 후 시장 잠금으로 구매를 직렬화한다.
+create or replace function public.war_market_buy(p_market int, p_item text) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  wcfg jsonb := war.cfg();
+  s priv.students;
+  my_country int;
+  my_specialty text;
+  has_specialty boolean;
+  ref_price int;
+  tariff int;
+  cost int;
+  coins int;
+begin
+  select * into s from priv.students where uid=auth.uid();
+  if not found then perform priv.err('NO_AUTH', '먼저 접속해 주세요'); end if;
+  my_country := s.country_id;
+  if not ('chief'=any(war.my_roles(s.id,my_country))) then
+    perform priv.err('ROLE_ONLY', '합동참모의장만 구매할 수 있어요');
+  end if;
+  perform 1 from war.game where id=1 for share;
+  select coin into coins from war.countries where id=my_country for update;
+  perform 1 from war.markets where id=p_market for update;
+  if not found then perform priv.err('NO_MARKET', '없는 시장이에요'); end if;
+  perform 1 from war.market_stock where market=p_market and item=p_item and qty>0 for update;
+  if not found then perform priv.err('OUT_OF_STOCK', '시장 재고가 없어요'); end if;
+  my_specialty := wcfg->'SPECIALTY_ITEM'->>(my_country::text);
+  perform 1 from war.inventory where country=my_country and item=my_specialty and qty>=1 for update;
+  has_specialty := found;
+  ref_price := (wcfg->'ITEMS'->p_item->>'ref')::int;
+  if ref_price is null or ref_price<0 then perform priv.err('BAD_ITEM', '가격이 없는 품목이에요'); end if;
+  tariff := floor(ref_price * 0.5)::int;
+  cost := tariff * case when has_specialty then 1 else 2 end;
+  if coins is null or coins<cost then perform priv.err('NOT_ENOUGH', '코인이 부족해요'); end if;
+  if has_specialty then
+    update war.inventory set qty=qty-1 where country=my_country and item=my_specialty;
+    insert into war.market_stock(market,item,qty) values(p_market,my_specialty,1)
+      on conflict(market,item) do update set qty=war.market_stock.qty+1;
+  end if;
+  update war.countries set coin=coin-cost where id=my_country;
+  update war.market_stock set qty=qty-1 where market=p_market and item=p_item;
+  insert into war.inventory(country,item,qty) values(my_country,p_item,1)
+    on conflict(country,item) do update set qty=war.inventory.qty+1;
+  perform war.bump('country',my_country);
+  perform war.bump('markets',0);
+  return jsonb_build_object('ok',true,'item',p_item,'spent_specialty',has_specialty,'tariff',tariff);
+end $$;
+revoke all on function public.war_market_buy(int,text) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_market_buy(int,text) to %I',r);
+  end if;
+end loop; end $$;
+
+-- 기존 설치에도 E9와 품목 가격을 반영한다.
+update war.config set data=jsonb_set(data,'{ITEMS}',priv.cfg()->'ITEMS');
+update war.config set data=jsonb_set(data,'{SPECIALTY_ITEM}',
+  (select jsonb_object_agg(id::text, priv.cfg()->'STRAT_OF'->type) from priv.countries));
+update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E9"]'::jsonb)
+where not coalesce(data->'OPEN_STAGES' ? 'E9',false);

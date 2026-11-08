@@ -3,7 +3,7 @@
 (function () {
   const R = window.RULES, W = window.WAR_RULES;
   const root = document.getElementById('app');
-  const S = { me: null, known: {}, map: null, tiles: new Map(), units: [], cities: [], markets: [], sel: null, tab: null, selUnit: null, reach: null, centered: false, msg: null, country: null };
+  const S = { me: null, known: {}, map: null, tiles: new Map(), units: [], cities: [], markets: [], market_stock: {}, sel: null, tab: null, selUnit: null, reach: null, centered: false, msg: null, country: null };
   const $ = s => document.querySelector(s);
   let turnTimer = 0;
   function h(tag, attrs, ...kids) {
@@ -173,8 +173,12 @@
     const me = S.me;
     side.innerHTML = '';
     // 조작 창 안 작은 탭: 역할 메뉴 중 게임 조작 것만 (우리 나라·예산·첩보 정보는 「우리 나라」 탭으로)
-    const tabs = me.menus.filter(m => !NATION_MENUS.includes(m)).map(m => ({ label: m, key: 'menu:' + m }));
+    const tabs = me.menus.filter(m => !NATION_MENUS.includes(m)).map(m => {
+      const label = m === '도시국가 시장' ? '시장' : m;
+      return { label, key: 'menu:' + label };
+    });
     if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:외교')) tabs.push({ label: '외교', key: 'menu:외교' });
+    if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:시장')) tabs.push({ label: '시장', key: 'menu:시장' });
     for (const d of me.deputy_roles) tabs.push({ label: d.name + ' 대신하는 중', key: 'deputy:' + d.key });
     if (!tabs.length) {
       side.append(h('p', { class: 'muted' }, '지도에서 바로 하는 일이 없어요. 「우리 나라」 탭을 봐요.'));
@@ -206,6 +210,8 @@
       renderBuildings(body);
     } else if (active === 'menu:개발·수리') {
       renderRepairs(body);
+    } else if (active === 'menu:시장' && me.role === 'chief') {
+      renderMarket(body);
     } else if (active === 'menu:외교' && me.role === 'chief') {
       renderDiplomacy(body);
     } else if (role === 'engineer') {
@@ -345,6 +351,31 @@
     for (const f of S.poll?.country?.facilities || []) if (f.ruined) {
       const city = S.cities.find(c => c.id === f.city && c.country === S.me.country.id);
       if (city) body.append(row(f.city + ' ' + facilityName(f.kind), 'city:' + f.city + ':' + f.kind, city.tile, repairCost(f)));
+    }
+  }
+  function renderMarket(body) {
+    const country = S.poll?.country || {};
+    const specialty = W.SPECIALTY_ITEM[S.me.country.id];
+    const hasSpecialty = (country.inventory?.[specialty] || 0) >= 1;
+    body.append(h('h3', {}, '도시국가 시장'), h('p', {}, '보유 코인: ' + (country.coin ?? 0)));
+    if (!S.markets.length) { body.append(h('p', {}, '아직 시장이 없어요.')); return; }
+    const market = S.markets.find(m => m.id === S.marketId) || S.markets[0];
+    S.marketId = market.id;
+    body.append(h('div', { class: 'row' }, S.markets.map(m => h('button', {
+      class: m.id === market.id ? 'on' : '',
+      onclick: () => { S.marketId = m.id; renderTabs(); }
+    }, m.name))));
+    for (const [key, qty] of Object.entries(S.market_stock)) {
+      if (!key.startsWith(market.id + ':')) continue;
+      const item = key.slice(key.indexOf(':') + 1), ref = R.ITEMS[item]?.ref;
+      if (ref == null) continue;
+      const tariff = W.MARKET.tariff(ref), cost = tariff * (hasSpecialty ? 1 : 2);
+      body.append(h('div', { class: 'row' },
+        h('span', {}, itemName(item) + ' · 창고 ' + qty + '개 · 기준가 ' + ref),
+        h('span', {}, '비용: ' + (hasSpecialty ? itemName(specialty) + ' 1개 + ' : '') + cost + ' 코인'),
+        h('button', { disabled: (S.economyBusy || qty < 1 || (country.coin ?? 0) < cost) || null,
+          onclick: () => economyAction('war_market_buy', { p_market: market.id, p_item: item }, 'chief_market')
+        }, '구매')));
     }
   }
   function renderDiplomacy(body) {
@@ -509,7 +540,7 @@
       h('div', { class: 'panel-title' }, '칸 정보'),
       h('p', {}, (R.TERRAIN[t.terrain] || '땅') + ' · ' + (t.owner ? cname(t.owner) + ' 땅' : '빈 땅')),
       city ? h('p', {}, '도시: ' + city.name + ' (' + (city.country ? cname(city.country) : '주인 없음') + ', 체력 ' + city.hp + '/' + city.max_hp + ')') : null,
-      market ? h('p', {}, '도시국가 시장 · ' + market.name + ' · 물물교환은 나중에 열려요') : null,
+      market ? h('p', {}, '도시국가 시장 · ' + market.name + ' · 합동참모의장의 시장 탭에서 물물교환해요') : null,
       here.length ? here.map(u => h('p', {}, kindLabel(u.kind) + ' · ' + cname(u.country) + ' · 체력 ' + u.hp,
         why(u) ? h('small', { class: 'muted' }, ' — ' + why(u)) : null)) : h('p', { class: 'muted' }, '병력이 없어요.'));
   }
@@ -610,6 +641,7 @@
       S.map.setData({ tiles: S.tiles });
     }
     if (data.markets) { S.markets = data.markets; S.map.setData({ markets: S.markets }); }
+    if (data.market_stock) S.market_stock = data.market_stock;
     if (data.units) {
       S.units = data.units;
       S.map.setData({ units: S.units });
@@ -619,7 +651,7 @@
     // 처음 데이터가 오면 우리 나라 수도로 지도를 옮겨요
     if (!S.centered && S.cities.length) { S.centered = true; goCapital(); }
     if (data.game) { S.game = data.game; renderTop(); }
-    if (data.diplomacy || data.offers || data.game ||
+    if (data.market_stock || data.markets || data.diplomacy || data.offers || data.game ||
       ((data.map || data.units || data.cities) && ['menu:건물', 'menu:개발·수리', 'menu:생산'].includes(S.tab))) renderTabs();
     if (data.country) {
       if (data.country.roles) { S.meCountryRoles = data.country.roles; S.me.roles = data.country.roles; }
