@@ -21,3 +21,22 @@
 - JavaScript 문법 검사 및 `git diff --check` 통과.
 
 시험 과정: 최초 화면 실행의 Chrome spawn EPERM은 승인된 샌드박스 밖 실행으로 해결했습니다. 구형 미리보기 DB의 함수 누락은 최신 SQL 반영으로 해결했습니다. 점령 시험 데이터 보완 후 기존 단독 페이지 역할 답변 항목이 한 차례 실패했으며, 해당 항목을 수정하지 않고 재실행한 최종 시험에서 전체 통과했습니다.
+
+## E9 도시국가 물물교환 시장 (2026-11-08)
+
+완료한 파일:
+
+- `supabase/war/functions.sql`: `war_market_buy` 추가. chief 권한, 시장·재고·코인 확인 후 특산 1개와 관세 또는 특산 없는 경우 2배 관세로 구매합니다. 낸 특산은 시장 창고에 누적하며 코인은 countries에서 차감합니다. 나라·시장 잠금으로 거래를 직렬화합니다. bump에 markets 영역을 허용하고 poll에 시장 버전과 `시장ID:아이템` 형식 재고를 추가했습니다.
+- `app/war/js/war-rules.js`: E9 개방, 시장 메뉴명 통일, SPECIALTY_ITEM을 나라 ID 기준 매핑으로 변경했습니다.
+- `tools/war/build-config.mjs`, `supabase/war/config.sql`: ITEMS 가격과 새 규칙을 서버 설정에 반영했습니다. functions.sql 재적용 시 기존 설치의 특산 매핑도 실제 나라 유형을 기준으로 갱신합니다.
+- `app/war/js/war-app.js`: chief 시장 탭에서 시장 선택, 창고 수량·기준가·실제 비용 표시, 구매, 미션 완료, poll 재고 갱신을 구현했습니다. 이전 메뉴명도 시장 탭으로 연결합니다.
+- `tests/war/e9.test.mjs`, `package.json`: 요청한 12개 검증에 인증·없는 시장·버전 갱신 및 생략·실제 Chrome 구매 화면 검증을 추가하고 `test:war:e9` 명령을 등록했습니다.
+
+시험 결과:
+
+- `npm run test:war:e9`: 20/20 전체 통과.
+- `npm run test:war:rules`: 21/21 전체 통과.
+- `npm run test:war:screen`: 11/11 전체 통과.
+- JavaScript 문법 검사와 `git diff --check` 통과.
+
+주의사항: 화면 시험의 Chrome 실행에는 샌드박스 밖 실행이 필요했습니다. 기존 미리보기 DB에서 produced_turn 열 누락이 확인되어 로컬 `app/war/preview/db-real.tar.gz`에 최신 schema/config/functions를 반영했습니다. 이 아카이브는 Git 무시 대상입니다. 실제 서버 DB에는 적용하지 않았으며, 배포 시 갱신한 SQL을 적용해야 합니다. PGlite 시험은 단일 연결이므로 실제 동시 구매 부하 시험은 포함하지 않습니다. 커밋·푸시는 하지 않았습니다.
