@@ -1,67 +1,52 @@
-# 작업지시서 (헬피코드): ①a 시장 섬 그리기 + 튜토리얼 미션 서버
+# 작업지시서 (헬피코드): ①b 화면 두 탭 + 미션 화면 + 관제실 미션 현황 + 시장 표시 + 문서
 
 - 저장소: `C:\projects\earth-server`, 브랜치 **`war-version`** (`git branch --show-current`로 확인)
-- 결정 (2026-11-08): 미션 완료는 **서버에 학생별로 기록**. 지금 할 수 있는 미션부터 열고, 나머지는 기능이 생기는 단계에서 연다.
+- **같은 시간에 GPT가 `supabase/war/*.sql`, `app/war/js/war-rules.js`, `tools/war/*`, `tests/war/*`, `package.json`, `app/war/preview/state.json`을 고치고 있다. 이 파일들은 절대 건드리지 않는다.**
+- 커밋·푸시 금지, Supabase 접속 금지, `private/` 금지, 무역 앱 파일 수정 금지.
+- 미리보기를 열기 전 `npm run war:preview`를 실행해야 한다 (DB 파일은 깃허브에 없음). GPT가 서버를 바꾸는 중이라 화면 확인은 「미확인」이어도 된다 — Claude가 둘 다 끝난 뒤 Chrome으로 확인한다.
 
-## ⚠️ 꼭 지킬 것
-- **커밋과 푸시를 하지 않는다.** Supabase 접속, `private/` 열기, `npm run war:preview:real` 실행 금지. 무역 앱 파일 수정 금지.
-- **같은 시간에 GPT가 `app/war/js/war-api.js`, `war-app.js`, `war-admin.js`, `war-preview-db.js`, `app/war/*.html`, `tools/war/make-*preview.mjs`, `.gitignore`, `package.json`, `tests/war/select.test.mjs`, `tests/war/preview-db.test.mjs`를 고치고 있다. 이 파일들은 절대 건드리지 않는다.** (`package.json`의 시험 명령 등록은 Claude가 나중에 한다)
-- 화면 탭·미션 화면·관제실 화면·문서는 **이번에 하지 않는다** (다음 지시서 ①b).
+## 1. 위쪽 큰 탭 두 개 (`app/war/js/war-app.js`, `app/war/css/war.css`)
+무역 앱처럼 화면 맨 위(나라·역할·턴 표시줄 아래)에 **큰 탭 두 개**: 「지도」, 「우리 나라」. 높이 56px 이상, 웨일북(1366×768)에서 스크롤 없이 지도가 보이게.
+- **「지도」 탭 (처음 열리는 탭):** 지도는 크게, 옆에 조작 창 하나 — 고른 병력(이름·체력·남은 이동력·행동 버튼), 「칸 정보」, 지금 역할의 병력 목록(내 병력 / 노동자·정찰병 / 지휘권 넘기기). 지금의 역할 메뉴 탭 중 **게임 조작**에 해당하는 것(내 병력, 지휘권 넘기기, 노동자, 정찰병, 개발·수리, 건물, 생산, 외교, 무역, 도시국가 시장)은 이 조작 창 안 작은 탭으로.
+- **「우리 나라」 탭:** 역할 고르기(역할이 없을 때), 역할별 **튜토리얼 미션**, 내 예산, 나라 정보, 우리 나라 역할 현황, 첩보 정보.
+- **역할을 고르기 전에도** 「지도」 탭에 지도가 보이고, 맨 위에 「「우리 나라」 탭에서 역할을 골라요」 안내 띠. 역할이 없으면 병력은 고를 수 없음 (칸 정보만).
+- 아직 내용이 없는 메뉴는 지금처럼 「다음 단계에서 열려요」.
+- 버튼 48px 이상, 깜빡이는 효과 없음, 영어 노출 없음, 하단 「myoLab(산쌤)」.
 
-## 1. 시장 섬 그리기 (`app/war/js/war-hexmap.js`)
-- `setData({ markets })`로 받은 시장 목록(`[{ id, tile, art, name }]`, `art`는 `neutral_village`/`neutral_harbor`/`neutral_fortress`)을 지도에 그린다.
-- 그림은 `../trade/assets/small/city/<art>.png` (이미 있음). 도시를 그리는 방식(`drawImgAnchor`, 이름표)과 같게, 이름표 색은 회색 계열로 「중립」 느낌. 체력 막대·방어 표시는 그리지 않는다.
-- 바꾼 곳에 `// war:` 주석. 다른 그리기 동작은 바꾸지 않는다.
+## 2. 튜토리얼 미션 화면
+- 「우리 나라」 탭에 `war_missions()` 목록: 역할별로 순서대로, 완료 ✔ / 할 일 / 「곧 열려요」(`open=false`).
+- 행동이 **성공한 뒤** 화면이 `war_mission_done(key)`를 부른다 (실패해도 게임은 그대로, 오류는 콘솔에만):
+  - `army_move`·`navy_move`: 그 역할(대행 포함)로 `war_move` 성공 / `navy_coast`: 배가 우리 해안 도시(이웃에 바다·해안이 있는 우리 도시) 바로 옆 칸에 도착
+  - `air_fly_over`: 공군 `war_move` 경로 중에 다른 나라 병력이 있던 칸이 있음
+  - `army_transfer`·`air_transfer`: `war_transfer` 성공
+  - `eng_worker_move`: 노동자 `war_move` 성공 / `eng_scout_enemy`: 정찰병이 다른 나라 도시 바로 옆 칸에 도착
+  - `chief_info`: 합동참모의장(대행 포함 아님)이 「우리 나라」 탭을 연 때
+- 완료되면 짧게 「미션 완료!」 (1초, 반복 애니메이션 없음).
 
-## 2. 미션 목록 (`app/war/js/war-rules.js` → `npm run war:config`로 `supabase/war/config.sql` 다시 만들기)
-`W.MISSIONS`: `{ key, role, order, text, opens }` 목록. `opens`는 열리는 단계(`now`, `E4`, `E6`, `E7`, `E8`, `E9`, `E10`). `W.OPEN_STAGES = ['now']` (단계가 끝날 때마다 늘림). `tools/war/build-config.mjs`가 이 두 값도 `war.config`에 넣게 한다.
+## 3. 교사 관제실 미션 현황 (`app/war/js/war-admin.js`)
+- `war_admin_missions()`로 표: 나라 / 닉네임 / 역할 / 완료 수 ÷ 열린 미션 수 / 완료한 미션 이름. **실명 쓰지 않기.** 나라별로 묶기.
 
-| key | 역할 | 문구 (쉬운 「~해요」) | opens |
-|---|---|---|---|
-| chief_info | chief | 「우리 나라」 탭에서 나라 정보를 살펴봐요 | now |
-| chief_budget | chief | 공병사령관에게 예산을 나눠 줘요 | E6 |
-| chief_ally | chief | 다른 나라에 동맹을 제안해요 | E8 |
-| chief_market | chief | 도시국가 시장에서 물물교환을 한 번 해요 | E9 |
-| eng_worker_move | engineer | 노동자를 한 칸 옮겨요 | now |
-| eng_scout_enemy | engineer | 정찰병을 다른 나라 도시 바로 옆까지 보내요 | now |
-| eng_build | engineer | 건물을 하나 지어요 | E6 |
-| eng_repair | engineer | 부서진 시설을 고쳐요 | E6 |
-| army_move | army | 병력 하나를 옮겨 봐요 | now |
-| army_transfer | army | 병력 하나의 지휘권을 다른 참모총장에게 넘겨 봐요 | now |
-| army_attack_preview | army | 공격 미리보기를 확인해요 | E4 |
-| army_build | army | 병력을 하나 만들어요 | E7 |
-| navy_move | navy | 배 하나를 옮겨 봐요 | now |
-| navy_coast | navy | 배를 우리 해안 도시 옆으로 보내요 | now |
-| navy_attack_preview | navy | 공격 미리보기를 확인해요 | E4 |
-| navy_build | navy | 배를 하나 만들어요 | E7 |
-| air_fly_over | air | 공군을 다른 나라 병력 위로 날려 옮겨요 | now |
-| air_transfer | air | 공군 하나의 지휘권을 다른 참모총장에게 넘겨 봐요 | now |
-| air_attack_preview | air | 공격 미리보기를 확인해요 | E4 |
-| air_build | air | 전투기를 하나 만들어요 | E7 |
+## 4. 시장 섬 표시
+- `war-app.js`가 poll로 받은 `markets`를 지도에 넘긴다 (`S.map.setData({ markets })`, 그리는 코드는 `war-hexmap.js`에 이미 있음).
+- 시장 칸을 누르면 「칸 정보」에 「도시국가 시장 · ○○ 마을/항구/성곽 · 물물교환은 나중에 열려요」.
 
-## 3. 미션 서버 (`supabase/war/schema.sql`, `supabase/war/functions.sql`)
-- 표 `war.mission_done`: 학생 번호, 미션 key, 완료 시각 (기본키 학생·key). 가져오기(`war.admin_import`) 때 비운다.
-- `public.war_mission_done(p_mission text)`: 로그인한 학생(`priv.students.uid = auth.uid()`)만. 그 미션이 `war.cfg()`의 MISSIONS에 있고, **내 역할 또는 내가 대행 중인 역할**(결석·빈 역할 대행, 4명 모둠 합참의 공병)의 미션이며, `opens`가 OPEN_STAGES 안에 있어야 함. 아니면 오류 (`BAD_MISSION` 「아직 열리지 않았거나 내 미션이 아니에요」). 이미 했으면 그대로 성공(두 번 기록 안 됨). 성공하면 `war.bump('country', 내 나라)`.
-- `public.war_missions()`: 내 미션 목록 `[{ key, role, order, text, opens, open, done }]` (내 역할 + 대행 역할만).
-- `public.war_admin_missions()`: 교사만 (`priv.need_admin()`). 학생별 `{ student, country, nick, role, done: [key…], total_open }` — **닉네임만, 실명 금지**.
-- 행동을 성공시킨 것을 서버가 직접 확인하지는 않는다 (연습용이라 화면이 알린 대로 기록).
-
-## 4. 시험 `tests/war/missions.test.mjs` (새)
-W0 틀 → 전쟁 SQL 설치 → 가져오기 → 학생에게 역할 주기(`war_choose_role`).
-- 육군 학생: `army_move` 기록 성공, 두 번 해도 오류 없고 한 줄만 / `army_build`(E7) → `BAD_MISSION` / `navy_move`(남의 역할) → `BAD_MISSION` / 없는 key → `BAD_MISSION`
-- `war_missions`: 육군 학생에게 육군 미션 4개만, `army_move`가 `done: true`, `army_build`가 `open: false`
-- 결석 대행: 육군 학생을 결석 표시하면 합참의장 `war_missions`에 육군 미션도 나옴
-- `war_admin_missions`: 교사만, 결과에 실명(`학생`이라는 글자) 없음
-- 가져오기를 다시 하면 완료 기록이 비워짐
-- 기존 시험(`place`, `e3`, `e2`, `act`, `import-v2`, `import`, `rules`, `db`, `real-preview`, `trade`) 모두 통과 — 단 `tests/war/select.test.mjs`는 GPT가 고치는 중이라 실행 결과만 적고 고치지 않는다.
-- 실행: `node tests/war/missions.test.mjs` (`package.json`에 등록하지 않는다)
+## 5. 문서
+- `docs/war-design.md`:
+  - 8장: 화면 구조 「위쪽 큰 탭 두 개(지도 / 우리 나라)」와 각 탭 내용, 역할 고르기 전에도 지도가 보임
+  - 2장 끝 또는 8장: 튜토리얼 미션 (역할별 4개, 서버에 학생별 기록, 행동 성공 뒤 화면이 기록, 기능이 생기는 단계에서 열림 — 미션 표 그대로)
+  - 5-1장 끝: 「점령 직후에도 빈칸 병합을 한 번 한다 (E4)」, 10장 E4 행에 「빈칸 병합 함수(점령 직후)」, E5 행은 「턴 끝 병합」 유지
+  - 8-3장: 미리보기는 브라우저 PGlite로 진짜 SQL 실행, 가짜 서버 없음, 열기 전 `npm run war:preview` (②에서 이미 바뀜 — 지시서 5번 내용)
+  - 10장에 「E3.5 화면 두 탭·미션 틀·시장 표시·미리보기 PGlite (2026-11-08)」 행 추가
+  - 13장 기록 표에 행 추가: 「화면 두 탭」, 「튜토리얼 미션 서버 기록」, 「점령 직후 병합」, 「미리보기 가짜 서버 → 브라우저 PGlite」 (기존 행 그대로)
+- `docs/tasks/status.md`: 끝난 것에 ②·①a·①b, 「잊지 말 것」에 「미리보기 열기 전 `npm run war:preview`」, 다음 할 것: E4 화면(공격 미리보기·공격 버튼, 미션 E4 열기) → E5
 
 ## 고쳐도 되는 파일 (이것만)
-`app/war/js/war-hexmap.js`, `app/war/js/war-rules.js`, `tools/war/build-config.mjs`, `supabase/war/config.sql`(다시 만들기), `supabase/war/schema.sql`, `supabase/war/functions.sql`, `tests/war/missions.test.mjs`(새), `tests/war/rules.test.mjs`(미션 목록 검사 더할 때만), `docs/tasks/report.md`
+`app/war/js/war-app.js`, `app/war/js/war-admin.js`, `app/war/css/war.css`, `app/war/index.html`·`app/war/admin.html`(필요할 때만), `docs/war-design.md`, `docs/tasks/status.md`, `docs/tasks/report.md`
 
 ## 완료 조건
-- 위 시험 모두 통과, `npm run war:config` 두 번 같은 결과, `node --check app/war/js/war-hexmap.js`
-- `git status --short`에서 이 작업으로 바뀐 것이 위 목록뿐 (GPT 쪽 파일 변경은 그대로 둔다)
+- `node --check`로 고친 js 통과
+- 화면 (Live Server, 못 하면 「미확인」): `?preview=1` 역할 없음 → 지도 탭에 지도 + 안내 띠, 우리 나라 탭에서 역할 고르기 → 미션 목록 / `?preview=1&as=1:army` 이동 → 미션 ✔ / `admin.html?preview=1` 미션 현황 표 / 시장 섬 3곳 그림 / 콘솔 빨간 오류 없음
+- `git status --short`에서 이 작업으로 바뀐 것이 위 목록뿐
 
 ## 보고 (`docs/tasks/report.md`에 덮어쓰기)
-1~4 각각 3줄 이내, 시험 마지막 줄들, 못 한 것은 맨 위 「실패: 이유」, 마지막 줄 「커밋·푸시하지 않았습니다」
+1~5 각각 3줄 이내, 못 한 것은 맨 위 「실패: 이유」, 마지막 줄 「커밋·푸시하지 않았습니다」

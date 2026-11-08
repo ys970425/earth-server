@@ -1,69 +1,72 @@
-# GPT 작업지시서: ② 미리보기를 브라우저 안 PGlite(진짜 SQL)로 바꾸고 가짜 서버 삭제
+# GPT 작업지시서: ③ E4 서버 — 전투·도시 공격·점령·파괴·멸망 방지·빈칸 병합
 
-- **같은 시간에 헬피코드가 `app/war/js/war-hexmap.js`, `app/war/js/war-rules.js`, `supabase/war/*.sql`, `tests/war/missions.test.mjs`를 고치고 있다. 이 파일들은 건드리지 않는다.** `docs/` 아래도 `gpt-report.md` 말고는 고치지 않는다.
 - 저장소: `C:\projects\earth-server`, 브랜치 **`war-version`** (`git branch --show-current`로 확인)
-- 결정 (2026-11-08, 1번 A): 미리보기에서 가짜 서버(`war-api.js`의 `makeFake`)가 진짜 서버와 따로 놀아 버그가 두 번 났다 (남의 병력 선택, 역할 고른 뒤 빈 화면). **미리보기도 진짜 SQL을 그대로 실행**하게 바꾼다.
+- 기준 문서: `docs/war-design.md` 4-5(전투), 5장(도시 공격·점령·파괴·수리·멸망 방지), 13장(빈칸 병합 기준 B), 11장(숫자)
+- **같은 시간에 헬피코드가 `app/war/js/war-app.js`, `app/war/js/war-admin.js`, `app/war/css/war.css`, `app/war/*.html`, `docs/`를 고치고 있다. 이 파일들은 건드리지 않는다.** 보고서는 `docs/tasks/gpt-report.md`에만 쓴다.
+- 커밋·푸시 금지, Supabase 접속 금지, `private/` 금지, 무역 표(`priv.*`)에 쓰기 금지, 무역 앱 파일 수정 금지.
 
-## ⚠️ 꼭 지킬 것
-- **커밋과 푸시를 하지 않는다.** Supabase 접속 금지. 무역 앱 파일 수정 금지.
-- `private/` 폴더는 열지 않는다. `npm run war:preview:real`은 실행하지 않는다 (실제 데이터 쪽은 코드만 고치고, 실행 확인은 Claude가 한다).
-- 실제 학생 데이터에서 나온 파일은 **반드시 `.gitignore`로 막힌 이름**으로만 만든다. 학생 실명은 어떤 파일에도 쓰지 않는다.
-- `supabase/war/*.sql`의 규칙은 바꾸지 않는다 (미리보기용 SQL을 따로 만들지 않는다).
+## 쓸 수 있는 장치 (이미 있음)
+- `war.act_start(p_role, p_combat, p_other)`: 역할·결석 대행·일시정지·전투 꺼짐(`p_combat=true`) 검사 + 자기 나라와 `p_other` 나라를 **id 순서로 한 번에** 잠금. 두 나라가 얽힌 행동은 반드시 이걸로 잠근다.
+- `war.place_unit(unit, tile)`: 병력 칸 바꾸기의 유일한 길 (한 칸 한 유닛 DB 조건, 늦은 쪽 `TILE_TAKEN`).
+- `war.bump(영역, 나라)`, `war.cfg()`(전쟁 규칙), `priv.cfg()`(무역 규칙 `UNITS`, `CS_TIERS`, `COMBAT`), `priv.tdist`.
+- 지도 칸 주인·시설을 바꾸면 `war.bump('map')` 뒤 그 칸의 `war.tiles.ver`를 새 map 번호로 (E2 규칙).
 
-## 1. 미리보기 DB 파일 만들기
-- `tools/war/make-preview.mjs`: 지금처럼 PGlite에 무역 SQL + 전쟁 SQL(schema → config → functions)을 설치하고 학생 25명 진행 상태를 만든 뒤 `war_admin_import('초기화')`. 그다음:
-  - `await db.dumpDataDir('gzip')` 결과를 **`app/war/preview/db.tar.gz`** 로 저장
-  - **`app/war/preview/db.json`** (메타): `{ admin_uid, students: [{ id, country, uid }] }` — 이름·닉네임 넣지 않음
-  - 체험 모드(`&play=1`)가 쓰는 `state.json`은 지금처럼 계속 만든다
-- `tools/war/make-real-preview.mjs`: 지금의 `convert()` 과정(백업 복원 → 가져오기)을 마친 DB에서
-  - 학생 행에 미리보기용 가짜 uid를 넣는다 (`update priv.students set uid = gen_random_uuid()` 같은 것 — 이 DB는 이 컴퓨터 안의 복사본이라 괜찮음). 교사용 uid도 하나 만들어 `admin_login('test-pw')` 상태로 둔다.
-  - **`app/war/preview/db-real.tar.gz`**, **`app/war/preview/db-real.json`** 으로 저장 (메타 형식은 위와 같음)
-  - 지금처럼 `state-real.json`도 만든다
-- `.gitignore`: `app/war/preview/db.tar.gz`, `app/war/preview/db.json`, `app/war/preview/*real*` 추가 (DB 파일은 몇 MB라 커밋하지 않고 `npm run war:preview`로 만든다). 추가 뒤 `git check-ignore`로 네 이름 모두 막히는지 확인.
+## 만들 것 (`supabase/war/functions.sql`, 필요하면 `schema.sql`, `app/war/js/war-rules.js` + `npm run war:config`)
 
-## 2. 브라우저에서 PGlite로 실행 — `app/war/js/war-preview-db.js` (새, ES module)
-- PGlite **0.5.15**를 CDN에서 불러온다: `https://cdn.jsdelivr.net/npm/@electric-sql/pglite@0.5.15/dist/index.js`
-- `?preview=1` → `preview/db.tar.gz` + `db.json`, `?preview=real` → `preview/db-real.tar.gz` + `db-real.json`을 `fetch` → `new PGlite({ loadDataDir: blob })`
-- 접속 흉내 (`set_config('request.uid', uid, false)`):
-  - 학생 화면: `&as=나라번호:역할` → 그 나라 학생 중 한 명의 uid로 접속하고, 그 학생에게 그 역할을 준다 (미리보기 DB 안에서만 `war.roles`에 직접 넣기). `&as=나라번호`(역할 없음)나 `as` 없음(1번 나라) → 역할이 없는 학생으로 접속 → **진짜 `war_choose_role`로 역할 고르기**
-  - `&size=4` → 그 나라 학생을 4명이 되게 미리보기 DB에서 한 명 지운다
-  - 교사 관제실(`admin.html?preview=…`) → `admin_uid`로 접속
-- `rpc(이름, 인자)`: `select public.이름(p_a => $1, p_b => $2) as r` 처럼 **이름 붙인 인자**로 부르고 `r`을 돌려준다. 오류는 지금 `war-api.js`의 `cleanError`와 같은 모양(`code`, 쉬운 말 `message`)으로.
-- 처음 여는 동안 화면에 「미리보기를 준비하고 있어요 (몇 초 걸려요)」. 파일이 없으면 「터미널에서 npm run war:preview 를 먼저 실행해 주세요」 (real이면 `war:preview:real`).
-- 새로고침하면 처음 상태로 돌아간다 (저장하지 않음).
+### 0. 가져오기 보완
+- `war.admin_import`에서 **수도**(`kind = 'capital'`)의 방어·체력을 `war.cfg()`의 CAPITAL 값(방어 20, 체력·최대 체력 200)으로 맞춘다. 결과가 바뀌므로 `npm run war:preview`로 `state.json`을 다시 만든다.
 
-## 3. `app/war/js/war-api.js`
-- **가짜 서버(`makeFake`와 그 안의 흉내 함수 전부)를 지운다.** 미리보기 모드의 `rpc`는 `war-preview-db.js`의 `rpc`를 쓴다. 서버 모드는 지금 그대로.
-- `start()`(`war-app.js`)와 `war-admin.js`에서 `makeFake`를 부르는 곳도 정리한다. 화면 쪽 다른 동작은 바꾸지 않는다.
-- `index.html`, `admin.html`에 `war-preview-db.js`를 `type="module"`로 싣는다 (미리보기일 때만 실제로 불러와도 됨).
+### 1. `public.war_attack(p_unit int, p_tile int)` — 병력 또는 도시 공격
+1. 공격 병력을 찾고 내 나라 병력인지 (`NOT_MINE`), 군사 유닛인지 (노동자·정찰병 → `NOT_MILITARY`).
+2. 대상 칸의 **도시**(다른 나라 소유) 또는 **군사 유닛**(다른 나라)을 찾는다. 도시가 있으면 도시 공격. 노동자·정찰병만 있는 칸, 시장 칸, 주인 없는 도시국가는 공격 대상이 아님 (`NO_TARGET` 「공격할 수 있는 상대가 없어요」).
+3. `war.act_start(공격 병력의 commander, true, 상대 나라)`.
+4. 검사:
+   - 두 나라가 `war.diplomacy`에서 `war` 상태 (아니면 `NOT_AT_WAR` 「전쟁 중인 나라만 공격할 수 있어요」. 동맹·평화 모두 거절)
+   - 상대 나라 보호막 (`shield_until >= 지금 턴`) → `SHIELD` 「보호막이 있어요 (○턴 남음)」
+   - 이번 턴에 이미 공격함 (`attacked_turn = 지금 턴`) → `ATTACKED`
+   - 거리: 근접은 1, 원거리(`range`)는 range 이하 → 아니면 `TOO_FAR`
+5. 병력·도시 행을 id 오름차순으로 `for update`.
+6. **피해 계산 (설계 4-5, 무역 `priv.combat`과 같은 식):** 실제 힘 = 힘 × (0.5 + 0.5 × 체력/100). 특수 부대 힘은 `war.cfg()` BOSS 값(95). 막는 쪽이 유닛이고 언덕·숲·정글 칸이면 ×1.25. 도시의 막는 힘 = 도시 `def`. 비율 = 공격 ÷ 막기. 상대 피해 = clamp(round(30×비율), 3, 100), **특수 부대가 공격하면 상한 60**. 반격 = clamp(round(30×0.6÷비율), 1, 100), 원거리(거리 > 1)면 반격 × 0.25 반올림. 숫자는 `priv.cfg()->'COMBAT'`.
+7. 유닛 공격: 체력 감소, 0 이하면 삭제. 공격 병력: 체력 감소(0 이하면 삭제), `moves_left = 0`, `attacked_turn = 지금 턴`.
+8. 도시 공격: 도시 hp 감소 (0 아래로 안 감). **상대 나라 `cities_lost`가 2 이상이면 그 나라 도시 hp는 1 아래로 안 감** (멸망 방지).
+   - **수도**: hp 0 → `besieged = true` (점령 안 됨).
+   - **일반 도시** hp 0 이고 공격 병력이 살아 있고 **근접**이며 (**땅 유닛**, 또는 **배이고 해안 도시**: 도시 칸 이웃에 바다·해안 칸), 공군이 아니고, 도시 칸에 상대 군사 유닛이 없으면 → **점령**:
+     - `war.place_unit(공격 병력, 도시 칸)`
+     - 도시 `country` = 공격 나라, hp = 최대의 절반, `besieged = false`
+     - 도시 칸과 이웃 땅 칸(바다·해안·다른 도시·시장 칸 제외)의 주인 = 공격 나라. 그 칸들 중 타일 시설이 `war.cfg()` TILE_IMP의 파괴 목록(광산·유정·농원)이면 `imp_ruined = true`
+     - 그 도시의 `war.city_facilities` 전부 `ruined = true` (공장·고등 건물, 특산 공장 포함)
+     - 상대 나라 `cities_lost += 1`, `shield_until = 지금 턴 + 3` (SHIELD_TURNS)
+     - `war.merge_empty_tiles()` 한 번
+   - 원거리·공군으로 hp 0 → 점령하지 않음 (결과에 `need_melee: true`)
+9. 바뀐 영역 `bump` (units, cities, map, 두 나라 country), 결과 jsonb: `{ damage, counter, attacker_hp, defender_hp, killed, attacker_killed, besieged, captured, need_melee }`.
 
-## 4. 시험
-- `tests/war/preview-db.test.mjs` (새) + `package.json` `"test:war:preview-db"`:
-  - `npm run war:preview`로 만든 `db.tar.gz`·`db.json`을 Node PGlite로 불러와서 (`new PGlite({ loadDataDir })`)
-  - 역할 없는 학생 uid로 `war_choose_role('army')` 뒤 `war_me`의 메뉴가 1개 이상, 역할이 `army` (**어제의 빈 화면 버그가 진짜 SQL로는 안 생김**)
-  - 그 학생이 자기 육군을 빈 칸으로 `war_move` 성공 / 다른 나라 병력 → `NOT_MINE` / 우리 해군 → `ROLE_ONLY`
-  - `db.json`에 이름·닉네임 키가 없음
-- `tests/war/select.test.mjs`: 가짜 서버(`war-api.js`를 eval하던 부분)를 지우고, 같은 두 거절(다른 나라 → `NOT_MINE`, 우리 해군 → `ROLE_ONLY`)을 위 PGlite 방식으로 확인하게 바꾼다. `isMyUnit` 검사와 화면 코드 검사는 그대로 둔다.
-- 기존 시험 모두 통과.
+### 2. `public.war_attack_preview(p_unit int, p_tile int)` — 미리보기 (읽기만)
+1번의 1~6 검사·계산을 그대로 하되 바꾸지 않고 `{ damage, counter, can_attack, reason }`을 돌려준다 (못 하면 `can_attack=false`와 쉬운 말 `reason`). 1번과 **같은 계산 함수**를 공유한다 (예: `war.combat_calc(...)`).
 
-## 5. 문서 (이번에는 하지 않음 — 헬피코드가 나중에 정리)
-- `docs/war-design.md` 8-3장: 「미리보기는 브라우저 안 PGlite로 진짜 SQL을 실행한다 (가짜 서버 없음). DB 파일은 `npm run war:preview`(가짜)·`npm run war:preview:real`(실제, 깃허브 제외)로 만든다」로 고친다. 13장 기록 표에 「미리보기 가짜 서버 → 브라우저 PGlite (2026-11-08)」 행 추가.
-- `docs/tasks/status.md` 「잊지 말 것」에 「미리보기 열기 전 `npm run war:preview` 실행 (DB 파일은 깃허브에 없음)」 추가.
+### 3. `war.merge_empty_tiles()` — 빈칸 자동 병합 (설계 13장 기준 B)
+- 대상: 주인 없는 칸 중 지형이 바다·해안이 아니고, 도시 칸·시장 칸이 아닌 칸.
+- 이웃 6칸(지도 밖 제외) 중 **같은 나라 땅이 4칸 이상**이면 그 나라 땅. (4칸 이상인 나라는 하나뿐이므로 두 나라 사이 빈칸은 그대로)
+- **먼저 모든 대상 칸을 계산한 뒤 한꺼번에 적용** (한 번에 한 겹, 새로 합친 칸으로 이어서 합치지 않음). 합친 칸이 있으면 `bump('map')`과 `ver`. 합친 칸 수를 돌려준다.
+- public이 아님. E5(턴 끝)에서도 부를 예정이라고 머리 주석에.
+
+## 시험 `tests/war/e4.test.mjs` (새) + `package.json` `"test:war:e4"`
+준비: W0 틀 → 전쟁 SQL → 가져오기 → 역할 주기. 두 나라를 `war` 상태로 직접 바꾸는 것은 시험 준비로 허용.
+- 평화·동맹 상태면 `NOT_AT_WAR` / 보호막이면 `SHIELD` / 같은 턴 두 번째 공격 `ATTACKED` / 거리 초과 `TOO_FAR` / 노동자로 공격 `NOT_MILITARY` / 노동자만 있는 칸 `NO_TARGET`
+- 미리보기 숫자 = 실제 공격 피해 (같은 상태에서)
+- 유닛 체력 0 → 삭제, 원거리 반격 25%, 특수 부대 피해 ≤ 60, 언덕 방어 보너스로 피해가 줄어듦
+- 수도 hp 0 → `besieged`, 점령 안 됨
+- 일반 도시 hp 0 + 근접 땅 유닛 → 점령: 주인·hp 절반·병력이 도시 칸으로·주변 땅 주인·광산/유정/농원 `imp_ruined`·농장은 그대로·도시 시설 모두 `ruined`·상대 `cities_lost`+1·보호막 3턴
+- 원거리로 hp 0 → 점령 안 됨 `need_melee`; 해안 도시를 근접 배로 점령 / 해안이 아닌 도시는 배로 점령 불가
+- 상대가 이미 2곳 잃었으면 도시 hp가 1에서 멈춤
+- 병합: 4칸 이상 둘러싸인 빈칸만 합쳐지고, 3칸이면 그대로, 두 나라 사이(3:3)는 그대로, 바다·해안·도시·시장 칸은 안 합쳐짐, 한 번에 한 겹
+- 기존 시험 모두 통과 (`missions`, `select`, `preview-db`, `place`, `e3`, `e2`, `act`, `import-v2`, `import`, `rules`, `db`, `real-preview`, `trade`)
+- 머리 주석: PGlite는 연결 하나라 동시 공격은 시험 못 함 (설치 후 확인)
 
 ## 고쳐도 되는 파일
-`tools/war/make-preview.mjs`, `tools/war/make-real-preview.mjs`, `app/war/js/war-preview-db.js`(새), `app/war/js/war-api.js`, `app/war/js/war-app.js`(`makeFake` 부르는 곳만), `app/war/js/war-admin.js`(같음), `app/war/index.html`, `app/war/admin.html`, `.gitignore`, `tests/war/preview-db.test.mjs`(새), `tests/war/select.test.mjs`, `package.json`, `docs/tasks/gpt-report.md`(보고서, 새로)
+`supabase/war/functions.sql`, `supabase/war/schema.sql`, `app/war/js/war-rules.js`, `supabase/war/config.sql`(다시 만들기), `tools/war/build-config.mjs`(필요할 때만), `tests/war/e4.test.mjs`(새), 기존 시험은 가져오기의 수도 수치 변경으로 깨지는 **기대값만**, `package.json`(scripts), `app/war/preview/state.json`(다시 만들기), `docs/tasks/gpt-report.md`
 
 ## 완료 조건 (직접 실행)
-```bash
-npm run war:preview                       # db.tar.gz, db.json, state.json 생성
-git check-ignore app/war/preview/db.tar.gz app/war/preview/db.json app/war/preview/db-real.tar.gz app/war/preview/db-real.json   # 네 줄 모두 나옴
-node tests/war/preview-db.test.mjs        # 전체 통과
-node tests/war/select.test.mjs            # 전체 통과
-# 기존: place, e3, e2, act, import-v2, import, rules, db, real-preview, trade 모두 전체 통과
-git status --short                        # 위 목록 밖 변경 없음, db*.tar.gz·db*.json은 목록에 안 나옴
-grep -c "makeFake" app/war/js/*.js        # 모두 0
-```
-화면 (Live Server, 못 하면 「미확인」 — Claude가 Chrome으로 다시 확인함): `index.html?preview=1` → 역할 고르기 → 육군 고르면 지도와 메뉴가 나옴 / `?preview=1&as=1:army`에서 병력 이동 / `admin.html?preview=1` 정상 / 콘솔 빨간 오류 없음
+위 시험 전부 「전체 통과」, `npm run war:config`·`npm run war:preview` 두 번 같은 결과, `git status --short`에 위 목록 밖 변경 없음 (헬피코드 쪽 파일 변경은 그대로 둠).
 
-## 보고 (`docs/tasks/gpt-report.md`에 쓰기)
-1~5 각각 3줄 이내, `db.tar.gz` 크기와 브라우저에서 처음 여는 데 걸린 시간(잰 경우), 시험 마지막 줄들, 못 한 것은 맨 위 「실패: 이유」, 마지막 줄 「커밋·푸시하지 않았습니다」
+## 보고 (`docs/tasks/gpt-report.md`에 덮어쓰기)
+만든 함수, 잠금 순서, 시험 결과 마지막 줄들, 못 한 것은 「못 함:」, 마지막 줄 「커밋·푸시하지 않았습니다」
