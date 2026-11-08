@@ -1,6 +1,6 @@
 # 진행 상황 (「지구 서버: 전쟁의 시간」, 브랜치 `war-version`)
 
-마지막 정리: 2026-11-08
+마지막 정리: 2026-11-09
 
 ## 끝난 것
 - 설계: `docs/war-design.md` (「전쟁의 시간」, 바뀐 점은 13장)
@@ -14,6 +14,7 @@
 - **①a** 시장 섬 그리기(`setData({ markets })`), 미션 목록 20개(`war-rules.js`→`war.config`), 미션 서버(`war_mission_done`·`war_missions`·`war_admin_missions`, `war.mission_done` 표)
 - **①b** 화면 두 탭(지도 / 우리 나라), 역할 고르기 전에도 지도 표시, 튜토리얼 미션 화면(행동 성공 뒤 기록·「미션 완료!」), 관제실 미션 현황 표, 지도에 시장 섬 넘기기·칸 정보에 시장 표시
 - 시험: `test:war:place`·`e3`·`e2`·`act`·`import2`·`import`·`rules`·`war`·`real`·`trade` 모두 통과
+- **QnA AI 봇** (`app/war/qna/`, `tools/war/qna-proxy.mjs`): 낱말 봇을 예비로 두고 Gemini AI 답변 추가. 프록시(`npm run war:qna-proxy`, 포트 3717)가 낱말 봇으로 FAQ 찾아 AI에게 전달 → 쉬운 말로 답변. 모델: `gemini-3.1-flash-lite`. 키: `.env`의 `GEMINI_API_KEY`. 시험: `npm run test:war:qna` 23개 통과. 11/9 이후: Supabase Edge Function으로 이전 예정(`docs/tasks/qna-edge-fn.md` 참고)
 
 ## 진행 중
 - 없음
@@ -25,7 +26,8 @@
 - `?preview=real` 실제 데이터 파일은 서버 쪽이 바뀌면 `npm run war:preview:real`로 다시 만들어야 함 (헬피코드는 `private/`를 열 수 없으므로 Claude가 만듦)
 
 ## 다음에 할 것 (`docs/war-design.md` 10장)
-1. **E4** 전투·도시 공격·점령(배 포함)·포위·파괴(건물·자원 타일 시설)·멸망 방지 + 빈칸 병합(점령 직후) — 동시성: 두 나라 잠금은 `act_start(p_other)`, 칸 바꾸기는 `war.place_unit`. **화면도 E4에 맞춰 고치기: 공격 미리보기·공격 버튼, 미션 E4 열기(attack_preview)**
+1. **선전포고(E8 일부)**: 외교 화면에서 선전포고 → `war_declare` 함수, 전쟁 중 상태 표시. 점령 시험(`점령_후_땅색_변화`) 완성을 위해서도 필요.
+2. **E4** 전투·도시 공격·점령(배 포함)·포위·파괴(건물·자원 타일 시설)·멸망 방지 + 빈칸 병합(점령 직후) — 동시성: 두 나라 잠금은 `act_start(p_other)`, 칸 바꾸기는 `war.place_unit`. **화면도 E4에 맞춰 고치기: 공격 미리보기·공격 버튼, 미션 E4 열기(attack_preview)**
 2. **E5** 턴 진행(교사 타이머·다음 턴 일괄 처리·일시정지) — 턴 끝 병합 유지
 3. E6 합참 예산·공병사령관 / E7 병력 생산 / E8 외교·무역 / E9 시장 / E10 첩보 / E11 칠판·의견 보내기 / E12 25명 모의 실행 / E13 배포
 - GPT 크레딧이 없으면 GPT 몫도 헬피코드에게 아주 구체적인 지시서로 (CLAUDE.md)
