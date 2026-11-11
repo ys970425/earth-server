@@ -88,25 +88,25 @@ async function screenTests(ctx, chief, engineer) {
         };
       });
       await page.addScriptTag({ content: readFileSync(new URL('../../app/war/js/war-app.js', import.meta.url), 'utf8') });
-      await page.waitForSelector('.war-tab');
+      await page.waitForSelector('.war-nav-btn,.war-tab');
     }
     await load(chief);
-    await page.evaluate(() => [...document.querySelectorAll('.war-tab')].find(b => b.textContent === '시장').click());
-    await page.waitForFunction(() => document.querySelector('.war-tab-body').textContent.includes('기준가'));
+    await page.evaluate(() => [...document.querySelectorAll('.war-nav-btn,.war-tab')].find(b => b.textContent === '시장').click());
+    await page.waitForFunction(() => document.querySelector('.panel')?.textContent.includes('기준가'));
     ctx.ok(await page.evaluate(() => {
-      const text = document.querySelector('.war-tab-body').textContent;
+      const text = document.querySelector('.panel')?.textContent || '';
       return text.includes('창고') && text.includes('비용:') && text.includes('코인');
     }), '화면_시장_재고와_비용_표시');
     const cost = await page.evaluate(() => {
-      const button = [...document.querySelectorAll('.war-tab-body button')].find(b => b.textContent === '구매' && !b.disabled);
+      const button = [...document.querySelectorAll('.panel button')].find(b => b.textContent === '구매' && !b.disabled);
       const cost = Number(button.parentElement.textContent.match(/비용: (\d+) 코인/)[1]);
       button.click();
       return cost;
     });
-    await page.waitForFunction(expected => document.querySelector('.war-tab-body').textContent.includes('보유 코인: ' + expected), {}, 1000 - cost);
+    await page.waitForFunction(expected => document.querySelector('.panel')?.textContent.includes('보유 코인: ' + expected), {}, 1000 - cost);
     ctx.ok(calls.some(c => c.fn === 'war_market_buy' && c.args.p_market === 1 && typeof c.args.p_item === 'string'), '화면_구매_RPC와_코인_갱신');
     await load(engineer);
-    ctx.ok(await page.evaluate(() => ![...document.querySelectorAll('.war-tab')].some(b => b.textContent === '시장')), '화면_공병_시장탭_없음');
+    ctx.ok(await page.evaluate(() => ![...document.querySelectorAll('.war-nav-btn,.war-tab')].some(b => b.textContent === '시장')), '화면_공병_시장탭_없음');
     ctx.ok(errors.length === 0, '화면_JavaScript_오류_없음');
   } finally { await browser.close(); }
 }

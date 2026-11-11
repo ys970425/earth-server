@@ -98,25 +98,25 @@ async function screenTests(ctx, chief, engineer, chief4, worker) {
         };
       });
       await page.addScriptTag({content:readFileSync(new URL('../../app/war/js/war-app.js',import.meta.url),'utf8')});
-      await page.waitForFunction(()=>document.querySelectorAll('.war-tab').length>0);
+      await page.waitForFunction(()=>document.querySelectorAll('.war-nav-btn').length>0);
     }
     async function tab(text) {
-      await page.evaluate(text=>[...document.querySelectorAll('.war-tab')].find(e=>e.textContent===text)?.click(),text);
+      await page.evaluate(text=>[...document.querySelectorAll('.war-nav-btn,.war-tab')].find(e=>e.textContent===text)?.click(),text);
     }
     async function button(text) {
-      await page.evaluate(text=>[...document.querySelectorAll('.war-tab-body button')].find(e=>e.textContent===text)?.click(),text);
+      await page.evaluate(text=>[...document.querySelectorAll('button')].find(e=>e.textContent===text)?.click(),text);
       await page.waitForFunction(()=>!document.querySelector('.war-msg'));
     }
     await load(chief); await tab('예산');
     await page.waitForSelector('#budget-give-qty');
     await page.$eval('#budget-give-qty',e=>e.value='5');
     await button('나눠 주기');
-    await page.waitForFunction(()=>document.querySelector('.war-tab-body')?.textContent.includes('현재 지갑'));
+    await page.waitForFunction(()=>document.querySelector('.panel')?.textContent.includes('현재 지갑'));
     // Each next load waits for the previous action's poll by observing the DB-backed balance.
-    await page.waitForFunction(()=>document.querySelector('.war-tab-body')?.textContent.includes('코인 37'));
+    await page.waitForFunction(()=>document.querySelector('.panel')?.textContent.includes('코인 37'));
     ctx.ok(calls.some(c=>c.fn==='war_budget_give' && c.args.p_qty===5),'화면_예산_나눠주기');
     await page.$eval('#budget-take-qty',e=>e.value='2'); await button('회수하기');
-    await page.waitForFunction(()=>document.querySelector('.war-tab-body')?.textContent.includes('코인 35'));
+    await page.waitForFunction(()=>document.querySelector('.panel')?.textContent.includes('코인 35'));
     ctx.ok(calls.some(c=>c.fn==='war_budget_take' && c.args.p_qty===2),'화면_예산_회수');
     await ctx.db.exec("update war.wallets set qty=100 where country=1 and role='engineer'; update war.cities set buildings=array_remove(buildings,'plaza') where id='K1'");
     await load(engineer); await tab('건물');

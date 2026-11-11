@@ -80,13 +80,9 @@ try {
   const canvas1 = await until(() => page.$('canvas.hexmap'), 60000, 500);
   ok('역할_전_지도', !!canvas1, canvas1 ? '' : '미리보기 DB 준비 실패 또는 지도가 그려지지 않았어요');
 
-  // 2. 역할_후_내병력: 「우리 나라」 탭 → 육군 참모총장 고르기 → 지도 탭 → 병력 목록
-  await clickByText(page, '.war-big-tab', '우리 나라');
-  await wait(400);
+  // 2. 역할_후_내병력: 지도 뷰 오버레이에서 육군 참모총장 고르기 → 병력 목록
   await clickByText(page, '.war-role', '육군');
   await wait(1500);
-  await clickByText(page, '.war-big-tab', '지도');
-  await wait(600);
   const rows = await page.$$eval('.war-units-list .war-unit-row', els => els.length).catch(() => 0);
   ok('역할_후_내병력', rows > 0, `병력 목록 ${rows}줄`);
 
@@ -165,7 +161,7 @@ try {
       return panel ? panel.querySelectorAll('table tr').length : 0;
     }), timeout, 1000);
     // 관제실 화면이 아니라 학생 화면(큰 탭)이 뜨면 이 주소는 관제실이 아니라는 뜻 → 바로 다음 후보로
-    const studentScreen = await page2.evaluate(() => !!document.querySelector('.war-big-tab')).catch(() => false);
+    const studentScreen = await page2.evaluate(() => !!document.querySelector('.war-nav-btn')).catch(() => false);
     if (found > 1) { adminPass = true; adminRows = found; adminNote = url.replace(BASE, ''); break; }
     if (studentScreen) adminNote = `${url.replace(BASE, '')} 는 관제실 화면을 표시하지 않음 (학생 화면이 뜸)`;
   }
@@ -176,12 +172,8 @@ try {
   //    (미리보기 DB는 페이지를 열 때마다 새로 만들어져 상태가 초기화돼요)
   await page.goto(`${BASE}/app/war/index.html?preview=real`, { waitUntil: 'domcontentloaded' });
   await until(() => page.$('canvas.hexmap'), 60000, 500);
-  await clickByText(page, '.war-big-tab', '우리 나라');
-  await wait(400);
   await clickByText(page, '.war-role', '공군');   // 전투기: 이동력 6이라 도착 뒤에도 이동력이 남아 공격 칸이 표시돼요
   await wait(1500);
-  await clickByText(page, '.war-big-tab', '지도');
-  await wait(600);
   // 공군 전투기를 가장 가까운 적 군사 유닛 옆까지 실제 war_move로 이동시킨다 (적이 옆에 있어야 공격 대상이 생겨요)
   const drove = await page.evaluate(async () => {
     const isCivil = k => k === 'worker' || k === 'scout';
@@ -299,6 +291,7 @@ try {
   const { PGlite } = await import('@electric-sql/pglite');
   const captureDb = new PGlite({ loadDataDir: new Blob([readFileSync(join(ROOT, 'app/war/preview/db-real.tar.gz'))]) });
   await captureDb.waitReady;
+  await captureDb.exec(readFileSync(join(ROOT, 'supabase/war/schema.sql'), 'utf8'));
   await captureDb.exec(readFileSync(join(ROOT, 'supabase/war/functions.sql'), 'utf8'));
   const target7 = (await captureDb.query(`select * from war.cities where country=(select country from war.cities where country<>1 order by id limit 1) and kind<>'capital' order by hp,id limit 1`)).rows[0];
   if (!target7) throw new Error('점령 시험용 비수도 도시가 없어요');

@@ -33,10 +33,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. 시험은 관련 수정을 모두 끝낸 뒤 한 번에 돌린다. 중간에 돌리지 않는다.
 3. npm을 못 찾으면 재시도하지 말고 `docs/tasks/report.md`에 적고 코드 작성을 계속한다.
 
-## 작업 분담 (핵심)
-- **기본은 헬피코드.** 화면·서버 함수·시험·문서 모두 헬피에게. 지시서는 단계 2~3개씩 크게 묶어서. 지시서는 docs/tasks/next.md에, 보고는 docs/tasks/report.md로 받는다. 커밋·푸시 금지(Claude가 검토 후 커밋).
-- GPT(codex exec, `-c 'windows.sandbox="unelevated"'` 필수): 헬피가 같은 작업을 두 번 실패했거나 마감이 급할 때만. GPT는 Claude가 터미널에서 codex exec로 직접 실행해 맡긴다.
-- Claude: 계획, 짧은 지시서 작성, git diff --stat과 시험 결과 검토만. 코드는 직접 쓰지 않는다.
+## 작업 분담 (다음 지시 전까지)
+- **Claude Code 우선.** 판단·구현·수정·검토·배포는 Claude Code가 직접.
+- 헬피코드: 밤새 돌릴 긴 작업(대량 점검·반복 시험·문서 정리)만.
+- GPT(codex exec, `-c 'windows.sandbox="unelevated"'` 필수): 헬피가 같은 작업을 두 번 실패했거나 마감이 급할 때만.
+- 지시서는 docs/tasks/next.md에, 보고는 docs/tasks/report.md로 받는다. 커밋·푸시 금지(Claude가 검토 후 커밋).
 
 ## 금지 사항
 - `app/trade/` 등 무역 앱 파일 수정 금지 (읽기만).

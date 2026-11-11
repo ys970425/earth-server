@@ -72,13 +72,16 @@ body.war .map-layout { margin-top: 4px; }
 .war-unit-row .row { display: flex; gap: 6px; margin-left: auto; }
 .war-msg { padding: 10px 12px; border: 3px solid var(--coral); border-radius: 12px; background: #FFF1F0; color: var(--coral-dark); }
 
-/* ①b: 위쪽 큰 탭 두 개 (지도 / 우리 나라) — 웨일북(1366×768)에서 스크롤 없이 지도가 보이게 */
-.war-big-tabs { display: flex; gap: 8px; padding: 6px 8px 0; }
-.war-big-tab { min-height: 56px; min-width: 150px; font-size: 21px; font-family: var(--font-ui); font-weight: 400; }
-.war-big-tab.on { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold); }
-.war-view { height: calc(100vh - 196px); min-height: 400px; overflow: hidden; display: flex; flex-direction: column; }
+/* 위쪽 nav 버튼 — 웨일북(1366×768)에서 스크롤 없이 지도가 보이게 */
+.war-nav { display: flex; gap: 6px; padding: 6px 8px 0; align-items: center; flex-wrap: wrap; }
+.war-nav-btn { min-height: 48px; font-size: 18px; font-family: var(--font-ui); font-weight: 400; }
+.war-nav-btn.on { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold); }
+.war-nav-spacer { flex: 1; }
+.war-deputy-select { font-size: 14px; padding: 4px 8px; max-width: 160px; }
+.war-role-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.war-role-overlay .panel { max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.war-view { height: calc(100vh - 180px); min-height: 400px; overflow: hidden; display: flex; flex-direction: column; }
 .war-view .map-layout { flex: 1; min-height: 0; margin-top: 4px; }
-.war-guide { margin: 6px 8px 0; padding: 8px 12px; border-radius: 10px; background: var(--gold); color: #3A2600; font-weight: 700; }
 .war-nation { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 20px; }
 .war-mission { display: flex; gap: 8px; align-items: center; min-height: 44px; border-bottom: 1px dashed rgba(0,0,0,.15); }
 .war-mission.done { color: var(--good); }

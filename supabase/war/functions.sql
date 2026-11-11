@@ -1619,3 +1619,262 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
   if exists (select 1 from pg_roles where rolname = r) then
     execute format('grant execute on function public.war_trade_accept(bigint) to %I', r);
   end if; end loop; end $$;
+
+-- ---------------------------------------------------------------------
+-- E10: 역할별 창고·예산 요청·승인·회수·반납 (설계 2-3)
+-- ---------------------------------------------------------------------
+
+-- 합참의장 → 역할 분배: chief 지갑에서 꺼내 role_wallets에 넣는다
+create or replace function public.war_budget_distribute(
+  p_role text, p_items jsonb) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; itm text; v int;
+begin
+  perform war.act_start('chief');
+  select country_id, (select turn from war.game where id=1)
+    into me, turn_
+    from priv.students where uid = auth.uid();
+  -- 역할이 존재하는지 확인
+  if not exists (select 1 from jsonb_array_elements(war.cfg()->'ROLES') r where r->>'key' = p_role) then
+    perform priv.err('BAD_ROLE','없는 역할이에요.');
+  end if;
+  for itm, v in select key, (value::text)::int from jsonb_each_text(p_items) loop
+    if v <= 0 then continue; end if;
+    update war.wallets set qty = qty - v where country = me and role = 'chief' and item = itm;
+    if not found then perform priv.err('NO_ITEM','chief 창고에 '||itm||'이(가) 없어요.'); end if;
+    if (select qty from war.wallets where country=me and role='chief' and item=itm) < 0 then
+      perform priv.err('NOT_ENOUGH','chief 창고에 '||itm||'이(가) 부족해요.');
+    end if;
+    insert into war.role_wallets(country, role, item, qty) values (me, p_role, itm, v)
+      on conflict (country, role, item) do update set qty = war.role_wallets.qty + excluded.qty;
+  end loop;
+  insert into war.budget_log(country, turn, kind, from_role, to_role, items)
+    values (me, turn_, 'distribute', 'chief', p_role, p_items);
+  perform war.bump('country', me);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_budget_distribute(text, jsonb) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_budget_distribute(text,jsonb) to %I',r);
+  end if; end loop; end $$;
+
+-- 역할 → 합참의장 요청 (pending 1건 제한)
+create or replace function public.war_budget_request(
+  p_items jsonb, p_note text default null) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; role_ text; req_id bigint;
+begin
+  select country_id, (select turn from war.game where id=1)
+    into me, turn_
+    from priv.students where uid = auth.uid();
+  select role into role_ from war.roles
+    where war.roles.student = (select id from priv.students where uid=auth.uid())
+      and country = me;
+  if role_ is null or role_ = 'chief' then
+    perform priv.err('BAD_ROLE','합참의장은 요청하지 않아요. 역할이 없으면 요청할 수 없어요.');
+  end if;
+  if exists (select 1 from war.budget_requests where country=me and role=role_ and status='pending') then
+    perform priv.err('ALREADY_PENDING','이미 대기 중인 요청이 있어요. 먼저 취소해 주세요.');
+  end if;
+  insert into war.budget_requests(country, role, turn, items, note)
+    values (me, role_, turn_, p_items, p_note) returning id into req_id;
+  perform war.bump('country', me);
+  return jsonb_build_object('ok', true, 'id', req_id);
+end $$;
+revoke all on function public.war_budget_request(jsonb, text) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_budget_request(jsonb,text) to %I',r);
+  end if; end loop; end $$;
+
+-- 역할이 자기 pending 요청 취소
+create or replace function public.war_budget_request_cancel(
+  p_id bigint) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; role_ text; req war.budget_requests;
+begin
+  select country_id into me from priv.students where uid = auth.uid();
+  select role into role_ from war.roles
+    where war.roles.student = (select id from priv.students where uid=auth.uid())
+      and country = me;
+  select * into req from war.budget_requests where id = p_id;
+  if not found then perform priv.err('NOT_FOUND','요청을 찾을 수 없어요.'); end if;
+  if req.country != me or req.role != role_ then
+    perform priv.err('NO_AUTH','내 요청만 취소할 수 있어요.');
+  end if;
+  if req.status != 'pending' then
+    perform priv.err('ALREADY_DONE','이미 처리된 요청이에요.');
+  end if;
+  update war.budget_requests set status='cancelled' where id=p_id;
+  perform war.bump('country', me);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_budget_request_cancel(bigint) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_budget_request_cancel(bigint) to %I',r);
+  end if; end loop; end $$;
+
+-- 합참의장: 요청 승인 (p_items null이면 그대로, 값 있으면 조정)
+create or replace function public.war_budget_approve(
+  p_id bigint, p_items jsonb default null) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; req war.budget_requests; actual_items jsonb; itm text; v int;
+begin
+  perform war.act_start('chief');
+  select country_id, (select turn from war.game where id=1)
+    into me, turn_
+    from priv.students where uid = auth.uid();
+  select * into req from war.budget_requests where id = p_id;
+  if not found then perform priv.err('NOT_FOUND','요청을 찾을 수 없어요.'); end if;
+  if req.country != me then perform priv.err('NO_AUTH','같은 나라 요청만 처리해요.'); end if;
+  if req.status != 'pending' then perform priv.err('ALREADY_DONE','이미 처리된 요청이에요.'); end if;
+  actual_items := coalesce(p_items, req.items);
+  -- chief 창고 → 역할 창고
+  for itm, v in select key, (value::text)::int from jsonb_each_text(actual_items) loop
+    if v <= 0 then continue; end if;
+    update war.wallets set qty = qty - v where country=me and role='chief' and item=itm;
+    if (select qty from war.wallets where country=me and role='chief' and item=itm) < 0 then
+      perform priv.err('NOT_ENOUGH','chief 창고에 '||itm||'이(가) 부족해요.');
+    end if;
+    insert into war.role_wallets(country, role, item, qty) values (me, req.role, itm, v)
+      on conflict (country, role, item) do update set qty = war.role_wallets.qty + excluded.qty;
+  end loop;
+  update war.budget_requests set status = case when p_items is null then 'approved' else 'adjusted' end,
+    items = actual_items where id = p_id;
+  insert into war.budget_log(country, turn, kind, from_role, to_role, items)
+    values (me, turn_, case when p_items is null then 'approve' else 'adjust' end, 'chief', req.role, actual_items);
+  perform war.bump('country', me);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_budget_approve(bigint, jsonb) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_budget_approve(bigint,jsonb) to %I',r);
+  end if; end loop; end $$;
+
+-- 합참의장: 요청 거절
+create or replace function public.war_budget_reject(
+  p_id bigint, p_note text default null) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; req war.budget_requests;
+begin
+  perform war.act_start('chief');
+  select country_id, (select turn from war.game where id=1) into me, turn_
+    from priv.students where uid = auth.uid();
+  select * into req from war.budget_requests where id = p_id;
+  if not found then perform priv.err('NOT_FOUND','요청을 찾을 수 없어요.'); end if;
+  if req.country != me then perform priv.err('NO_AUTH','같은 나라 요청만 처리해요.'); end if;
+  if req.status != 'pending' then perform priv.err('ALREADY_DONE','이미 처리된 요청이에요.'); end if;
+  update war.budget_requests set status='rejected', note=coalesce(p_note, note) where id=p_id;
+  insert into war.budget_log(country, turn, kind, from_role, to_role, items, note)
+    values (me, turn_, 'reject', 'chief', req.role, req.items, p_note);
+  perform war.bump('country', me);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_budget_reject(bigint, text) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_budget_reject(bigint,text) to %I',r);
+  end if; end loop; end $$;
+
+-- 합참의장: 역할 창고에서 회수
+create or replace function public.war_budget_recall(
+  p_role text, p_items jsonb) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; itm text; v int;
+begin
+  perform war.act_start('chief');
+  select country_id, (select turn from war.game where id=1) into me, turn_
+    from priv.students where uid = auth.uid();
+  for itm, v in select key, (value::text)::int from jsonb_each_text(p_items) loop
+    if v <= 0 then continue; end if;
+    if coalesce((select qty from war.role_wallets where country=me and role=p_role and item=itm), 0) < v then
+      perform priv.err('NOT_ENOUGH',p_role||' 창고에 '||itm||'이(가) 부족해요.');
+    end if;
+    update war.role_wallets set qty = qty - v where country=me and role=p_role and item=itm;
+    insert into war.wallets(country, role, item, qty) values (me, 'chief', itm, v)
+      on conflict (country, role, item) do update set qty = war.wallets.qty + excluded.qty;
+  end loop;
+  insert into war.budget_log(country, turn, kind, from_role, to_role, items)
+    values (me, turn_, 'recall', p_role, 'chief', p_items);
+  perform war.bump('country', me);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_budget_recall(text, jsonb) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_budget_recall(text,jsonb) to %I',r);
+  end if; end loop; end $$;
+
+-- 역할: 자기 창고에서 chief에게 반납
+create or replace function public.war_budget_return(
+  p_items jsonb) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; role_ text; itm text; v int;
+begin
+  select country_id, (select turn from war.game where id=1) into me, turn_
+    from priv.students where uid = auth.uid();
+  select role into role_ from war.roles
+    where war.roles.student = (select id from priv.students where uid=auth.uid())
+      and country = me;
+  if role_ is null or role_ = 'chief' then
+    perform priv.err('BAD_ROLE','합참의장은 반납하지 않아요.');
+  end if;
+  for itm, v in select key, (value::text)::int from jsonb_each_text(p_items) loop
+    if v <= 0 then continue; end if;
+    if coalesce((select qty from war.role_wallets where country=me and role=role_ and item=itm), 0) < v then
+      perform priv.err('NOT_ENOUGH','내 창고에 '||itm||'이(가) 부족해요.');
+    end if;
+    update war.role_wallets set qty = qty - v where country=me and role=role_ and item=itm;
+    insert into war.wallets(country, role, item, qty) values (me, 'chief', itm, v)
+      on conflict (country, role, item) do update set qty = war.wallets.qty + excluded.qty;
+  end loop;
+  insert into war.budget_log(country, turn, kind, from_role, to_role, items)
+    values (me, turn_, 'return', role_, 'chief', p_items);
+  perform war.bump('country', me);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_budget_return(jsonb) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_budget_return(jsonb) to %I',r);
+  end if; end loop; end $$;
+
+-- 역할 창고·요청·기록 조회 (학생: 자기 나라만)
+create or replace function public.war_budget_state(
+  p_country int default null) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; c int;
+begin
+  select country_id into me from priv.students where uid = auth.uid();
+  c := coalesce(p_country, me);
+  if c != me then
+    perform priv.err('NO_AUTH','자기 나라만 볼 수 있어요.');
+  end if;
+  return jsonb_build_object(
+    'role_wallets', (select jsonb_agg(row_to_json(rw)) from war.role_wallets rw where rw.country=c),
+    'requests', (select jsonb_agg(row_to_json(r) order by r.id desc) from war.budget_requests r where r.country=c and r.status='pending'),
+    'log', (select jsonb_agg(row_to_json(l) order by l.id desc) from war.budget_log l where l.country=c limit 50)
+  );
+end $$;
+revoke all on function public.war_budget_state(int) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_budget_state(int) to %I',r);
+  end if; end loop; end $$;
+
+-- 기존 설치에도 role_wallets·budget_requests·budget_log grant 적용
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant select,insert,update on war.role_wallets, war.budget_requests, war.budget_log to %I',r);
+  end if; end loop; end $$;

@@ -145,14 +145,48 @@ create table if not exists war.grants (
   primary key (country, branch)
 );
 
-revoke all on war.roles, war.wallets, war.city_facilities, war.diplomacy, war.offers,
+-- 역할 창고: 합참의장이 각 역할에 분배한 자원·코인 (설계 2-3)
+create table if not exists war.role_wallets (
+  country int  not null,
+  role    text not null,
+  item    text not null,     -- 'coin' | 자원 종류
+  qty     int  not null default 0 check (qty >= 0),
+  primary key (country, role, item)
+);
+-- 예산 요청: 역할 → 합참의장 (설계 2-3)
+create table if not exists war.budget_requests (
+  id         bigserial primary key,
+  country    int  not null,
+  role       text not null,   -- 요청 역할
+  turn       int  not null,
+  status     text not null default 'pending',  -- pending | approved | adjusted | rejected
+  items      jsonb not null default '{}',      -- {item: qty, ...}
+  note       text,
+  created_at timestamptz not null default now()
+);
+-- 예산 분배 기록 (설계 2-3)
+create table if not exists war.budget_log (
+  id         bigserial primary key,
+  country    int  not null,
+  turn       int  not null,
+  kind       text not null,   -- distribute | approve | adjust | reject | recall | return
+  from_role  text,
+  to_role    text,
+  items      jsonb not null default '{}',
+  note       text,
+  created_at timestamptz not null default now()
+);
+
+revoke all on war.roles, war.wallets, war.role_wallets, war.budget_requests, war.budget_log,
+  war.city_facilities, war.diplomacy, war.offers,
   war.markets, war.market_stock, war.versions, war.grants from public;
 do $$
 declare role_name text;
 begin
   foreach role_name in array array['anon', 'authenticated'] loop
     if exists (select 1 from pg_roles where rolname = role_name) then
-      execute format('revoke all on war.roles, war.wallets, war.city_facilities, war.diplomacy, war.offers,
+      execute format('revoke all on war.roles, war.wallets, war.role_wallets, war.budget_requests, war.budget_log,
+        war.city_facilities, war.diplomacy, war.offers,
         war.markets, war.market_stock, war.versions, war.grants from %I', role_name);
     end if;
   end loop;

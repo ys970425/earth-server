@@ -3,7 +3,7 @@
 (function () {
   const R = window.RULES, W = window.WAR_RULES;
   const root = document.getElementById('app');
-  const S = { me: null, known: {}, map: null, tiles: new Map(), units: [], cities: [], markets: [], market_stock: {}, sel: null, tab: null, selUnit: null, reach: null, centered: false, msg: null, country: null };
+  const S = { me: null, known: {}, map: null, tiles: new Map(), units: [], cities: [], markets: [], market_stock: {}, sel: null, tab: null, selUnit: null, reach: null, centered: false, msg: null, country: null, view: 'map', deputy: null };
   const $ = s => document.querySelector(s);
   let turnTimer = 0;
   function h(tag, attrs, ...kids) {
@@ -72,39 +72,71 @@
     try { await WarAPI.rpc('war_choose_role', { p_role: role }); }
     catch (e) { console.error(e); return showError(friendly(e)); }
     try { S.me = await WarAPI.rpc('war_me'); } catch (e) { console.error(e); return showError(friendly(e)); }
-    S.tab = null; S.selUnit = null; S.reach = null; S.view = 'map';   // 역할을 고르면 지도 탭으로 돌아가요
-    S.missions = null; loadMissions();   // 역할이 생겼으니 내 미션 목록을 새로 불러와요
-    renderTop(); renderBigTabs(); renderView();
+    S.tab = null; S.selUnit = null; S.reach = null; S.view = 'map'; S.deputy = null;
+    S.missions = null; loadMissions();
+    renderTop(); renderNav(); renderView();
   }
 
-  // ================= 역할별 화면 틀: 위쪽 큰 탭 두 개 (지도 / 우리 나라) =================
-  const NATION_MENUS = ['우리 나라', '내 예산', '첩보 정보'];   // 지도 조작 창이 아니라 「우리 나라」 탭에 나오는 메뉴
+  // ================= 위쪽 nav 버튼 =================
+  const NAV = [
+    { key: 'map',       label: '지도',  roles: null },
+    { key: 'budget',    label: '예산',  roles: null },
+    { key: 'request',   label: '요청',  roles: ['army','navy','air','engineer'] },
+    { key: 'diplomacy', label: '외교',  roles: ['chief'] },
+    { key: 'trade',     label: '무역',  roles: ['chief'] },
+    { key: 'market',    label: '시장',  roles: ['chief'] },
+    { key: 'mission',   label: '미션',  roles: null },
+  ];
+  const MAP_NAV_MENUS = new Set(['우리 나라', '내 예산', '첩보 정보', '예산', '도시국가 시장']);
   function main() {
     root.innerHTML = '';
     if (WarAPI.mode) root.append(h('div', { class: 'war-banner' + (WarAPI.mode === 'real' ? ' real' : '') },
       WarAPI.mode === 'real' ? '실제 데이터 미리보기: 우리 반 무역 게임 기록이에요 (여기서 바꿔도 저장되지 않아요)' : '미리보기 모드: 가짜 데이터예요'));
     const top = h('div', { class: 'war-top', id: 'war-top' });
-    root.append(top, h('div', { class: 'war-big-tabs', id: 'war-big-tabs' }), h('div', { class: 'war-view', id: 'war-view' }));
-    renderTop(); renderBigTabs(); renderView();
+    root.append(top, h('div', { class: 'war-nav', id: 'war-nav' }), h('div', { class: 'war-view', id: 'war-view' }));
+    renderTop(); renderNav(); renderView();
     if (S.me.role) loadMissions();
     WarAPI.startPoll(applyPoll);
   }
-  function renderBigTabs() {
-    const el = $('#war-big-tabs'); if (!el) return;
+  function goView(key) {
+    S.view = key;
+    if (key === 'mission') {
+      loadMissions();
+      if (S.me?.role === 'chief') S.pendingMark = 'chief_info';
+    }
+    renderNav(); renderView();
+  }
+  function renderNav() {
+    const el = $('#war-nav'); if (!el) return;
     el.innerHTML = '';
-    el.append(
-      h('button', { class: 'war-big-tab' + (S.view !== 'nation' ? ' on' : ''), onclick: () => { S.view = 'map'; renderBigTabs(); renderView(); } }, '지도'),
-      h('button', { class: 'war-big-tab' + (S.view === 'nation' ? ' on' : ''), onclick: () => { S.view = 'nation'; renderBigTabs(); renderView(); } }, '우리 나라'));
+    const role = S.me?.role || null;
+    const tabs = NAV.filter(n => !n.roles || (role && n.roles.includes(role)));
+    if (!tabs.some(t => t.key === S.view)) S.view = tabs[0]?.key || 'map';
+    tabs.forEach(t => el.append(
+      h('button', { class: 'war-nav-btn' + (S.view === t.key ? ' on' : ''), onclick: () => goView(t.key) }, t.label)));
+    const deputies = S.me?.deputy_roles || [];
+    if (deputies.length && role) {
+      el.append(h('span', { class: 'war-nav-spacer' }));
+      const sel = h('select', { class: 'war-deputy-select',
+        onchange: e => { S.deputy = e.target.value || null; renderNav(); renderTabs(); } },
+        h('option', { value: '' }, '내 역할: ' + ((W.ROLES.find(r => r.key === role) || {}).name || role)),
+        deputies.map(d => h('option', { value: d.key, selected: S.deputy === d.key || null }, d.name + ' 대신하는 중')));
+      el.append(sel);
+    }
   }
   function renderView() {
     const view = $('#war-view'); if (!view) return;
     view.innerHTML = '';
-    if (S.view === 'nation') return nationView(view);
+    if (S.view === 'budget') return renderBudgetView(view);
+    if (S.view === 'request') return renderRequestView(view);
+    if (S.view === 'diplomacy') return renderDiplomacyView(view);
+    if (S.view === 'trade') return renderTradeView(view);
+    if (S.view === 'market') return renderMarketView(view);
+    if (S.view === 'mission') return renderMissionView(view);
     return mapView(view);
   }
   function mapView(view) {
-    // 역할을 고르기 전에도 지도는 보이게 (병력은 고를 수 없고 칸 정보만)
-    if (!S.me.role) view.append(h('div', { class: 'war-guide' }, '「우리 나라」 탭에서 역할을 골라요'));
+    view.style.position = 'relative';
     const canvas = h('canvas', { class: 'hexmap' });
     const wrap = h('div', { class: 'map-wrap' }, canvas,
       h('div', { class: 'map-tools' },
@@ -118,6 +150,24 @@
     S.map = WarHexMap.create(canvas, { onTile });
     S.map.setData({ tiles: S.tiles, cities: S.cities, units: S.units, countries, markets: S.markets, all: true, tintUnits: true });
     renderTabs();
+    if (!S.me.role) {
+      const me = S.me;
+      const engNote = me.country.size <= 4 ? ' (4명 모둠은 공병사령관이 없어요. 합동참모의장이 함께 해요)' : '';
+      view.append(h('div', { class: 'war-role-overlay' },
+        h('div', { class: 'panel' },
+          h('div', { class: 'panel-title' }, '역할 고르기', h('small', {}, '내가 맡을 역할을 골라요.' + engNote)),
+          h('div', { class: 'war-role-grid' }, me.roles.map(r => {
+            const taken = !!r.nick;
+            return h('button', {
+              class: 'war-role' + (taken ? ' taken' : ''),
+              style: { '--gc': me.country.color },
+              disabled: taken || null,
+              onclick: () => pick(r.key)
+            }, h('b', {}, r.name),
+              taken ? h('small', {}, r.absent ? r.nick + ' (결석)' : r.nick + ' 님이 맡았어요') : h('small', {}, '빈 자리'));
+          })),
+          h('p', { class: 'muted' }, '역할 바꾸기는 선생님만 할 수 있어요.'))));
+    }
   }
   function goCapital() {
     const cap = S.cities.find(x => x.kind === 'capital' && x.country === S.me.country.id);
@@ -166,23 +216,16 @@
   const kindLabel = k => ((R.UNITS[k] || {}).name || (W.EXTRA_UNITS[k] || {}).name || UNIT_NAMES[k] || '병력');
   const ruleOf = k => R.UNITS[k] || W.EXTRA_UNITS[k] || {};
   const isCivil = k => k === 'worker' || k === 'scout';
-  const actingRole = () => (typeof S.tab === 'string' && S.tab.startsWith('deputy:')) ? S.tab.slice(7) : S.me.role;
+  const actingRole = () => S.deputy || S.me.role;
   function renderTabs() {
+    if (S.view !== 'map') { renderView(); return; }
     window.WAR_ROLE = actingRole() || 'common';
     const side = $('#side'); if (!side) return;
     const me = S.me;
     side.innerHTML = '';
-    // 조작 창 안 작은 탭: 역할 메뉴 중 게임 조작 것만 (우리 나라·예산·첩보 정보는 「우리 나라」 탭으로)
-    const tabs = me.menus.filter(m => !NATION_MENUS.includes(m)).map(m => {
-      const label = m === '도시국가 시장' ? '시장' : m;
-      return { label, key: 'menu:' + label };
-    });
-    if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:외교')) tabs.push({ label: '외교', key: 'menu:외교' });
-    if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:시장')) tabs.push({ label: '시장', key: 'menu:시장' });
-    if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:무역')) tabs.push({ label: '무역', key: 'menu:무역' });
-    for (const d of me.deputy_roles) tabs.push({ label: d.name + ' 대신하는 중', key: 'deputy:' + d.key });
+    const tabs = me.menus.filter(m => !MAP_NAV_MENUS.has(m)).map(m => ({ label: m, key: 'menu:' + m }));
     if (!tabs.length) {
-      side.append(h('p', { class: 'muted' }, '지도에서 바로 하는 일이 없어요. 「우리 나라」 탭을 봐요.'));
+      side.append(h('p', { class: 'muted' }, '지도에서 바로 하는 일이 없어요. 상단 버튼을 이용해요.'));
       return;
     }
     const active = S.tab && tabs.some(t => t.key === S.tab) ? S.tab : tabs[0].key;
@@ -205,18 +248,10 @@
     };
     if (active === 'menu:생산' && ['army', 'navy', 'air'].includes(role) && me.role !== 'chief') {
       renderProduction(body, role);
-    } else if (active === 'menu:예산' && me.role === 'chief') {
-      renderBudget(body);
     } else if (active === 'menu:건물') {
       renderBuildings(body);
     } else if (active === 'menu:개발·수리') {
       renderRepairs(body);
-    } else if (active === 'menu:시장' && me.role === 'chief') {
-      renderMarket(body);
-    } else if (active === 'menu:외교' && me.role === 'chief') {
-      renderDiplomacy(body);
-    } else if (active === 'menu:무역' && me.role === 'chief') {
-      renderTrade(body);
     } else if (role === 'engineer') {
       if (active === 'menu:노동자') unitTab(['worker'], '노동자가 없어요.');
       else if (active === 'menu:정찰병') unitTab(['scout'], '정찰병이 없어요.');
@@ -455,6 +490,49 @@
     if (!(S.poll?.offers || []).some(o => o.kind === 'trade' && o.to_c === mine))
       body.append(h('p', { class: 'muted' }, '받은 무역 제안이 없어요.'));
   }
+  // ================= nav 뷰 렌더 함수 =================
+  function renderBudgetView(view) {
+    const wrap = h('div', { class: 'war-nation' });
+    view.append(wrap);
+    const body = h('div', { class: 'panel' });
+    if (S.me.role === 'chief') {
+      renderBudget(body);
+    } else {
+      const wallet = S.poll?.country?.wallets?.[S.me.role] || {};
+      body.append(h('h3', {}, '내 지갑'), h('p', {}, costText(wallet) || '비어 있어요'));
+      body.append(h('p', { class: 'muted' }, '합동참모의장에게 요청해서 받아요. 위 「요청」 버튼을 눌러요.'));
+    }
+    wrap.append(body);
+    if (S.msg) wrap.append(h('div', { class: 'war-msg' }, S.msg));
+  }
+  function renderRequestView(view) {
+    view.append(h('div', { class: 'war-nation' },
+      h('div', { class: 'panel' }, h('p', { class: 'muted' }, '예산 요청 기능은 곧 열려요.'))));
+  }
+  function renderDiplomacyView(view) {
+    const wrap = h('div', { class: 'war-nation' });
+    const body = h('div', { class: 'panel' });
+    renderDiplomacy(body);
+    wrap.append(body);
+    if (S.msg) wrap.append(h('div', { class: 'war-msg' }, S.msg));
+    view.append(wrap);
+  }
+  function renderTradeView(view) {
+    const wrap = h('div', { class: 'war-nation' });
+    const body = h('div', { class: 'panel' });
+    renderTrade(body);
+    wrap.append(body);
+    if (S.msg) wrap.append(h('div', { class: 'war-msg' }, S.msg));
+    view.append(wrap);
+  }
+  function renderMarketView(view) {
+    const wrap = h('div', { class: 'war-nation' });
+    const body = h('div', { class: 'panel' });
+    renderMarket(body);
+    wrap.append(body);
+    if (S.msg) wrap.append(h('div', { class: 'war-msg' }, S.msg));
+    view.append(wrap);
+  }
   async function doTransfer(u, to) {
     try { await WarAPI.rpc('war_transfer', { p_unit: u.id, p_to: to }); S.msg = null;
       if (actingRole() === 'army') mark('army_transfer');
@@ -464,35 +542,15 @@
     renderTabs();
   }
 
-  // ================= 「우리 나라」 탭: 역할 고르기 · 튜토리얼 미션 · 나라 정보 =================
-  function nationView(view) {
+  // ================= 미션 탭: 튜토리얼 미션 · 나라 정보 =================
+  function renderMissionView(view) {
     const me = S.me;
     const wrap = h('div', { class: 'war-nation' });
     view.append(wrap);
-    if (!me.role) {
-      const engNote = me.country.size <= 4 ? ' (4명 모둠은 공병사령관이 없어요. 합동참모의장이 함께 해요)' : '';
-      wrap.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '역할 고르기',
-        h('small', {}, '내가 맡을 역할을 골라요.' + engNote)),
-        h('div', { class: 'war-role-grid' }, me.roles.map(r => {
-          const taken = !!r.nick;
-          return h('button', {
-            class: 'war-role' + (taken ? ' taken' : ''),
-            style: { '--gc': me.country.color },
-            disabled: taken || null,
-            onclick: () => pick(r.key)
-          },
-            h('b', {}, r.name),
-            taken ? h('small', {}, r.absent ? r.nick + ' (결석)' : r.nick + ' 님이 맡았어요') : h('small', {}, '빈 자리'));
-        })),
-        h('p', { class: 'muted' }, '역할 바꾸기는 선생님만 할 수 있어요.')));
-    }
     if (me.role) {
       wrap.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '튜토리얼 미션',
         h('small', {}, '해낼 때마다 여기에 기록해요')),
-        h('div', { id: 'war-missions-body' }, h('p', { class: 'muted' }, '미션을 불러오는 중…'))));
-      wrap.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '내 예산',
-        h('small', {}, '합동참모의장이 예산을 나눠 주면 여기에 보여요')),
-        h('p', { class: 'muted' }, '다음 단계에서 열려요.')));
+        h('div', { id: 'war-missions-body' }, S.missions ? missionList() : h('p', { class: 'muted' }, '미션을 불러오는 중…'))));
     }
     wrap.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '나라 정보'),
       h('p', {}, h('i', { class: 'war-dot', style: { background: me.country.color } }), ' ' + me.country.name +
@@ -506,8 +564,6 @@
     }
     wrap.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '첩보 정보'),
       h('p', { class: 'muted' }, '정찰병이 다른 나라 도시 옆에서 본 정보는 다음 단계에서 열려요.')));
-    if (me.role === 'chief') S.pendingMark = 'chief_info';   // 합동참모의장이 우리 나라 탭을 열 때
-    loadMissions();
   }
   async function loadMissions() {
     try { S.missions = await WarAPI.rpc('war_missions'); }
