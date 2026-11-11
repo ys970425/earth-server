@@ -28,12 +28,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 모든 화면 하단 「myoLab(산쌤)」. 커밋 메시지 한국어로 짧게, 푸시는 사용자가 직접.
 - 보고 끝에 「지금 푸시하세요 / 아직 푸시하지 마세요」 한 줄.
 
+## 헬피 명령 규칙 (지시서 맨 위에도 반드시 포함)
+1. 시험은 `npm run ...` 한 줄 명령만. `$env:Path` 수정·`cmd /c`·파이프/리디렉션·`node -e` 금지.
+2. 시험은 관련 수정을 모두 끝낸 뒤 한 번에 돌린다. 중간에 돌리지 않는다.
+3. npm을 못 찾으면 재시도하지 말고 `docs/tasks/report.md`에 적고 코드 작성을 계속한다.
+
 ## 작업 분담 (핵심)
-- Claude: 계획·검토·최종 확인만. 코드는 직접 쓰지 않는다.
-- 헬피코드: 단순·분량 많은 일. 지시서는 docs/tasks/next.md에, 보고는 docs/tasks/report.md로 받는다. 커밋·푸시 금지(Claude가 검토 후 커밋).
-- GPT(codex exec, `-c 'windows.sandbox="unelevated"'` 필수): 속도가 필요하면 GPT 우선, 헬피는 단순 문서·작은 수정만. 파일 겹치면 동시 진행 금지, 지시서에 상대 파일 명시.
-- GPT는 Claude가 터미널에서 codex exec로 직접 실행해 맡긴다. 사용자에게 전달을 부탁하지 않는다. 사용자가 전달하는 건 헬피코드뿐.
-- GPT 크레딧이 없으면 GPT 몫도 헬피코드에게 아주 구체적 지시서로.
+- **기본은 헬피코드.** 화면·서버 함수·시험·문서 모두 헬피에게. 지시서는 단계 2~3개씩 크게 묶어서. 지시서는 docs/tasks/next.md에, 보고는 docs/tasks/report.md로 받는다. 커밋·푸시 금지(Claude가 검토 후 커밋).
+- GPT(codex exec, `-c 'windows.sandbox="unelevated"'` 필수): 헬피가 같은 작업을 두 번 실패했거나 마감이 급할 때만. GPT는 Claude가 터미널에서 codex exec로 직접 실행해 맡긴다.
+- Claude: 계획, 짧은 지시서 작성, git diff --stat과 시험 결과 검토만. 코드는 직접 쓰지 않는다.
 
 ## 금지 사항
 - `app/trade/` 등 무역 앱 파일 수정 금지 (읽기만).
@@ -41,6 +44,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Supabase 직접 접속·SQL 실행 금지 (교사가 정한 때에만).
 - `C:\projects\nation` 무단 수정 금지. `private/` 폴더 열지 않기.
 - 헬피코드·GPT: 커밋과 푸시 금지.
-- earth-war 배포는 사용자가 요청할 때만 다시 올린다.
+- earth-war 배포는 사용자가 요청할 때만 다시 올린다. 로컬 복사본: `C:\projects\earth-war`.
 
 세부 내용: `docs/claude-detail.md`

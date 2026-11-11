@@ -92,8 +92,7 @@ try {
 
   // 3. 미션_완료: 병력 하나를 눌러 고르고(지도 한가운데로 옮겨짐), 캔버스에 표시된
   //    「갈 수 있는 칸」(연한 금색 테두리) 픽셀을 찾아 그 칸을 클릭 → 「미션 완료」 표시
-  const firstRow = await page.$('.war-units-list .war-unit-row');
-  if (firstRow) await firstRow.click();
+  await page.evaluate(() => { const r = document.querySelector('.war-units-list .war-unit-row'); if (r) r.click(); });
   await wait(800);
   const hintPts = await page.evaluate(() => {
     window.scrollTo(0, 0);   // 요소 클릭 때문에 화면이 스크롤되면 캔버스가 뷰포트 위로 밀려나요 — 맨 위로
@@ -134,8 +133,7 @@ try {
   let pass = false, note = hintPts.length ? '이동 시도 후에도 미션 표시가 안 보임' : '갈 수 있는 칸 표시를 캔버스에서 찾지 못했어요';
   for (const pt of hintPts.slice(0, 8)) {
     await page.evaluate(() => window.scrollTo(0, 0));   // 캔버스가 뷰포트 안에 있게 유지
-    const row = await page.$('.war-units-list .war-unit-row');
-    if (row) await row.click();   // 이전 클릭이 선택을 해제했을 수 있어 다시 골라요
+    await page.evaluate(() => { const r = document.querySelector('.war-units-list .war-unit-row'); if (r) r.click(); });   // 이전 클릭이 선택을 해제했을 수 있어 다시 골라요
     await wait(400);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.mouse.click(pt.x, pt.y);

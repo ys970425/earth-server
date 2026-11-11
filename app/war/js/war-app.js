@@ -179,6 +179,7 @@
     });
     if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:외교')) tabs.push({ label: '외교', key: 'menu:외교' });
     if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:시장')) tabs.push({ label: '시장', key: 'menu:시장' });
+    if (me.role === 'chief' && !tabs.some(t => t.key === 'menu:무역')) tabs.push({ label: '무역', key: 'menu:무역' });
     for (const d of me.deputy_roles) tabs.push({ label: d.name + ' 대신하는 중', key: 'deputy:' + d.key });
     if (!tabs.length) {
       side.append(h('p', { class: 'muted' }, '지도에서 바로 하는 일이 없어요. 「우리 나라」 탭을 봐요.'));
@@ -214,6 +215,8 @@
       renderMarket(body);
     } else if (active === 'menu:외교' && me.role === 'chief') {
       renderDiplomacy(body);
+    } else if (active === 'menu:무역' && me.role === 'chief') {
+      renderTrade(body);
     } else if (role === 'engineer') {
       if (active === 'menu:노동자') unitTab(['worker'], '노동자가 없어요.');
       else if (active === 'menu:정찰병') unitTab(['scout'], '정찰병이 없어요.');
@@ -383,17 +386,25 @@
     const name = id => S.me.countries.find(c => c.id === id)?.name || id + '번 나라';
     for (const d of S.poll?.diplomacy || []) {
       if (d.a !== mine && d.b !== mine) continue;
-      const other = d.a === mine ? d.b : d.a, war = d.status === 'war';
-      body.append(h('div', { class: 'row' }, h('b', {}, name(other)),
-        h('span', { class: war ? 'bad' : 'good' }, war ? '⚔ 전쟁 중' : '🕊 평화' + (d.no_war_until > turn ? ` (${d.no_war_until - turn}턴 선포 금지)` : '')),
+      const other = d.a === mine ? d.b : d.a, war = d.status === 'war', ally = d.status === 'ally';
+      const state = ally ? h('span', { class: 'good' }, '🤝 동맹')
+        : war ? h('span', { class: 'bad' }, '⚔ 전쟁 중')
+        : h('span', { class: 'good' }, '🕊 평화' + (d.no_war_until > turn ? ` (${d.no_war_until - turn}턴 선포 금지)` : ''));
+      body.append(h('div', { class: 'row' }, h('b', {}, name(other)), state));
+      if (!war && !ally) body.append(h('div', { class: 'row' },
         h('button', { class: 'small', onclick: () => {
-          if (!war && !confirm('선전포고하면 바로 전쟁이 시작돼요. 계속할까요?')) return;
-          diplomacyAction(war ? 'war_propose' : 'war_declare', war ? { p_other: other, p_kind: 'peace' } : { p_other: other });
-        } }, war ? '평화 제안' : '선전포고')));
+          if (!confirm('동맹을 제안할까요? 상대 나라가 수락하면 동맹이 돼요.')) return;
+          diplomacyAction('war_propose', { p_other: other, p_kind: 'ally' });
+        } }, '동맹 제안')));
+      body.append(h('div', { class: 'row' }, h('button', { class: 'small', onclick: () => {
+        if (!war && !confirm('선전포고하면 바로 전쟁이 시작돼요. 계속할까요?')) return;
+        diplomacyAction(war ? 'war_propose' : 'war_declare', war ? { p_other: other, p_kind: 'peace' } : { p_other: other });
+      } }, war ? '평화 제안' : '선전포고')));
     }
     body.append(h('div', { class: 'panel-title' }, '받은 제안'));
     for (const o of S.poll?.offers || []) if (o.to_c === mine) body.append(h('div', { class: 'row' },
-      name(o.from_c) + ' 평화 제안', h('button', { class: 'small', onclick: () => diplomacyAction('war_accept_offer', { p_offer: o.id }) }, '수락')));
+      name(o.from_c) + (o.kind === 'ally' ? ' 동맹 제안' : ' 평화 제안'),
+      h('button', { class: 'small', onclick: () => diplomacyAction('war_accept_offer', { p_offer: o.id }) }, '수락')));
   }
   async function diplomacyAction(fn, args) {
     try {
@@ -401,6 +412,48 @@
       applyPoll(await WarAPI.rpc('war_poll', { p_known: {} }));
     } catch (e) { S.msg = friendly(e); }
     renderTabs();
+  }
+  // 무역 탭 (E8): 합동참모의장이 다른 나라와 창고 물건을 교환해요 (전쟁 중인 나라와는 못 해요)
+  function renderTrade(body) {
+    const mine = S.me.country.id;
+    const name = id => S.me.countries.find(c => c.id === id)?.name || id + '번 나라';
+    const wallet = S.poll?.country?.wallets?.chief || {};
+    const myItems = Object.keys(wallet).filter(k => wallet[k] > 0);
+    const allItems = Object.keys(R.ITEMS);
+    const itemLabel = k => (R.ITEMS[k] || {}).name || k;
+    const wars = new Set((S.poll?.diplomacy || []).filter(d => d.status === 'war')
+      .map(d => (d.a === mine ? d.b : d.a)));
+    const others = S.me.countries.filter(c => c.id !== mine);
+    const toSel = h('select', {}, others.map(c =>
+      h('option', { value: c.id, disabled: wars.has(c.id) ? '' : null }, name(c.id) + (wars.has(c.id) ? ' (전쟁 중)' : ''))));
+    const giveSel = h('select', {}, myItems.map(k => h('option', { value: k }, itemLabel(k))));
+    const giveQty = h('input', { type: 'number', min: 1, value: 1, style: { width: '70px' } });
+    const wantSel = h('select', {}, allItems.map(k => h('option', { value: k }, itemLabel(k))));
+    const wantQty = h('input', { type: 'number', min: 1, value: 1, style: { width: '70px' } });
+    body.append(h('div', { class: 'panel-title' }, '무역 제안', h('small', {}, '창고 물건을 다른 나라와 바꿔요')));
+    body.append(h('div', { class: 'row' }, h('label', {}, '상대 나라', toSel)));
+    body.append(h('div', { class: 'row' },
+      h('label', {}, '줄 것', giveSel, giveQty),
+      h('label', {}, '받을 것', wantSel, wantQty)));
+    body.append(h('button', { class: 'primary', onclick: () => {
+      const other = +toSel.value;
+      if (wars.has(other)) return;
+      const give = { [giveSel.value]: +giveQty.value || 1 }, want = { [wantSel.value]: +wantQty.value || 1 };
+      if (!giveSel.value || give[giveSel.value] > (wallet[giveSel.value] || 0)) { S.msg = '창고에 그 물건이 부족해요'; renderTabs(); return; }
+      diplomacyAction('war_trade_propose', { p_other: other, p_give: give, p_want: want });
+    } }, '무역 제안'));
+    body.append(h('div', { class: 'panel-title' }, '받은 무역 제안',
+      h('small', {}, (S.poll?.offers || []).filter(o => o.kind === 'trade' && o.to_c === mine).length + '건')));
+    for (const o of S.poll?.offers || []) {
+      if (o.kind !== 'trade' || o.to_c !== mine) continue;
+      const give = Object.entries(o.data?.give || {}).map(([k, n]) => itemLabel(k) + ' ' + n + '개').join(', ');
+      const want = Object.entries(o.data?.want || {}).map(([k, n]) => itemLabel(k) + ' ' + n + '개').join(', ');
+      body.append(h('div', { class: 'row' },
+        h('span', {}, name(o.from_c) + '가 ' + give + '을 주고 ' + want + '을 원해요'),
+        h('button', { class: 'small', onclick: () => diplomacyAction('war_trade_accept', { p_offer: o.id }) }, '수락')));
+    }
+    if (!(S.poll?.offers || []).some(o => o.kind === 'trade' && o.to_c === mine))
+      body.append(h('p', { class: 'muted' }, '받은 무역 제안이 없어요.'));
   }
   async function doTransfer(u, to) {
     try { await WarAPI.rpc('war_transfer', { p_unit: u.id, p_to: to }); S.msg = null;

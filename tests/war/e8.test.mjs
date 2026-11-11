@@ -54,5 +54,50 @@ ok(await fail(rpc(army.uid, 'war_admin_ceasefire', 1, 2), 'NOT_ADMIN'), '학생_
 await reset('war');
 offer = await rpc(chiefs[1].uid, 'war_propose', 1, 'peace');
 ok(await fail(rpc(chiefs[1].uid, 'war_accept_offer', offer.offer_id), 'NOT_FOR_ME'), '보낸_제안_직접_수락_거절');
+
+// --- E8 나머지: 동맹·나라 간 무역 ---
+// 10. 동맹_제안_성공
+await reset();
+const allyOffer = await rpc(chiefs[0].uid, 'war_propose', 2, 'ally');
+ok(allyOffer.ok && (await one(`select kind, status from war.offers where id = ${allyOffer.offer_id}`)).kind === 'ally' &&
+  (await one(`select status from war.offers where id = ${allyOffer.offer_id}`)).status === 'pending', '동맹_제안_성공');
+// 11. 동맹_수락_성공
+const allyAccepted = await rpc(chiefs[1].uid, 'war_accept_offer', allyOffer.offer_id);
+ok(allyAccepted.ok && allyAccepted.status === 'ally' && (await relation()).status === 'ally', '동맹_수락_성공');
+// 12. 동맹_나라_공격_불가
+const myUnit = await one(`select id from war.units where country = 1 and kind not in ('worker','scout') order by id limit 1`);
+const targetTile = await one(`select coalesce((select u2.tile_id from war.units u2 where u2.country = 2 and u2.kind not in ('worker','scout') and u2.tile_id is not null order by u2.id limit 1),
+  (select c.tile_id from war.cities c where c.country = 2 order by c.tile_id limit 1)) tile`);
+ok(await fail(rpc(army.uid, 'war_attack', myUnit.id, targetTile.tile), 'ALLY'), '동맹_나라_공격_불가');
+// 13. 동맹_중_선전포고: 동맹을 깨고 전쟁으로
+const declared = await rpc(chiefs[0].uid, 'war_declare', 2);
+ok(declared.ok && (await relation()).status === 'war', '동맹_중_선전포고');
+// 14. 동맹_재제안_전쟁중_불가
+ok(await fail(rpc(chiefs[0].uid, 'war_propose', 2, 'ally'), 'AT_WAR'), '동맹_재제안_전쟁중_불가');
+// 15. 무역_제안_성공 (전쟁이 끝나야 하므로 관제실 강제 휴전 후)
+await rpc(seed.ADMIN, 'war_admin_ceasefire', 1, 2);
+await db.query(`insert into war.wallets(country, role, item, qty) values (1, 'chief', 'food', 10)
+  on conflict (country, role, item) do update set qty = 10`);
+await db.query(`insert into war.wallets(country, role, item, qty) values (2, 'chief', 'iron', 5)
+  on conflict (country, role, item) do update set qty = 5`);
+const tradeOffer = await rpc(chiefs[0].uid, 'war_trade_propose', 2, { food: 2 }, { iron: 1 });
+ok(tradeOffer.ok && (await one(`select kind, status, to_c from war.offers where id = ${tradeOffer.offer_id}`)).kind === 'trade' &&
+  (await one(`select status from war.offers where id = ${tradeOffer.offer_id}`)).status === 'pending', '무역_제안_성공');
+// 16. 무역_수락_성공: 창고(지갑) 이전 확인
+const walletBefore = {
+  give: await one(`select qty from war.wallets where country = 1 and role = 'chief' and item = 'food'`),
+  want: await one(`select coalesce((select qty from war.wallets where country = 1 and role = 'chief' and item = 'iron'), 0) n`),
+};
+const tradeAccepted = await rpc(chiefs[1].uid, 'war_trade_accept', tradeOffer.offer_id);
+const walletAfter = {
+  give: await one(`select qty from war.wallets where country = 1 and role = 'chief' and item = 'food'`),
+  got: await one(`select qty from war.wallets where country = 1 and role = 'chief' and item = 'iron'`),
+};
+ok(tradeAccepted.ok && +walletBefore.give.qty - 2 === +walletAfter.give.qty &&
+  +walletBefore.want.n + 1 === +walletAfter.got.qty, '무역_수락_성공');
+// 17. 전쟁중_무역_불가
+await reset('war');
+ok(await fail(rpc(chiefs[0].uid, 'war_trade_propose', 2, { food: 2 }, { iron: 1 }), 'AT_WAR'), '전쟁중_무역_불가');
+
 await db.close();
 ctx.summary();

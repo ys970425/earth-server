@@ -876,6 +876,8 @@ begin
   if u.id is null or u.country<>mine or (c.id is not null and c.country is distinct from other)
     or (c.id is null and v.country is distinct from other) then perform priv.err('NO_TARGET','상대가 바뀌었어요. 다시 골라 주세요'); end if;
   select turn into turn_ from war.game where id=1;
+  if exists(select 1 from war.diplomacy where a=least(mine,other) and b=greatest(mine,other) and status='ally') then
+    perform priv.err('ALLY','동맹 나라를 공격할 수 없어요'); end if;
   if not exists(select 1 from war.diplomacy where a=least(mine,other) and b=greatest(mine,other) and status='war') then
     perform priv.err('NOT_AT_WAR','전쟁 중인 나라만 공격할 수 있어요'); end if;
   select shield_until,cities_lost into shield,lost from war.countries where id=other;
@@ -974,7 +976,7 @@ language plpgsql security definer set search_path = war, priv, public as $$
 declare
   me int; turn_ int; pair_a int; pair_b int; oid bigint;
 begin
-  if p_kind is null or p_kind not in ('peace') then perform priv.err('BAD_KIND', '지원하지 않는 제안 종류예요'); end if;
+  if p_kind is null or p_kind not in ('peace','ally') then perform priv.err('BAD_KIND', '지원하지 않는 제안 종류예요'); end if;
   perform war.act_start('chief', false, p_other);
   select country_id into me from priv.students where uid = auth.uid();
   select turn into turn_ from war.game where id = 1;
@@ -986,6 +988,18 @@ begin
   if p_kind = 'peace' and not exists (
     select 1 from war.diplomacy where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
     perform priv.err('NOT_AT_WAR', '전쟁 중인 나라에만 평화를 제안할 수 있어요'); end if;
+  -- 동맹 제안: 전쟁 중이면 안 됨, 이미 동맹이면 안 됨
+  if p_kind = 'ally' and exists (
+    select 1 from war.diplomacy
+    where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b
+      and status in ('war','ally')) then
+    if exists (select 1 from war.diplomacy
+      where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
+      perform priv.err('AT_WAR', '전쟁 중인 나라에는 동맹을 제안할 수 없어요');
+    else
+      perform priv.err('ALREADY_ALLY', '이미 동맹이에요');
+    end if;
+  end if;
   -- 이미 같은 종류의 pending 제안이 있으면 취소
   update war.offers set status = 'cancelled'
     where kind = p_kind and status = 'pending'
@@ -1025,9 +1039,20 @@ begin
       where kind = 'peace' and status = 'pending'
         and ((from_c = me and to_c = o.from_c) or (from_c = o.from_c and to_c = me));
   end if;
+  if o.kind = 'ally' then
+    if exists (select 1 from war.diplomacy
+      where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
+      perform priv.err('AT_WAR', '전쟁 중엔 동맹을 맺을 수 없어요'); end if;
+    update war.diplomacy set status = 'ally', changed_turn = turn_
+      where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b;
+    update war.offers set status = 'cancelled'
+      where kind = 'ally' and status = 'pending'
+        and ((from_c = me and to_c = o.from_c) or (from_c = o.from_c and to_c = me));
+  end if;
   update war.offers set status = 'accepted' where id = p_offer;
   perform war.bump('diplomacy');
-  return jsonb_build_object('ok', true, 'status', 'peace', 'no_war_until', turn_ + 3);
+  return jsonb_build_object('ok', true, 'status', case when o.kind='peace' then 'peace' else 'ally' end,
+    'no_war_until', case when o.kind='peace' then turn_ + 3 else null end);
 end $$;
 revoke all on function public.war_accept_offer(bigint) from public;
 do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
@@ -1331,6 +1356,10 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
   if exists(select 1 from pg_roles where rolname=r) then execute format('grant execute on function public.war_repair(int,text,int) to %I',r); end if;
 end loop; end $$;
 
+-- E4: 기존 설치에도 E4 미션(attack_preview)을 연다.
+update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E4"]'::jsonb)
+where not coalesce(data->'OPEN_STAGES' ? 'E4',false);
+
 -- E6
 update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E6"]'::jsonb) where not coalesce(data->'OPEN_STAGES' ? 'E6',false);
 
@@ -1496,3 +1525,97 @@ update war.config set data=jsonb_set(data,'{SPECIALTY_ITEM}',
   (select jsonb_object_agg(id::text, priv.cfg()->'STRAT_OF'->type) from priv.countries));
 update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E9"]'::jsonb)
 where not coalesce(data->'OPEN_STAGES' ? 'E9',false);
+
+-- E8: 기존 설치에도 E8 미션(chief_ally)을 연다.
+update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E8"]'::jsonb)
+where not coalesce(data->'OPEN_STAGES' ? 'E8',false);
+
+-- ---------------------------------------------------------------------
+-- E8 나머지: 나라 간 무역 (합동참모의장만, 전쟁 중 불가)
+-- ---------------------------------------------------------------------
+-- 무역 제안: 내 지갑(chief)에서 줄 것을 확인하고 pending 제안을 만든다
+create or replace function public.war_trade_propose(
+  p_other int, p_give jsonb, p_want jsonb) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; pair_a int; pair_b int; oid bigint;
+  itm text; v int;
+begin
+  perform war.act_start('chief', false, p_other);
+  select country_id into me from priv.students where uid = auth.uid();
+  select turn into turn_ from war.game where id = 1;
+  if me = p_other then perform priv.err('BAD_TARGET', '자기 나라에 무역을 제안할 수 없어요'); end if;
+  if not exists (select 1 from war.countries where id = p_other) then
+    perform priv.err('NO_COUNTRY', '없는 나라예요'); end if;
+  pair_a := least(me, p_other); pair_b := greatest(me, p_other);
+  -- 전쟁 중이면 무역 불가
+  if exists (select 1 from war.diplomacy
+    where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
+    perform priv.err('AT_WAR', '전쟁 중인 나라와는 무역할 수 없어요'); end if;
+  -- give 항목이 내 창고(지갑)에 있는지 확인
+  for itm, v in select key, (value::text)::int from jsonb_each_text(p_give) loop
+    if coalesce((select w.qty from war.wallets w where w.country = me and w.role = 'chief' and w.item = itm), 0) < v then
+      perform priv.err('NO_ITEM', itm || '이 부족해요'); end if;
+  end loop;
+  -- 기존 pending 무역 제안 취소
+  update war.offers set status = 'cancelled'
+    where kind = 'trade' and status = 'pending'
+      and ((from_c = me and to_c = p_other) or (from_c = p_other and to_c = me));
+  insert into war.offers(kind, from_c, to_c, data, turn)
+    values ('trade', me, p_other, jsonb_build_object('give', p_give, 'want', p_want), turn_)
+    returning id into oid;
+  perform war.bump('diplomacy');
+  return jsonb_build_object('ok', true, 'offer_id', oid);
+end $$;
+revoke all on function public.war_trade_propose(int, jsonb, jsonb) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_trade_propose(int, jsonb, jsonb) to %I', r);
+  end if; end loop; end $$;
+
+-- 무역 수락: 창고(지갑)를 서로 이전한다
+create or replace function public.war_trade_accept(p_offer bigint) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  me int; turn_ int; o war.offers; pair_a int; pair_b int;
+  itm text; v int;
+begin
+  select * into o from war.offers where id = p_offer;
+  perform war.act_start('chief', false, o.from_c);
+  select country_id into me from priv.students where uid = auth.uid();
+  select * into o from war.offers where id = p_offer for update;
+  if not found or o.kind <> 'trade' then perform priv.err('NO_OFFER', '없는 무역 제안이에요'); end if;
+  if o.to_c <> me then perform priv.err('NOT_FOR_ME', '이 제안은 우리 나라에 온 게 아니에요'); end if;
+  if o.status <> 'pending' then perform priv.err('OFFER_DONE', '이미 처리된 제안이에요'); end if;
+  select turn into turn_ from war.game where id = 1;
+  pair_a := least(me, o.from_c); pair_b := greatest(me, o.from_c);
+  if exists (select 1 from war.diplomacy
+    where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
+    perform priv.err('AT_WAR', '전쟁 중엔 무역할 수 없어요'); end if;
+  -- 수락자(me)가 want 항목을 갖고 있는지 확인 (제안자의 want = 수락자가 줄 것)
+  for itm, v in select key, (value::text)::int from jsonb_each_text(o.data->'want') loop
+    if coalesce((select w.qty from war.wallets w where w.country = me and w.role = 'chief' and w.item = itm), 0) < v then
+      perform priv.err('NO_ITEM', itm || '이 부족해요'); end if;
+  end loop;
+  -- give: 제안자 → 수락자
+  for itm, v in select key, (value::text)::int from jsonb_each_text(o.data->'give') loop
+    update war.wallets w set qty = w.qty - v where w.country = o.from_c and w.role = 'chief' and w.item = itm;
+    insert into war.wallets(country, role, item, qty) values (me, 'chief', itm, v)
+      on conflict (country, role, item) do update set qty = war.wallets.qty + excluded.qty;
+  end loop;
+  -- want: 수락자 → 제안자
+  for itm, v in select key, (value::text)::int from jsonb_each_text(o.data->'want') loop
+    update war.wallets w set qty = w.qty - v where w.country = me and w.role = 'chief' and w.item = itm;
+    insert into war.wallets(country, role, item, qty) values (o.from_c, 'chief', itm, v)
+      on conflict (country, role, item) do update set qty = war.wallets.qty + excluded.qty;
+  end loop;
+  update war.offers set status = 'accepted' where id = p_offer;
+  perform war.bump('diplomacy');
+  perform war.bump('country', me); perform war.bump('country', o.from_c);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_trade_accept(bigint) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_trade_accept(bigint) to %I', r);
+  end if; end loop; end $$;

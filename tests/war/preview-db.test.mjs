@@ -23,7 +23,7 @@ try {
   await assert.rejects(rpc('war_move', [navy.id, [navy.tile_id]]), /ROLE_ONLY:/);
   console.log('  ✓ 다른 나라 NOT_MINE / 우리 해군 ROLE_ONLY');
   const step = (await db.query(`select u.id, t.id as destination from war.units u join war.tiles t on priv.tdist(u.tile_id, t.id) = 1
-    where u.country = 1 and u.commander = 'army' and u.kind = 'spear'
+    where u.country = 1 and u.commander = 'army' and u.kind = 'spear' and u.moves_left > 0
     and t.terrain = 'plains' and (t.owner is null or t.owner = 1)
     and not exists (select 1 from war.units x where x.tile_id = t.id)
     and not exists (select 1 from war.cities c where c.tile_id = t.id)

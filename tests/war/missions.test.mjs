@@ -23,8 +23,7 @@ try {
   await ctx.rpc(armyS.uid, 'war_mission_done', 'army_move');
   ok((await q1(`select count(*)::int n from war.mission_done where student = $1 and mission = 'army_move'`, armyS.id)).n === 1,
     '두 번 해도 오류 없고 기록은 한 줄만');
-  // 아직 안 열린 미션 / 남의 역할 미션 / 없는 key
-  ok(await fail(ctx.rpc(armyS.uid, 'war_mission_done', 'army_build'), 'BAD_MISSION'), 'army_build(E7)은 BAD_MISSION');
+  // 아직 안 열린 미션 / 남의 역할 미션 / 없는 key (E7은 이제 열림)
   ok(await fail(ctx.rpc(armyS.uid, 'war_mission_done', 'navy_move'), 'BAD_MISSION'), '남의 역할 미션(navy_move)은 BAD_MISSION');
   ok(await fail(ctx.rpc(armyS.uid, 'war_mission_done', 'no_such'), 'BAD_MISSION'), '없는 key는 BAD_MISSION');
 
@@ -34,8 +33,8 @@ try {
     'war_missions: 육군 학생에게 육군 미션 4개만');
   ok(list.find(m => m.key === 'army_move').done === true && list.find(m => m.key === 'army_move').open === true,
     'army_move는 done: true, open: true');
-  ok(list.find(m => m.key === 'army_build').open === false && list.find(m => m.key === 'army_build').done === false,
-    'army_build은 open: false, done: false');
+  ok(list.find(m => m.key === 'army_build').open === true && list.find(m => m.key === 'army_build').done === false,
+    'army_build은 open: true (E7 열림), done: false');
   ok(list.every(m => ['key', 'role', 'order', 'text', 'opens', 'open', 'done'].every(k => k in m)),
     '미션 항목에 key·role·order·text·opens·open·done이 모두 있음');
 
@@ -53,12 +52,15 @@ try {
   ok(adm.missions.length === 25 && adm.missions.every(m => !('name' in m)) &&
     !JSON.stringify(adm).includes('학생'),
     '교사용 현황 25명, 실명(학생이라는 글자) 없음');
+  // OPEN_STAGES = ['now','E4','E6','E7','E8','E9'] 기준 고정값
+  // army: army_move(now)+army_transfer(now)+army_attack_preview(E4)+army_build(E7) = 4
+  // chief: chief_info(now)+chief_budget(E6)+chief_ally(E8)+chief_market(E9) = 4
   const armyRow = adm.missions.find(m => m.student === armyS.id);
-  ok(armyRow.role === 'army' && armyRow.done.join() === 'army_move' && armyRow.total_open === 2,
-    '육군 학생 줄: 역할·완료 목록(자신이 한 것)·열린 미션 수(2)');
+  ok(armyRow.role === 'army' && armyRow.done.includes('army_move') && armyRow.total_open === 4,
+    '육군 학생 줄: 역할·완료 목록·열린 미션 수(4)');
   const chiefRow = adm.missions.find(m => m.student === chief.id);
-  ok(chiefRow.role === 'chief' && chiefRow.done.includes('army_transfer') && chiefRow.total_open === 1,
-    '합참의장 줄: 대행으로 기록한 army_transfer가 합참의장 완료 목록에, 열린 미션은 now 1개(chief_info)');
+  ok(chiefRow.role === 'chief' && chiefRow.done.includes('army_transfer') && chiefRow.total_open === 4,
+    '합참의장 줄: 대행 army_transfer 포함, 열린 미션 수(4)');
 
   // 가져오기를 다시 하면 완료 기록이 비워짐
   await ctx.rpc(seed.ADMIN, 'war_admin_import', '초기화');
