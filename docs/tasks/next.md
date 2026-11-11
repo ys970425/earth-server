@@ -1,240 +1,266 @@
-# 작업 지시서: E8 나머지 — 동맹·나라 간 무역·미션
+# 헬피코드 지시서 — 화면 개편 + 예산 요청 시스템
 
-커밋·푸시 금지. 시험을 모두 통과한 뒤 `docs/tasks/report.md`에 보고만.
-
-**수정 대상 파일:**
-1. `supabase/war/functions.sql` — `war_propose` 수정, `war_accept_offer` 수정, `attack_core` 수정, `war_trade` 추가
-2. `app/war/js/war-student.js` — 외교 탭 동맹 UI + 무역 탭 추가
-3. `tests/war/e8.test.mjs` — 동맹·무역 시험 추가
-
----
-
-## 1. `supabase/war/functions.sql`
-
-### 1-1. `war_propose` 수정 — 'ally' 종류 추가
-
-현재 `war_propose`는 `p_kind not in ('peace')`일 때 오류를 냅니다.  
-아래 두 곳을 수정합니다.
-
-**① 종류 검사 (line 977 근처)**
-```sql
--- 기존:
-if p_kind is null or p_kind not in ('peace') then ...
--- 변경:
-if p_kind is null or p_kind not in ('peace','ally') then ...
-```
-
-**② 동맹 제안 조건 추가** — `p_kind = 'peace'` 조건 블록 바로 다음에 추가:
-```sql
-  -- 동맹 제안: 전쟁 중이면 안 됨, 이미 동맹이면 안 됨
-  if p_kind = 'ally' and exists (
-    select 1 from war.diplomacy
-    where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b
-      and status in ('war','ally')) then
-    if exists (select 1 from war.diplomacy
-      where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
-      perform priv.err('AT_WAR', '전쟁 중인 나라에는 동맹을 제안할 수 없어요');
-    else
-      perform priv.err('ALREADY_ALLY', '이미 동맹이에요');
-    end if;
-  end if;
-```
-
-### 1-2. `war_accept_offer` 수정 — 'ally' 처리 추가
-
-현재 `if o.kind = 'peace' then ... end if;` 블록 바로 다음에 아래 블록을 추가합니다 (`update war.offers set status = 'accepted'` 줄 **앞**에):
-
-```sql
-  if o.kind = 'ally' then
-    if exists (select 1 from war.diplomacy
-      where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
-      perform priv.err('AT_WAR', '전쟁 중엔 동맹을 맺을 수 없어요'); end if;
-    update war.diplomacy set status = 'ally', changed_turn = turn_
-      where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b;
-    update war.offers set status = 'cancelled'
-      where kind = 'ally' and status = 'pending'
-        and ((from_c = me and to_c = o.from_c) or (from_c = o.from_c and to_c = me));
-  end if;
-```
-
-그리고 함수 마지막 `return` 줄을 아래로 교체합니다 (기존은 항상 'peace'·no_war_until을 반환):
-```sql
-  update war.offers set status = 'accepted' where id = p_offer;
-  perform war.bump('diplomacy');
-  return jsonb_build_object('ok', true, 'status', case when o.kind='peace' then 'peace' else 'ally' end,
-    'no_war_until', case when o.kind='peace' then turn_ + 3 else null end);
-```
-(기존의 `update war.offers …` + `perform war.bump('diplomacy')` + `return …` 세 줄을 위 세 줄로 대체)
-
-### 1-3. `attack_core` 수정 — 동맹 나라 공격 불가 오류 메시지
-
-현재 `line 879` 근처:
-```sql
-  if not exists(select 1 from war.diplomacy where a=least(mine,other) and b=greatest(mine,other) and status='war') then
-    perform priv.err('NOT_AT_WAR','전쟁 중인 나라만 공격할 수 있어요'); end if;
-```
-
-이 블록을 아래로 교체합니다:
-```sql
-  if exists(select 1 from war.diplomacy where a=least(mine,other) and b=greatest(mine,other) and status='ally') then
-    perform priv.err('ALLY','동맹 나라를 공격할 수 없어요'); end if;
-  if not exists(select 1 from war.diplomacy where a=least(mine,other) and b=greatest(mine,other) and status='war') then
-    perform priv.err('NOT_AT_WAR','전쟁 중인 나라만 공격할 수 있어요'); end if;
-```
-
-### 1-4. `war_trade` 함수 추가 — 나라 간 무역 (합동참모의장만, 전쟁 중 불가)
-
-`functions.sql` 끝에 추가합니다.
-
-**war_trade_propose** — 무역 제안 (내가 줄 것 / 받을 것 지정):
-```sql
-create or replace function public.war_trade_propose(
-  p_other int, p_give jsonb, p_want jsonb) returns jsonb
-language plpgsql security definer set search_path = war, priv, public as $$
-declare
-  me int; turn_ int; pair_a int; pair_b int; oid bigint;
-  item text; qty int;
-begin
-  perform war.act_start('chief', false, p_other);
-  select country_id into me from priv.students where uid = auth.uid();
-  select turn into turn_ from war.game where id = 1;
-  if me = p_other then perform priv.err('BAD_TARGET', '자기 나라에 무역을 제안할 수 없어요'); end if;
-  if not exists (select 1 from war.countries where id = p_other) then
-    perform priv.err('NO_COUNTRY', '없는 나라예요'); end if;
-  pair_a := least(me, p_other); pair_b := greatest(me, p_other);
-  -- 전쟁 중이면 무역 불가
-  if exists (select 1 from war.diplomacy
-    where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
-    perform priv.err('AT_WAR', '전쟁 중인 나라와는 무역할 수 없어요'); end if;
-  -- give 항목이 내 창고에 있는지 확인
-  for item, qty in select key, (value::text)::int from jsonb_each_text(p_give) loop
-    if coalesce((select amount from war.wallets where country=me and role='chief' and item=item),0) < qty then
-      perform priv.err('NO_ITEM', item||'이 부족해요'); end if;
-  end loop;
-  -- 기존 pending 무역 제안 취소
-  update war.offers set status = 'cancelled'
-    where kind = 'trade' and status = 'pending'
-      and ((from_c = me and to_c = p_other) or (from_c = p_other and to_c = me));
-  insert into war.offers(kind, from_c, to_c, data, turn)
-    values ('trade', me, p_other, jsonb_build_object('give', p_give, 'want', p_want), turn_)
-    returning id into oid;
-  perform war.bump('diplomacy');
-  return jsonb_build_object('ok', true, 'offer_id', oid);
-end $$;
-revoke all on function public.war_trade_propose(int, jsonb, jsonb) from public;
-do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
-  if exists (select 1 from pg_roles where rolname = r) then
-    execute format('grant execute on function public.war_trade_propose(int, jsonb, jsonb) to %I', r);
-  end if; end loop; end $$;
-```
-
-**war_trade_accept** — 무역 수락 (창고 이전):
-```sql
-create or replace function public.war_trade_accept(p_offer bigint) returns jsonb
-language plpgsql security definer set search_path = war, priv, public as $$
-declare
-  me int; turn_ int; o war.offers; pair_a int; pair_b int;
-  item text; qty int;
-begin
-  select * into o from war.offers where id = p_offer;
-  perform war.act_start('chief', false, o.from_c);
-  select country_id into me from priv.students where uid = auth.uid();
-  select * into o from war.offers where id = p_offer for update;
-  if not found or o.kind <> 'trade' then perform priv.err('NO_OFFER', '없는 무역 제안이에요'); end if;
-  if o.to_c <> me then perform priv.err('NOT_FOR_ME', '이 제안은 우리 나라에 온 게 아니에요'); end if;
-  if o.status <> 'pending' then perform priv.err('OFFER_DONE', '이미 처리된 제안이에요'); end if;
-  select turn into turn_ from war.game where id = 1;
-  pair_a := least(me, o.from_c); pair_b := greatest(me, o.from_c);
-  if exists (select 1 from war.diplomacy
-    where war.diplomacy.a = pair_a and war.diplomacy.b = pair_b and status = 'war') then
-    perform priv.err('AT_WAR', '전쟁 중엔 무역할 수 없어요'); end if;
-  -- 수락자(me)가 want 항목을 갖고 있는지 확인 (제안자의 want = 수락자가 줄 것)
-  for item, qty in select key, (value::text)::int from jsonb_each_text(o.data->'want') loop
-    if coalesce((select amount from war.wallets where country=me and role='chief' and item=item),0) < qty then
-      perform priv.err('NO_ITEM', item||'이 부족해요'); end if;
-  end loop;
-  -- give: 제안자 → 수락자
-  for item, qty in select key, (value::text)::int from jsonb_each_text(o.data->'give') loop
-    update war.wallets set amount = amount - qty where country = o.from_c and role = 'chief' and item = item;
-    insert into war.wallets(country, role, item, amount) values (me, 'chief', item, qty)
-      on conflict (country, role, item) do update set amount = war.wallets.amount + qty;
-  end loop;
-  -- want: 수락자 → 제안자
-  for item, qty in select key, (value::text)::int from jsonb_each_text(o.data->'want') loop
-    update war.wallets set amount = amount - qty where country = me and role = 'chief' and item = item;
-    insert into war.wallets(country, role, item, amount) values (o.from_c, 'chief', item, qty)
-      on conflict (country, role, item) do update set amount = war.wallets.amount + qty;
-  end loop;
-  update war.offers set status = 'accepted' where id = p_offer;
-  perform war.bump('diplomacy');
-  perform war.bump('country', me); perform war.bump('country', o.from_c);
-  return jsonb_build_object('ok', true);
-end $$;
-revoke all on function public.war_trade_accept(bigint) from public;
-do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
-  if exists (select 1 from pg_roles where rolname = r) then
-    execute format('grant execute on function public.war_trade_accept(bigint) to %I', r);
-  end if; end loop; end $$;
-```
+## 헬피 명령 규칙 (반드시 지킴)
+1. 시험은 `npm run ...` 한 줄 명령만. `$env:Path` 수정·`cmd /c`·파이프/리디렉션·`node -e` 금지.
+2. 시험은 관련 수정을 모두 끝낸 뒤 한 번에 돌린다. 중간에 돌리지 않는다.
+3. npm을 못 찾으면 재시도하지 말고 `docs/tasks/report.md`에 적고 코드 작성을 계속한다.
+4. git 명령(commit, push, add 등) 금지.
+5. `2>&1`, `|` 파이프 금지.
 
 ---
 
-## 2. `app/war/js/war-student.js` — 외교 탭 동맹 UI + 무역 탭
+## 작업 목표
+- 무역 앱처럼 위쪽 가로 버튼 탭으로 화면 전환 (파트 1)
+- 예산 요청·승인·회수·반납·기록 시스템 (파트 2)
 
-### 2-1. 외교 탭에 동맹 UI 추가
-
-현재 외교 탭에는 선전포고·평화 제안·평화 수락이 있습니다.  
-각 나라 행에 아래를 추가합니다:
-
-- 동맹 제안 버튼: `status === 'peace'` 또는 `status === null`(초기 평화)이고 동맹이 아닐 때 표시. 누르면 `WarAPI.rpc('war_propose', {p_other: countryId, p_kind: 'ally'})`.
-- 동맹 상태 표시: `status === 'ally'`일 때 「🤝 동맹」(파란색).
-- 받은 제안 목록에서 `kind === 'ally'`인 것도 「동맹 제안 수락」 버튼으로 표시 → `WarAPI.rpc('war_accept_offer', {p_offer: offer.id})`.
-
-동맹 상태 판별: `S.poll.diplomacy`에서 해당 나라 쌍의 `status`를 읽습니다.
-
-### 2-2. 무역 탭 추가 (합동참모의장만)
-
-지도 탭 작은 탭 목록에 `무역` 탭을 추가합니다 (`me.role === 'chief'`일 때만 보임).
-
-무역 탭 내용:
-- **무역 제안 보내기 폼:**
-  - 상대 나라 선택 (`<select>`, 현재 전쟁 중인 나라는 비활성화·회색 표시)
-  - 줄 것: 품목 + 수량 (내 chief 지갑에 있는 품목만)
-  - 받을 것: 품목 + 수량 (자유 입력)
-  - 「무역 제안」 버튼 → `WarAPI.rpc('war_trade_propose', {p_other, p_give: {item:qty}, p_want: {item:qty}})`
-- **받은 무역 제안 목록:**
-  - `S.poll.offers`에서 `kind === 'trade'`이고 `to_c === S.me.country.id`인 것
-  - 각 제안: 「X나라가 [품목A N개]를 주고 [품목B M개]를 원해요」 형식
-  - 「수락」 버튼 → `WarAPI.rpc('war_trade_accept', {p_offer: offer.id})`
-- 오류는 `S.msg`로 표시
-
-품목 목록은 `Object.keys(S.poll.country?.wallet?.chief ?? {})` 또는 `WAR_RULES.cfg.ITEMS`에서 얻습니다.
+기준 문서: `docs/war-design.md` 2-3장·8-1장.
 
 ---
 
-## 3. `tests/war/e8.test.mjs` — 동맹·무역 시험 추가
+## 파트 1 — 위쪽 버튼 화면 개편
 
-기존 e8.test.mjs 끝에 아래 시험 항목들을 추가합니다 (기존 시험은 건드리지 않음):
+### 현재 구조 (바꾸기 전)
+`app/war/js/war-app.js`에 `.war-big-tab` 클래스로 「지도」/「우리 나라」 두 큰 탭이 있고,
+지도 탭 안 왼쪽에 역할별 세로 작은 탭 패널이 있음.
+
+### 목표 구조
+위쪽 가로 버튼 한 줄(클래스 `.war-nav-btn`)로 화면 전체 전환.
+버튼 목록: **지도 / 예산 / 요청 / 외교 / 무역 / 시장 / 미션**
+역할 대신하기는 nav 오른쪽 구석 `<select>` 작은 선택칸(클래스 `.war-deputy-select`).
+
+### 1-1. `app/war/js/war-app.js` 수정 내용
+
+**상태(S) 변경:**
+- `S.view` 가능한 값을 `'map' | 'budget' | 'request' | 'diplomacy' | 'trade' | 'market' | 'mission'`으로 확장
+
+**역할 없을 때 화면:**
+- 역할이 없으면 지도 위에 반투명 오버레이(클래스 `war-role-overlay`)로 역할 선택 패널 표시
+- 오버레이 안에 역할 선택 버튼들(클래스 `.war-role`, 기존 그대로)
+- 역할 선택 후 오버레이 사라지고 nav 버튼 나타남
+
+**위쪽 nav (`war-nav`):**
+```js
+const NAV = [
+  { key: 'map',       label: '지도',  roles: null },        // null = 모든 역할
+  { key: 'budget',    label: '예산',  roles: null },
+  { key: 'request',   label: '요청',  roles: ['army','navy','air','eng'] },
+  { key: 'diplomacy', label: '외교',  roles: ['chief'] },
+  { key: 'trade',     label: '무역',  roles: ['chief'] },
+  { key: 'market',    label: '시장',  roles: ['chief'] },
+  { key: 'mission',   label: '미션',  roles: null },
+];
+```
+- 역할에 맞는 버튼만 표시. roles=null이면 항상 표시.
+- 활성 버튼: `.war-nav-btn.on`
+
+**역할 대신하기 선택칸 (`war-deputy-select`):**
+- nav 오른쪽 구석 `<select>`
+- 옵션: 「본인 역할」(기본) + 대신할 수 있는 역할 목록
+- 기존 `S.tab.startsWith('deputy:')` 로직을 대신하기 `<select>` 값으로 대체
+- 선택하면 현재 화면에서 그 역할의 콘텐츠를 보여 줌 (지도 탭이면 그 역할 unit 목록 등)
+
+**지도 탭 (map):**
+- 현재 지도+조작 창(내부 작은 탭) 그대로 유지. 변경 없음.
+
+**예산 탭 (budget):**
+- chief: 기존 `menu:예산` 패널(국고 현황·나눠주기·회수 UI) 그대로 이동
+- 참모총장·공병: 내 지갑 현황 테이블만 (반납 버튼은 파트 2에서 추가)
+
+**요청 탭 (request):**
+- 참모총장·공병만 볼 수 있음 (다른 역할이 접근하면 nav에 버튼이 없으므로 직접 접근 불가)
+- 파트 1에서는 「요청 기능은 곧 열려요」 안내 문구 placeholder
+
+**외교 탭 (diplomacy):** 기존 `menu:외교` 패널 내용 그대로 이동
+
+**무역 탭 (trade):** 기존 `menu:무역` 패널 내용 그대로 이동
+
+**시장 탭 (market):** 기존 `menu:시장` 패널 내용 그대로 이동
+
+**미션 탭 (mission):**
+- 기존 「우리 나라」 탭의 미션 목록 + 나라 정보 + 역할 현황 + 첩보 정보 내용 그대로 이동
+
+### 1-2. `app/war/css/war.css` 수정
+
+`.war-big-tabs`·`.war-big-tab`을 `.war-nav`·`.war-nav-btn`으로 교체:
+- `.war-nav`: `display: flex; gap: 6px; padding: 6px 8px 0; align-items: center;`
+- `.war-nav-btn`: `min-height: 48px; font-size: 18px; font-family: var(--font-ui);`
+- `.war-nav-btn.on`: `border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold);`
+- `.war-nav-spacer`: `flex: 1;` (버튼과 선택칸 사이 공간)
+- `.war-deputy-select`: `font-size: 14px; padding: 4px 8px; max-width: 140px;`
+- `.war-role-overlay`: `position: absolute; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 10;`
+
+### 1-3. `tests/war/screen.test.mjs` 수정
+
+`.war-big-tab`·「우리 나라」를 새 클래스·버튼으로 수정:
+- `clickByText(page, '.war-big-tab', '우리 나라')` → `clickByText(page, '.war-nav-btn', '미션')`
+- `clickByText(page, '.war-big-tab', '지도')` → `clickByText(page, '.war-nav-btn', '지도')`
+- `!!document.querySelector('.war-big-tab')` → `!!document.querySelector('.war-nav-btn')`
+- 역할 선택(`.war-role` 클릭)은 오버레이 안에 그대로 있으므로 수정 불필요
+
+### 1-4. 파트 1 완료 시험
 
 ```
-10. 동맹_제안_성공: 1번 나라 chief가 2번 나라에 war_propose(2, 'ally') → ok:true, offer 생성
-11. 동맹_수락_성공: 2번 chief가 war_accept_offer(offer_id) → ok:true, status='ally'
-12. 동맹_나라_공격_불가: 1번 army가 2번 나라 병력 attack → ALLY 오류
-13. 동맹_중_선전포고: 1번 chief가 war_declare(2) → 성공 (동맹 깨고 전쟁)
-14. 동맹_재제안_전쟁중_불가: 전쟁 중에 war_propose(2, 'ally') → AT_WAR 오류
-15. 무역_제안_성공: 1번 나라 chief가 war_trade_propose(2, {food:2}, {iron:1}) → ok:true
-16. 무역_수락_성공: 2번 chief가 war_trade_accept(offer_id) → ok:true, 창고 이전 확인
-17. 전쟁중_무역_불가: 전쟁 중 상태에서 war_trade_propose → AT_WAR 오류
+npm run test:all
 ```
-
-각 시험 사이에 필요한 외교 상태를 직접 INSERT/UPDATE로 초기화합니다.
+결과를 `docs/tasks/report.md`에 기록.
 
 ---
 
-## 주의사항
+## 파트 2 — 예산 요청·승인·회수·반납·기록
 
-- `war_propose`·`war_accept_offer`는 **함수 전체를 다시 쓰지 말고**, 지시한 줄만 수정·추가합니다.
-- `attack_core`는 `war` 스키마 내부 함수입니다 (`public`이 아님). 함수 선언 줄은 그대로 두고 오류 처리 두 줄만 교체합니다.
-- `war_trade_propose`에서 창고 확인 쿼리의 `item=item`은 컬럼명과 변수명이 같아 모호합니다. `war.wallets.item = item`으로 명시하세요.
-- 기존 시험(`npm run test:war:e8`, `rules`, `war`, `real`)이 모두 통과해야 합니다. 새 시험도 같은 파일에 번호 이어서 추가합니다.
-- 커밋·푸시 금지.
+### 2-1. `supabase/war/schema.sql` 테이블 추가
+
+기존 `war.wallets` 테이블 아래에 추가:
+
+```sql
+create table if not exists war.budget_requests (
+  id bigserial primary key,
+  country int not null references war.countries(id) on delete cascade,
+  role text not null,
+  item text not null,
+  qty int not null check (qty > 0),
+  status text not null default 'pending' check (status in ('pending','approved','rejected','cancelled')),
+  turn int not null default 0,
+  approved_qty int,
+  created_at timestamptz default now()
+);
+
+create table if not exists war.budget_log (
+  id bigserial primary key,
+  country int not null,
+  role text not null,
+  item text not null,
+  requested_qty int,
+  given_qty int not null,
+  adjusted bool not null default false,
+  kind text not null check (kind in ('give','take','return','request_approved','request_rejected')),
+  turn int not null default 0,
+  created_at timestamptz default now()
+);
+```
+
+RLS: `war.budget_requests`·`war.budget_log` — 같은 나라 역할이 SELECT, 함수에서만 INSERT/UPDATE.
+
+### 2-2. `supabase/war/functions.sql` 함수 추가
+
+#### `war_budget_request(p_item text, p_qty int) returns jsonb`
+- 호출 가능: army, navy, air, eng (chief 불가 — `priv.err('NOT_ALLOWED','...')`)
+- 같은 나라 같은 역할 pending 요청 이미 있으면 `priv.err('ALREADY_PENDING','...')`
+- `war.budget_requests`에 (country=내 나라, role=내 역할, item=p_item, qty=p_qty, turn=현재 턴) insert
+- 반환: `jsonb_build_object('ok',true,'id',새 id)`
+
+#### `war_budget_request_update(p_id bigint, p_item text, p_qty int) returns jsonb`
+- 그 요청을 낸 역할 본인만
+- status≠'pending'이면 `priv.err('NOT_PENDING','...')`
+- item, qty 업데이트
+- 반환: `jsonb_build_object('ok',true)`
+
+#### `war_budget_request_cancel(p_id bigint) returns jsonb`
+- 그 요청을 낸 역할 본인만
+- status≠'pending'이면 `priv.err('NOT_PENDING','...')`
+- status='cancelled'로 업데이트
+- 반환: `jsonb_build_object('ok',true)`
+
+#### `war_budget_approve(p_id bigint, p_approved_qty int default null) returns jsonb`
+- chief만 (priv.role() ≠ 'chief'이면 `priv.err('NOT_ALLOWED','...')`)
+- 같은 나라 요청인지 확인 (`NOT_FOUND` 없으면)
+- status≠'pending'이면 `priv.err('NOT_PENDING','...')`
+- 지급량: `coalesce(p_approved_qty, 요청qty)`
+- 의장 국고(`war.wallets where country=내 나라 and role='chief'`) 부족하면 `priv.err('NOT_ENOUGH','...')`
+- 국고 차감, 해당 역할 지갑 증가
+- status='approved', approved_qty=p_approved_qty 업데이트
+- `war.budget_log` insert (kind='request_approved', adjusted=(p_approved_qty is not null and p_approved_qty!=요청qty))
+- 반환: `jsonb_build_object('ok',true,'given_qty',지급량)`
+
+#### `war_budget_reject(p_id bigint) returns jsonb`
+- chief만
+- 같은 나라 요청인지 확인
+- status≠'pending'이면 `priv.err('NOT_PENDING','...')`
+- status='rejected' 업데이트
+- `war.budget_log` insert (kind='request_rejected', given_qty=0)
+- 반환: `jsonb_build_object('ok',true)`
+
+#### `war_budget_return(p_item text, p_qty int) returns jsonb`
+- army, navy, air, eng만 (chief 불가)
+- 역할 지갑에서 p_qty 차감 (부족하면 `priv.err('NOT_ENOUGH','...')`)
+- 의장 국고에 p_qty 추가
+- `war.budget_log` insert (kind='return', given_qty=p_qty)
+- 반환: `jsonb_build_object('ok',true)`
+
+#### 기존 `war_budget_give`·`war_budget_take` 수정
+함수 끝에 `war.budget_log` insert 추가:
+- war_budget_give: kind='give', given_qty=p_qty
+- war_budget_take: kind='take', given_qty=p_qty
+
+#### `war_admin_budget_log(p_country int default null) returns jsonb`
+- admin_key 확인
+- `select * from war.budget_log where (p_country is null or country=p_country) order by id`
+- 반환: jsonb 배열
+
+#### 권한 grant
+함수 선언 아래 grant/revoke 블록:
+- `war_budget_request`, `war_budget_request_update`, `war_budget_request_cancel`, `war_budget_return`: army, navy, air, eng
+- `war_budget_approve`, `war_budget_reject`: chief
+- `war_admin_budget_log`: admin
+
+### 2-3. `app/war/js/war-app.js` UI 추가
+
+**요청 탭 (`request`) — 참모총장·공병:**
+1. 내 pending 요청 카드 (있으면): 종류·수량·수정 입력란·「수정」버튼·「취소」버튼
+2. 없으면 새 요청 폼:
+   - 자원 드롭다운: `war-rules.js`의 아이템 목록 (코인+자원 종류)
+   - 수량 `<input type="number" min="1">`
+   - 유닛 미니 목록: 유닛 클릭 → 그 유닛 생산 비용으로 자원·수량 자동 채우기
+   - 「요청」버튼 → `war_budget_request(item, qty)` 호출
+
+**예산 탭 (`budget`) — chief:**
+- 받은 요청 목록 테이블 (역할·자원·수량·상태)
+  - pending 행: 조정 수량 `<input>` + 「승인」버튼(`war_budget_approve(id, 조정qty)`) + 「거절」버튼(`war_budget_reject(id)`)
+- 직접 지급 UI 그대로 유지
+- 회수 UI 그대로 유지
+
+**예산 탭 (`budget`) — 참모총장·공병:**
+- 내 지갑 현황 테이블
+- 반납 폼: 자원 드롭다운 + 수량 + 「반납」버튼(`war_budget_return(item, qty)`)
+
+**교사 화면 (`app/war/admin.html` 또는 관련 JS):**
+- 기존 탭 목록에 「분배 기록」탭 추가
+- `war_admin_budget_log()` 호출 → 역할·자원·요청량·지급량·조정여부·종류·턴 테이블
+
+### 2-4. `tests/war/budget.test.mjs` 새 파일 작성
+
+`tests/war/e9.test.mjs` 헤더 구조 참고. PGlite 시험 최소 15개:
+
+| 번호 | 시험 이름 | 확인 내용 |
+|---|---|---|
+| 1 | army 요청 성공 | pending 1건 생성, id 반환 |
+| 2 | 대기 1건 제한 | 두 번째 요청 → ALREADY_PENDING |
+| 3 | chief가 요청 불가 | war_budget_request 호출 → NOT_ALLOWED |
+| 4 | pending 요청 수정 | item·qty 변경 후 DB 반영 |
+| 5 | pending 요청 취소 | status=cancelled, 새 요청 가능 |
+| 6 | chief가 그대로 승인 | 국고 감소, 지갑 증가, budget_log kind=request_approved, adjusted=false |
+| 7 | chief가 조정 후 승인 | approved_qty<요청qty, adjusted=true |
+| 8 | chief가 거절 | status=rejected, budget_log kind=request_rejected, given_qty=0 |
+| 9 | 국고 부족 시 승인 오류 | NOT_ENOUGH |
+| 10 | army가 반납 | 지갑 감소, 국고 증가, budget_log kind=return |
+| 11 | 반납 시 지갑 부족 | NOT_ENOUGH |
+| 12 | war_budget_give → 기록 | budget_log kind=give 행 생성 |
+| 13 | war_budget_take → 기록 | budget_log kind=take 행 생성 |
+| 14 | 교사 기록 조회 | war_admin_budget_log 반환 행 수 맞음 |
+| 15 | 역할 없는 학생 요청 불가 | 오류 발생 |
+
+### 2-5. `package.json` 수정
+
+`scripts`에 추가:
+```json
+"test:war:budget": "node tests/war/budget.test.mjs"
+```
+
+`test:all` 스크립트 끝에 `&& node tests/war/budget.test.mjs` 추가.
+
+### 2-6. 파트 2 완료 시험
+
+```
+npm run test:all
+```
+결과를 `docs/tasks/report.md`에 기록.
