@@ -119,3 +119,72 @@ body.war .map-layout > .side > * { flex-shrink: 0; }
 @media (max-width: 900px) {
   body.war .map-layout { height: auto; grid-template-rows: 60vh 60vh; }
 }
+
+/* ===== 역할 바 (파트3 디자인) ===== */
+.war-role-bar {
+  display: flex; gap: 4px; padding: 6px 8px;
+  background: rgba(20,16,50,.92);
+  border-bottom: 2px solid rgba(255,255,255,.12);
+}
+.war-role-btn {
+  flex: 1; min-height: 60px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-family: var(--font-display); font-size: 11px;
+  color: rgba(255,255,255,.65);
+  background: transparent;
+  border: 2px solid rgba(255,255,255,.18);
+  border-radius: 10px; cursor: pointer; padding: 4px 2px;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.war-role-btn .role-icon { font-size: 20px; line-height: 1.2; }
+.war-role-btn .role-name { font-size: 11px; word-break: keep-all; text-align: center; }
+.war-role-btn.on {
+  background: var(--rc, #E8A500); color: #fff;
+  border-color: var(--rc, #E8A500);
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+.war-role-btn.my { border-color: var(--rc, #E8A500); color: var(--rc, #E8A500); }
+.war-role-btn:disabled { opacity: .35; cursor: default; }
+
+/* 메뉴 바 (기존 war-nav 보강) */
+.war-nav { background: rgba(255,249,238,.97) !important; border-bottom: 2px solid var(--line); }
+.war-nav-btn { min-height: 44px; font-size: 16px; padding: 0 12px; }
+.war-nav-btn.on { background: var(--gold) !important; color: #3A2600 !important; border-color: var(--gold-dark) !important; box-shadow: none !important; }
+
+/* 뷰 높이 (역할 바 ~72px + 메뉴 바 ~54px + 배너 40px + 하단 46px ≈ 212px) */
+.war-view { height: calc(100vh - 215px) !important; }
+
+/* 자원 선반 */
+.war-res-shelf { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.war-res-tile {
+  display: flex; flex-direction: column; align-items: center; min-width: 72px;
+  padding: 8px 10px; background: rgba(255,249,238,.9);
+  border: 2px solid var(--line); border-radius: 10px;
+}
+.war-res-tile .res-qty { font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1.1; color: #2A1A00; }
+.war-res-tile .res-name { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.war-res-tile.coin { border-color: var(--gold); background: #FFF8E0; }
+.war-res-tile.coin .res-qty { color: var(--gold-dark); }
+
+/* 시장 카드 */
+.war-market-card {
+  border: 2px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  background: rgba(255,249,238,.9); margin-bottom: 10px;
+}
+.war-market-card .card-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.war-market-card .card-meta { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+.war-market-card .card-cost { font-weight: 700; color: var(--gold-dark); margin-bottom: 8px; }
+
+/* 무역 카드 (금색 테두리) */
+.war-trade-card {
+  border: 2px solid var(--gold); border-radius: 12px; padding: 14px 16px;
+  background: #FFF9E0; margin-bottom: 8px;
+}
+
+/* 외교 나라 카드 */
+.war-country-card {
+  border: 2px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  background: rgba(255,249,238,.9); margin-bottom: 4px; display: flex; align-items: center; gap: 12px;
+}
+.war-country-card .cc-name { font-family: var(--font-display); font-size: 18px; font-weight: 700; flex: 1; }
+.war-country-card .cc-status { font-size: 14px; }

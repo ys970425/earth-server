@@ -92,14 +92,14 @@ async function screenTests(ctx, chief, engineer) {
     }
     await load(chief);
     await page.evaluate(() => [...document.querySelectorAll('.war-nav-btn,.war-tab')].find(b => b.textContent === '시장').click());
-    await page.waitForFunction(() => document.querySelector('.panel')?.textContent.includes('기준가'));
+    await page.waitForFunction(() => document.querySelector('.panel')?.textContent.includes('원래 값'));
     ctx.ok(await page.evaluate(() => {
       const text = document.querySelector('.panel')?.textContent || '';
-      return text.includes('창고') && text.includes('비용:') && text.includes('코인');
+      return text.includes('재고') && text.includes('필요한 것') && text.includes('코인');
     }), '화면_시장_재고와_비용_표시');
     const cost = await page.evaluate(() => {
       const button = [...document.querySelectorAll('.panel button')].find(b => b.textContent === '구매' && !b.disabled);
-      const cost = Number(button.parentElement.textContent.match(/비용: (\d+) 코인/)[1]);
+      const cost = Number(button.parentElement.textContent.match(/필요한 것: (\d+) 코인/)[1]);
       button.click();
       return cost;
     });

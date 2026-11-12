@@ -105,10 +105,10 @@ async function screenTests(ctx, army, chief, city) {
         };
       });
       await page.addScriptTag({ content: readFileSync(new URL('../../app/war/js/war-app.js', import.meta.url), 'utf8') });
-      await page.waitForSelector('.war-tab');
+      await page.waitForSelector('.war-nav-btn');
     }
     await load(army);
-    await page.evaluate(() => [...document.querySelectorAll('.war-tab')].find(b => b.textContent === '생산').click());
+    await page.evaluate(() => [...document.querySelectorAll('.war-nav-btn')].find(b => b.textContent === '생산').click());
     await page.waitForSelector('#produce-city');
     await page.select('#produce-city', city);
     ctx.ok(await page.evaluate(() => {
@@ -121,7 +121,7 @@ async function screenTests(ctx, army, chief, city) {
     ctx.ok(calls.some(c => c.fn === 'war_mission_done' && c.args.p_mission === 'army_build'), '화면 생산 미션 완료');
     ctx.ok(await page.$eval('#produce-city', e => e.selectedOptions[0].textContent.includes('🔒')), '화면 생산 도시 잠금');
     await load(chief);
-    ctx.ok(await page.evaluate(() => ![...document.querySelectorAll('.war-tab')].some(b => b.textContent === '생산')), 'chief 생산 탭 없음');
+    ctx.ok(await page.evaluate(() => ![...document.querySelectorAll('.war-nav-btn')].some(b => b.textContent === '생산')), 'chief 생산 탭 없음');
     ctx.ok(errors.length === 0, '화면 JavaScript 오류 없음: ' + errors.join(', '));
   } finally { await browser.close(); }
 }

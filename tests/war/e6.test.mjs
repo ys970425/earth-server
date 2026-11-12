@@ -111,27 +111,27 @@ async function screenTests(ctx, chief, engineer, chief4, worker) {
     await page.waitForSelector('#budget-give-qty');
     await page.$eval('#budget-give-qty',e=>e.value='5');
     await button('나눠 주기');
-    await page.waitForFunction(()=>document.querySelector('.panel')?.textContent.includes('현재 지갑'));
+    await page.waitForFunction(()=>document.querySelector('.panel')?.textContent.includes('현재 재고'));
     // Each next load waits for the previous action's poll by observing the DB-backed balance.
     await page.waitForFunction(()=>document.querySelector('.panel')?.textContent.includes('코인 37'));
     ctx.ok(calls.some(c=>c.fn==='war_budget_give' && c.args.p_qty===5),'화면_예산_나눠주기');
-    await page.$eval('#budget-take-qty',e=>e.value='2'); await button('회수하기');
+    await page.$eval('#budget-take-qty',e=>e.value='2'); await button('돌려받기');
     await page.waitForFunction(()=>document.querySelector('.panel')?.textContent.includes('코인 35'));
     ctx.ok(calls.some(c=>c.fn==='war_budget_take' && c.args.p_qty===2),'화면_예산_회수');
     await ctx.db.exec("update war.wallets set qty=100 where country=1 and role='engineer'; update war.cities set buildings=array_remove(buildings,'plaza') where id='K1'");
-    await load(engineer); await tab('건물');
+    await load(engineer); await tab('건설');
     await page.select('#build-city','K1'); await page.select('#build-kind','plaza'); await button('짓기');
     await page.waitForFunction(()=>document.querySelector('.war-tab-body')?.textContent.includes('현재 건물: 도시 시장, 광장'));
     ctx.ok(calls.some(c=>c.fn==='war_city_build' && c.args.p_kind==='plaza'),'화면_건물_짓기');
     const tile=(await ctx.db.query("select tile_id from war.cities where id='K1'")).rows[0].tile_id;
     await ctx.db.query("update war.tiles set owner=1,imp='mine',imp_ruined=true where id=$1",[tile]);
     await ctx.db.query('update war.units set moves_left=2 where id=$1',[worker.id]);
-    await load(engineer); await tab('개발·수리');
-    await page.waitForFunction(()=>[...document.querySelectorAll('.war-tab-body button')].some(e=>e.textContent==='수리'&&!e.disabled));
-    await button('수리');
+    await load(engineer); await tab('수리');
+    await page.waitForFunction(()=>[...document.querySelectorAll('.war-tab-body button')].some(e=>e.textContent==='수리하기'&&!e.disabled));
+    await button('수리하기');
     await page.waitForFunction(()=>!document.querySelector('.war-tab-body')?.textContent.includes('광산'));
     ctx.ok(calls.some(c=>c.fn==='war_repair' && c.args.p_target==='tile:'+tile),'화면_타일_수리');
-    await load(chief4); await tab('건물');
+    await load(chief4); await tab('건설');
     ctx.ok(!!await page.$('#build-city'),'화면_4명_모둠_건물');
     ctx.ok(errors.length===0,'화면_자바스크립트_오류_없음: '+errors.join(', '));
   } finally { await browser.close(); }
