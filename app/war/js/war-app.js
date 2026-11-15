@@ -10,6 +10,18 @@
 
   const ROLE_COLORS = { chief: '#D4A400', engineer: '#3A6B2F', army: '#7A1A1A', navy: '#1A4F7A', air: '#283593' };
   const ROLE_ICONS  = { chief: '⭐', engineer: '🏗', army: '⚔', navy: '⚓', air: '✈' };
+  const NAV_ICONS = {
+    map: '🗺', mission: '🚩', budget: '🏦', requests: '📬',
+    diplomacy: '🤝', trade: '📦', market: '⛺',
+    build: '🏗', repair: '🔧', request: '✉', produce: '🔨', units: '🛡'
+  };
+  const ITEM_ICONS = {
+    coin: '🪙', food: '🌾', wood: '🪵', iron: '⛏', copper: '🔶',
+    aluminum: '⬜', uranium: '☢', rare: '💫', gold: '🌕',
+    oil: '🛢', cotton: '🌿', rubber: '⚽', spice: '🌶', wine: '🍷',
+    steel: '⚙', fuel: '⛽', chip: '💾', clothes: '👕', tire: '🔄',
+    jewelry: '💎', engine: '✈'
+  };
   const ALL_ROLES = [
     { key: 'chief',    name: '합동참모의장' },
     { key: 'engineer', name: '공병' },
@@ -31,9 +43,7 @@
     { key: 'produce',   label: '생산',  roles: ['army', 'navy', 'air'] },
     { key: 'units',     label: '부대',  roles: ['army', 'navy', 'air'] },
   ];
-  const COMBAT_KINDS = ['spear','catapult','knight','musket','cannon','infantry','artillery','tank',
-    'trireme','frigate','battleship','destroyer','cruiser','fighter',
-    'k_missile','j_patrol','c_jet','a_stealth','n_hyper','t_marine'];
+  const COMBAT_KINDS = Object.keys(W.UNITS || {}).filter(k => !W.unitIsCivil(k));
 
   function h(tag, attrs, ...kids) {
     const e = document.createElement(tag);
@@ -144,7 +154,8 @@
     });
     if (!tabs.some(t => t.key === S.view)) S.view = tabs[0]?.key || 'map';
     tabs.forEach(t => el.append(
-      h('button', { class: 'war-nav-btn' + (S.view === t.key ? ' on' : ''), onclick: () => goView(t.key) }, t.label)));
+      h('button', { class: 'war-nav-btn' + (S.view === t.key ? ' on' : ''),
+        'data-icon': NAV_ICONS[t.key] || '', onclick: () => goView(t.key) }, t.label)));
   }
   function renderView() {
     const view = $('#war-view'); if (!view) return;
@@ -206,10 +217,9 @@
   }
 
   // ================= 지도 오른쪽 패널 (지도 뷰 전용) =================
-  const UNIT_NAMES = { worker: '노동자', scout: '정찰병' };
-  const kindLabel  = k => ((R.UNITS[k] || {}).name || (W.EXTRA_UNITS[k] || {}).name || UNIT_NAMES[k] || '병력');
-  const ruleOf     = k => R.UNITS[k] || W.EXTRA_UNITS[k] || {};
-  const isCivil    = k => k === 'worker' || k === 'scout';
+  const kindLabel  = k => (W.UNITS[k] || R.UNITS[k] || {}).name || '병력';
+  const ruleOf     = k => W.UNITS[k] || R.UNITS[k] || {};
+  const isCivil    = k => W.unitIsCivil(k);
   const actingRole = () => S.deputy || S.me?.role;
   function renderTabs() {
     if (S.view !== 'map') { renderView(); return; }
@@ -271,6 +281,34 @@
     for (const [k, qty] of Object.entries(inventory || {})) if (qty > 0) shelf.append(resTile(k, qty));
     return shelf;
   }
+  function mkItemPicker(entries, opts = {}) {
+    const sel = new Map();
+    const el = h('div', { class: 'war-item-picker' });
+    function render() {
+      el.innerHTML = '';
+      for (const e of entries) {
+        const qty = sel.get(e.key) || 0, isSel = qty > 0;
+        const tile = h('div', { class: 'war-item-tile' + (isSel ? ' sel' : ''),
+          onclick: () => { if (!isSel) { sel.set(e.key, 1); render(); opts.onChange?.(); } } });
+        tile.append(
+          h('span', { class: 'tile-icon' }, e.icon || '📦'),
+          h('span', { class: 'tile-name' }, e.name));
+        if (e.have != null) tile.append(h('span', { class: 'tile-have' }, '가진 것 ' + e.have));
+        if (isSel) tile.append(
+          h('div', { class: 'war-item-qty-row', onclick: ev => ev.stopPropagation() },
+            h('button', { class: 'small', onclick: () => { qty <= 1 ? sel.delete(e.key) : sel.set(e.key, qty - 1); render(); opts.onChange?.(); } }, '−'),
+            h('span', { class: 'war-item-qty-num' }, String(qty)),
+            h('button', { class: 'small', onclick: () => { sel.set(e.key, qty + 1); render(); opts.onChange?.(); } }, '+')));
+        el.append(tile);
+      }
+    }
+    render();
+    return {
+      el,
+      getSelected: () => Object.fromEntries(sel),
+      set(items) { sel.clear(); for (const [k, v] of Object.entries(items || {})) if (v > 0) sel.set(k, v); render(); }
+    };
+  }
   function selectBox(id, entries, value, change) {
     const el = h('select', { id, 'aria-label': id, onchange: change },
       entries.map(([key, name]) => h('option', { value: key }, name)));
@@ -302,16 +340,16 @@
       e => { S.produceCity = e.target.value; renderTabs(); })));
     const country = S.poll?.country || {}, wallet = country.wallets?.[role] || {};
     body.append(h('p', {}, '내 재고: ' + costText(wallet)));
-    const defs = Object.entries({ ...R.UNITS, ...W.EXTRA_UNITS }).filter(([k, d]) =>
-      W.BRANCH[k] === role && (!d.boss || R.BOSS_UNIT[S.me.country.type]?.unit === k));
-    body.append(h('table', {}, h('thead', {}, h('tr', {}, ['종류', '힘', '이동', '필요한 것', '생산'].map(t => h('th', {}, t)))),
+    const defs = Object.entries(W.UNITS).filter(([k, d]) =>
+      d.branch === role && (!d.boss || R.BOSS_UNIT[S.me.country.type]?.unit === k));
+    body.append(h('table', {}, h('thead', {}, h('tr', {}, ['종류', '공격', '이동', '필요한 것', '생산'].map(t => h('th', {}, t)))),
       h('tbody', {}, defs.map(([kind, def]) => {
         const needs = def.boss ? R.BOSS_UNIT[S.me.country.type]?.needs || [] : [];
         const locked = busy || S.game?.paused || S.economyBusy ||
           Object.entries(def.cost || {}).some(([k, n]) => (wallet[k] || 0) < n) ||
           needs.some(k => (country.inventory?.[k] || 0) < 1);
         return h('tr', {},
-          h('td', {}, def.name), h('td', {}, def.boss ? W.BOSS.str() : def.str),
+          h('td', {}, def.name), h('td', {}, def.atk ?? '—'),
           h('td', {}, W.MOVES_OF(kind)), h('td', {}, costText(def.cost)),
           h('td', {}, h('button', { disabled: locked || null,
             onclick: () => economyAction('war_produce', { p_city: city.id, p_kind: kind }, role + '_build')
@@ -542,16 +580,46 @@
     const role = S.me.role, country = S.poll?.country || {}, wallet = country.wallets?.[role] || {};
     body.append(h('div', { class: 'panel-title' }, '내 재고'));
     body.append(resShelf(wallet.coin, Object.fromEntries(Object.entries(wallet).filter(([k]) => k !== 'coin'))));
-    body.append(h('div', { class: 'panel-title' }, '예산 요청'));
-    const coinQty = h('input', { type: 'number', min: 0, value: 0, style: { width: '70px' } });
-    const noteEl  = h('input', { type: 'text', placeholder: '요청 사유 (선택)', style: { flex: '1', marginTop: '8px' } });
-    body.append(h('div', { class: 'row' }, h('label', {}, '코인 ', coinQty)), noteEl,
-      h('button', { class: 'primary', onclick: () => {
-        const items = {}, c = Number(coinQty.value);
-        if (c > 0) items.coin = c;
-        if (!Object.keys(items).length) { S.msg = '요청할 양을 입력해요'; renderView(); return; }
-        economyAction('war_budget_request', { p_items: items, p_note: noteEl.value || null }, null);
-      } }, '요청하기'));
+    body.append(h('div', { class: 'panel-title' }, '요청할 것 고르기'));
+    const entries = [
+      { key: 'coin', name: '코인', icon: ITEM_ICONS.coin, have: wallet.coin ?? 0 },
+      ...Object.entries(R.ITEMS).map(([k, d]) => ({ key: k, name: d.name, icon: ITEM_ICONS[k] || '📦', have: wallet[k] ?? 0 }))
+    ];
+    const picker = mkItemPicker(entries, { onChange: updateSummary });
+    body.append(picker.el);
+    const unitEntries = Object.entries(W.UNITS)
+      .filter(([k, d]) => d.cost && d.branch === role && !d.boss);
+    if (unitEntries.length) {
+      const unitSel = h('select', {}, unitEntries.map(([k, d]) => h('option', { value: k }, d.name)));
+      body.append(h('div', { class: 'panel-title' }, '유닛으로 채우기'),
+        h('div', { class: 'row' }, unitSel,
+          h('button', { class: 'small', onclick: () => {
+            const def = W.UNITS[unitSel.value] || {};
+            picker.set({ ...(def.cost || {}) }); updateSummary();
+          } }, '자동 채우기')));
+    }
+    const REASONS = ['유닛 생산', '건물 수리', '방어 준비', '기타'];
+    let reason = REASONS[0];
+    const reasonRow = h('div', { class: 'war-reason-row' });
+    REASONS.forEach(r => reasonRow.append(
+      h('button', { class: 'war-reason-btn' + (r === reason ? ' on' : ''), onclick: ev => {
+        reason = r;
+        reasonRow.querySelectorAll('.war-reason-btn').forEach(b => b.classList.toggle('on', b.textContent === r));
+      } }, r)));
+    body.append(h('div', { class: 'panel-title' }, '요청 이유'), reasonRow);
+    const summaryItems = h('span', { class: 'war-summary-items' }, '아무것도 안 골랐어요');
+    const reqBtn = h('button', { class: 'primary', disabled: '', onclick: () => {
+      const items = picker.getSelected();
+      if (!Object.keys(items).length) { S.msg = '요청할 것을 골라요'; renderView(); return; }
+      economyAction('war_budget_request', { p_items: items, p_note: reason }, null);
+    } }, '요청하기');
+    body.append(h('div', { class: 'war-summary-bar' },
+      h('span', { class: 'war-summary-label' }, '요청할 것:'), summaryItems), reqBtn);
+    function updateSummary() {
+      const items = picker.getSelected(), keys = Object.keys(items);
+      summaryItems.textContent = keys.length ? keys.map(k => itemName(k) + ' ' + items[k]).join(', ') : '아무것도 안 골랐어요';
+      reqBtn.disabled = !keys.length;
+    }
     wrap.append(body); appendMsg(wrap); view.append(wrap);
   }
   function renderDiplomacyView(view) {
@@ -643,14 +711,34 @@
     if (S.pendingMark) { const k = S.pendingMark; S.pendingMark = null; mark(k); }
   }
   function missionList() {
-    const byRole = {};
+    const myRole = S.me?.role, byRole = {};
     for (const m of S.missions || []) (byRole[m.role] = byRole[m.role] || []).push(m);
-    return h('div', { class: 'war-missions' }, Object.keys(byRole).map(rk =>
-      h('div', {}, h('b', {}, (W.ROLES.find(r => r.key === rk) || {}).name || rk),
-        byRole[rk].map(m => h('div', { class: 'war-mission' + (m.done ? ' done' : '') },
-          h('span', { class: 'war-mission-check' }, m.done ? '✔' : ''),
-          h('span', {}, m.text),
-          !m.open ? h('small', { class: 'muted' }, '곧 열려요') : null)))));
+    const wrap = h('div', { class: 'war-missions' });
+    for (const [rk, missions] of Object.entries(byRole)) {
+      const done = missions.filter(m => m.done).length, total = missions.length;
+      const isMyRole = rk === myRole || myRole === 'chief';
+      const roleName = (W.ROLES.find(r => r.key === rk) || {}).name || rk;
+      const currentM = isMyRole ? missions.find(m => !m.done && m.open) : null;
+      const pct = total > 0 ? Math.round(done / total * 100) : 0;
+      const cards = h('div', { class: 'war-mission-cards' });
+      if (!isMyRole) cards.style.display = 'none';
+      const hdr = h('div', { class: 'war-mission-section-hdr' },
+        h('span', { class: 'role-label' }, roleName),
+        h('div', { class: 'war-progress-bar' }, h('div', { class: 'war-progress-bar-fill', style: { width: pct + '%' } })),
+        h('span', { class: 'war-progress-text' }, done + '/' + total));
+      hdr.addEventListener('click', () => { cards.style.display = cards.style.display === 'none' ? '' : 'none'; });
+      for (const m of missions) {
+        const isCur = m === currentM;
+        const dot = h('div', { class: 'war-mission-dot' + (m.done ? ' done' : '') }, m.done ? '✔' : '');
+        const title = h('div', { class: 'wmc-title' }, m.text);
+        const card = h('div', { class: 'war-mission-card' + (m.done ? ' done' : '') + (isCur ? ' current' : '') }, dot, title);
+        if (m.done) card.append(h('span', { class: 'war-mission-stamp' }, '완료!'));
+        else if (!m.open) card.append(h('span', { class: 'wmc-locked' }, '🔒'));
+        cards.append(card);
+      }
+      wrap.append(h('div', { class: 'war-mission-section' }, hdr, cards));
+    }
+    return wrap;
   }
   function mark(key) {
     if (!S.missions) { S.pendingMark = key; loadMissions(); return; }
@@ -751,7 +839,7 @@
   // ================= 공격 미리보기 =================
   function showAttackPreview(attacker, targetTileId) {
     const atk = S.attacks.get(targetTileId) || {};
-    const strength = u => (ruleOf(u.kind).str || 1) * (0.5 + 0.5 * (u.hp == null ? 100 : u.hp) / 100);
+    const strength = u => (ruleOf(u.kind).atk || ruleOf(u.kind).str || 1) * (0.5 + 0.5 * (u.hp == null ? 100 : u.hp) / 100);
     const cityAttack = !!atk.city;
     const defender = cityAttack ? atk.city : S.units.find(x => x.id === atk.unit);
     if (!defender) return;

@@ -188,3 +188,42 @@ body.war .map-layout > .side > * { flex-shrink: 0; }
 }
 .war-country-card .cc-name { font-family: var(--font-display); font-size: 18px; font-weight: 700; flex: 1; }
 .war-country-card .cc-status { font-size: 14px; }
+
+/* 탭 버튼 아이콘 (data-icon 속성 → CSS ::before, textContent에 영향 안 줌) */
+.war-nav-btn[data-icon]::before { content: attr(data-icon) "\00a0"; font-style: normal; }
+
+/* 미션 카드 */
+.war-mission-section { margin-bottom: 10px; }
+.war-mission-section-hdr { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px 0; border-bottom: 2px solid var(--line); }
+.war-mission-section-hdr .role-label { font-family: var(--font-display); font-size: 17px; white-space: nowrap; }
+.war-progress-bar { flex: 1; height: 10px; background: rgba(0,0,0,.12); border-radius: 5px; overflow: hidden; }
+.war-progress-bar-fill { height: 100%; background: var(--good); border-radius: 5px; transition: width .4s; }
+.war-progress-text { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.war-mission-cards { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; }
+.war-mission-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--line); background: rgba(255,249,238,.9); min-height: 52px; }
+.war-mission-card.done { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.12); }
+.war-mission-card.done .wmc-title { color: var(--muted); text-decoration: line-through; }
+.war-mission-card.current { border-color: var(--gold); animation: wmc-glow .9s ease-in-out infinite alternate; }
+@keyframes wmc-glow { from { box-shadow: 0 0 0 0 rgba(212,164,0,.2); } to { box-shadow: 0 0 0 5px rgba(212,164,0,.45); } }
+.war-mission-dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(0,0,0,.2); flex: none; display: grid; place-items: center; font-size: 14px; font-weight: 700; }
+.war-mission-dot.done { background: var(--good); border-color: var(--good); color: #fff; }
+.war-mission-stamp { font-family: var(--font-display); font-size: 12px; color: var(--good); border: 2px solid var(--good); border-radius: 4px; padding: 1px 4px; transform: rotate(-8deg); display: inline-block; white-space: nowrap; }
+.wmc-title { flex: 1; font-size: 14px; line-height: 1.4; }
+.wmc-locked { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* 아이템 선택 타일 */
+.war-item-picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.war-item-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; min-width: 70px; border: 2px solid var(--line); border-radius: 10px; background: rgba(255,249,238,.9); cursor: pointer; transition: border-color .12s, box-shadow .12s; user-select: none; }
+.war-item-tile:hover { border-color: var(--gold); }
+.war-item-tile.sel { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212,164,0,.3); }
+.war-item-tile .tile-icon { font-size: 22px; line-height: 1.2; }
+.war-item-tile .tile-name { font-size: 12px; font-weight: 700; color: #3A2600; text-align: center; word-break: keep-all; }
+.war-item-tile .tile-have { font-size: 11px; color: var(--muted); }
+.war-item-qty-row { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.war-item-qty-row button { width: 26px; height: 26px; padding: 0; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.war-item-qty-num { min-width: 24px; text-align: center; font-family: var(--font-display); font-size: 17px; }
+.war-summary-bar { background: rgba(255,249,238,.97); border: 2px solid var(--gold); border-radius: 10px; padding: 10px 14px; margin: 10px 0 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.war-summary-label { font-weight: 700; color: #3A2600; white-space: nowrap; }
+.war-summary-items { flex: 1; color: #5A3E1B; font-size: 14px; }
+.war-reason-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.war-reason-btn.on { background: var(--gold) !important; color: #3A2600 !important; border-color: var(--gold-dark) !important; box-shadow: none !important; }
