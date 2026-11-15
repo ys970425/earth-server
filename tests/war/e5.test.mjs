@@ -27,7 +27,8 @@ try {
 
   await db.exec('update war.units set moves_left=0, attacked_turn=1');
   await rpc(seed.ADMIN, 'war_next_turn', 1);
-  const units = await one('select count(*) total, bool_and(moves_left > 0 and attacked_turn = -1) restored from war.units');
+  const units = await one(`select count(*) total, bool_and(moves_left > 0 and attacked_turn = -1) restored
+    from war.units`);
   ok(units.total > 0 && units.restored, '턴_끝_이동력_회복');
   await db.exec(`update war.cities set besieged=true, hp=10 where kind='capital'`);
   await rpc(seed.ADMIN, 'war_next_turn', 2);

@@ -589,12 +589,13 @@
     body.append(picker.el);
     const unitEntries = Object.entries(W.UNITS)
       .filter(([k, d]) => d.cost && d.branch === role && !d.boss);
+    if (role === 'engineer' && R.HIRE_WORKER) unitEntries.push(['worker', { ...W.UNITS.worker, cost: R.HIRE_WORKER }]);
     if (unitEntries.length) {
       const unitSel = h('select', {}, unitEntries.map(([k, d]) => h('option', { value: k }, d.name)));
       body.append(h('div', { class: 'panel-title' }, '유닛으로 채우기'),
         h('div', { class: 'row' }, unitSel,
           h('button', { class: 'small', onclick: () => {
-            const def = W.UNITS[unitSel.value] || {};
+            const def = unitEntries.find(([k]) => k === unitSel.value)?.[1] || {};
             picker.set({ ...(def.cost || {}) }); updateSummary();
           } }, '자동 채우기')));
     }

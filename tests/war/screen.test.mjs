@@ -304,7 +304,7 @@ try {
   await captureDb.query(`update war.cities set hp=1 where id=$1`, [target7.id]);
   // 가장 먼저 반환되는 근접 병력을 도시 옆에 놓는다.
   await captureDb.query(`update war.units set kind='spear',commander='army',tile_id=$1,hp=100,moves_left=2,attacked_turn=-1
-    where id=(select min(id) from war.units where country=1 and kind not in ('worker','scout','fighter') and tile_id is not null)`, [near7.id]);
+    where id=(select min(id) from war.units where country=1 and kind not in ('worker','scout','helicopter') and tile_id is not null)`, [near7.id]);
   const captureArchive = Buffer.from(await (await captureDb.dumpDataDir('gzip')).arrayBuffer());
   await captureDb.close();
   await page.setRequestInterception(true);
@@ -345,7 +345,7 @@ else {
         .sort((a, b) => a.hp - b.hp)[0];
       if (!targetCity) return { ok: false, why: '비수도 적 도시가 없어요' };
       // 내 근접 군사 병력 중 가장 가까운 것 찾기
-      const myUnits = poll0.units.filter(u => u.country === myC && !['worker','scout','fighter'].includes(u.kind) && u.tile != null);
+      const myUnits = poll0.units.filter(u => u.country === myC && !['worker','scout','helicopter'].includes(u.kind) && u.tile != null);
       if (!myUnits.length) return { ok: false, why: '근접 병력이 없어요' };
       // 거리와 무관하게 첫 번째 병력 사용 (move는 이미 충분하다고 가정)
       let u = myUnits[0];
@@ -424,23 +424,23 @@ else {
   await page.click('.qna-recommendations button');
   const standaloneAnswer = await until(() => page.$eval('.qna-answer', el => el.textContent.trim()), 5000);
   ok('단독_페이지_역할_답변', !!standaloneAnswer && standaloneAnswer.includes('해안'));
-  // 전투기 이름이 「전투기」로 나온다 (play 모드, 공군 역할)
+  // 옛 전투기는 「전투 헬기」로 나온다 (play 모드, 공군 역할)
   await page.goto(`${BASE}/app/war/index.html?play=1&preview=1&as=1:air`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.war-army-name', { timeout: 10000 });
   const fighterNames = await page.evaluate(() => {
     const names = [...document.querySelectorAll('.war-army-name')].map(e => e.textContent.trim());
-    return names.includes('전투기');
+    return names.includes('전투 헬기');
   });
-  ok('전투기_이름_전투기로_나온다', fighterNames);
+  ok('전투_헬기_이름으로_나온다', fighterNames);
 
-  // 공군 참모총장이 전투기를 고를 수 있다 (실제 학생 모드)
+  // 공군 참모총장이 전투 헬기를 고를 수 있다 (실제 학생 모드)
   await page.goto(`${BASE}/app/war/index.html?preview=1&as=1:air`, { waitUntil: 'domcontentloaded' });
   await until(() => page.$('.war-unit-row'), 15000, 500);
   const airFighter = await page.evaluate(async () => {
     const poll = await window.WarAPI.rpc('war_poll', { p_known: {} });
-    return poll.units.some(u => u.kind === 'fighter' && window.WAR_RULES.isMyUnit(u, 1, 'air'));
+    return poll.units.some(u => u.kind === 'helicopter' && window.WAR_RULES.isMyUnit(u, 1, 'air'));
   });
-  ok('공군_참모총장_전투기_조종_가능', airFighter);
+  ok('공군_참모총장_전투_헬기_조종_가능', airFighter);
   await browser.close();
 } catch (e) {
   ok('실행', false, (e.stack || e.message).split('\n')[0]);

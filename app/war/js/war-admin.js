@@ -120,7 +120,7 @@
       grants.map(g => h('tr', {},
         h('td', {}, g.country + '번 나라'),
         h('td', {}, BRANCH_NAME[g.branch] || g.branch),
-        h('td', {}, (W.EXTRA_UNITS[g.kind] || {}).name || g.kind),
+        h('td', {}, (W.UNITS[g.kind] || {}).name || g.kind),
         h('td', {}, g.result === 'given' ? h('b', { class: 'good' }, '지급') : h('b', { class: 'bad' }, '건너뜀')),
         h('td', {}, g.reason || '-'))));
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '병과 지급 결과',

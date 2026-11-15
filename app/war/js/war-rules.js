@@ -30,35 +30,48 @@
   const chief = W.ROLES.find(r => r.key === 'chief'), engineer = W.ROLES.find(r => r.key === 'engineer');
   chief.menus4 = chief.menus.concat(engineer.menus);
 
-  // ---------- 병과 분류 (설계 4-1) ----------
-  // 무역 앱 UNITS 전부 + 구축함·전투기. worker·scout는 민간(civil)
-  // 특수 부대는 상륙 기갑부대(t_marine)만 육군, 나머지는 공군 (설계 3-4, Q6)
-  W.BRANCH = {};
-  for (const [k, u] of Object.entries(R.UNITS)) {
-    W.BRANCH[k] = k === 'worker' || k === 'scout' ? 'civil'
-      : k === 't_marine' ? 'army'
-      : u.boss ? 'air'
-      : u.sea ? 'navy' : 'army';
+  // ---------- 병과 개편 (공격/방어 체계) ----------
+  // 모든 나라 공통 병과 + 나라별 특수부대. atk=공격, def=방어. branch로 병과 구분
+  W.UNITS = {
+    // 육군
+    spear:       { name: '창병', branch: 'army', atk: 4, def: 4, move: 2, cost: { coin: 5, wood: 2, iron: 1 }, img: 'spear' },
+    catapult:    { name: '투석기', branch: 'army', atk: 5, def: 2, move: 1, range: 2, cost: { coin: 8, wood: 3, iron: 1 }, img: 'catapult' },
+    mech_inf:    { name: '기계화 보병', branch: 'army', atk: 5, def: 6, move: 3, cost: { coin: 12, steel: 2, tire: 1, fuel: 1 }, img: 'infantry' },
+    tank_modern: { name: '현대 전차', branch: 'army', atk: 7, def: 5, move: 3, cost: { coin: 18, steel: 3, rubber: 1, fuel: 2 }, img: 'tank' },
+    // 해군
+    destroyer:   { name: '구축함', branch: 'navy', atk: 6, def: 5, move: 4, sea: true, cost: { coin: 15, steel: 3, fuel: 2 }, img: 'destroyer' },
+    battleship:  { name: '전함', branch: 'navy', atk: 7, def: 6, move: 3, range: 2, sea: true, cost: { coin: 22, steel: 4, fuel: 2, chip: 1 }, img: 'warship' },
+    // 공군
+    helicopter:  { name: '전투 헬기', branch: 'air', atk: 6, def: 4, move: 4, fly: true, cost: { coin: 16, engine: 1, fuel: 2 }, img: 'helicopter' },
+    drone:       { name: '살상용 드론', branch: 'air', atk: 5, def: 2, move: 5, fly: true, cost: { coin: 10, rare: 1, fuel: 1 }, img: 'drone' },
+    missile:     { name: '유도미사일', branch: 'air', atk: 4, def: 0, move: 0, range: 3, fly: true, oneTime: true, cost: { coin: 8, chip: 1, fuel: 1 }, img: 'missile' },
+    // 특수부대 (나라별, 기존 유지 + 공격 7·방어 5)
+    k_missile:  { name: '장거리 미사일 부대', boss: 'K', branch: 'army', atk: 7, def: 5, move: 5, range: 3, fly: true, img: 'boss_K' },
+    j_patrol:   { name: '해상 초계기', boss: 'J', branch: 'navy', atk: 7, def: 5, move: 6, range: 3, fly: true, img: 'boss_J' },
+    c_jet:      { name: '대형 전투기 편대', boss: 'C', branch: 'air', atk: 7, def: 5, move: 6, range: 3, fly: true, img: 'boss_C' },
+    a_stealth:  { name: '스텔스 폭격기', boss: 'A', branch: 'air', atk: 7, def: 5, move: 6, range: 3, fly: true, img: 'boss_A' },
+    n_hyper:    { name: '극초음속 미사일', boss: 'N', branch: 'air', atk: 7, def: 5, move: 5, range: 3, fly: true, img: 'boss_N' },
+    t_marine:   { name: '상륙 기갑부대', boss: 'T', branch: 'army', atk: 7, def: 5, move: 5, range: 2, fly: true, img: 'boss_T' },
+    // 민간
+    worker:      { name: '노동자', branch: 'civil', move: 2, img: 'worker' },
+    scout:       { name: '정찰병', branch: 'civil', move: 5, img: 'scout' }
+  };
+
+  // 기존 종류 → 새 종류 대응표 (가져오기 때 종류만 바꾸고 개수·위치 유지)
+  W.KIND_MAP = {
+    spear: 'spear', catapult: 'catapult', knight: 'mech_inf', musket: 'mech_inf',
+    cannon: 'catapult', infantry: 'mech_inf', artillery: 'catapult', tank: 'tank_modern',
+    trireme: 'destroyer', frigate: 'destroyer', battleship: 'battleship', cruiser: 'battleship',
+    fighter: 'helicopter', k_missile: 'k_missile', j_patrol: 'j_patrol', c_jet: 'c_jet',
+    a_stealth: 'a_stealth', n_hyper: 'n_hyper', t_marine: 't_marine',
+    worker: 'worker', scout: 'scout'
+  };
+
+  // 병과별 유닛 목록 (생산 화면 등에서 사용)
+  W.BRANCH_UNITS = {};
+  for (const [k, u] of Object.entries(W.UNITS)) {
+    (W.BRANCH_UNITS[u.branch] = W.BRANCH_UNITS[u.branch] || []).push(k);
   }
-  W.BRANCH.worker = 'civil'; W.BRANCH.scout = 'civil';
-  W.BRANCH.destroyer = 'navy'; W.BRANCH.fighter = 'air';
-
-  // ---------- 새 병력 (설계 4-1) ----------
-  // 무역 앱에 없는 병력. 힘(str)·이동(move)·사거리(range)는 전쟁의 시간 규칙 숫자
-  W.EXTRA_UNITS = {
-    destroyer: { name: '구축함', str: 60, move: 6, sea: true, cost: { coin: 100, steel: 2, fuel: 1, food: 2 }, img: 'destroyer' },
-    fighter: { name: '전투기', str: 40, move: 6, range: 2, fly: true, cost: { coin: 70, aluminum: 1, fuel: 1 }, img: 'fighter' }
-  };
-
-  // ---------- 특수 부대 (설계 3-4) ----------
-  // 힘 = 특수 부대가 아닌 병력 힘 최댓값 + 5 (지금 규칙으로 95: 미사일 순양함 90). 피해 상한 60
-  W.BOSS = {
-    str() {
-      const all = [...Object.values(R.UNITS), ...Object.values(W.EXTRA_UNITS)].filter(u => !u.boss);
-      return Math.max(...all.map(u => u.str)) + 5;
-    },
-    damageMax: 60
-  };
 
   // ---------- 건물 분류 (설계 5-2) ----------
   // 기본 건물은 점령되어도 남고, 공장·고등 건물은 파괴돼요. 특산 공장은 나라별로 (SPECIALTY에서 읽기)
@@ -100,13 +113,12 @@
   W.PEACE_TURNS = 3;                              // 평화 뒤 3턴 동안 재선포 금지
 
   // ---------- 이동 (설계 4-4, E3) ----------
-  // 노동자 이동력 2 (무역 앱은 0), 정찰병은 SCOUT_MOVE(5). 나머지는 무역 규칙·구축함·전투기 순서로
-  W.MOVES = { worker: 2, scout: R.SCOUT_MOVE };
-  W.MOVES_OF = k => k === 'worker' ? W.MOVES.worker
-    : k === 'scout' ? W.MOVES.scout
-    : ((W.EXTRA_UNITS[k] || {}).move ?? (R.UNITS[k] || {}).move ?? 0);
-  W.unitIsSea = k => !!(W.EXTRA_UNITS[k] || {}).sea || !!(R.UNITS[k] || {}).sea;
-  W.unitIsAir = k => W.BRANCH[k] === 'air' || !!(W.EXTRA_UNITS[k] || {}).fly;
+  // 이동력은 W.UNITS의 move 값을 그대로 쓴다 (worker 2, scout 5 포함)
+  W.MOVES_OF = k => (W.UNITS[k] || {}).move ?? 0;
+  W.unitIsSea = k => (W.UNITS[k] || {}).sea === true;
+  W.unitIsAir = k => (W.UNITS[k] || {}).fly === true;
+  W.unitIsCivil = k => (W.UNITS[k] || {}).branch === 'civil';
+  W.unitIsRanged = k => ((W.UNITS[k] || {}).range || 0) >= 2;
   // 칸을 지나갈 수 있는지. t: 칸 정보({terrain}), o: 주변 정보({market, enemyCity, enemyUnit})
   // 화면(갈 수 있는 칸 표시)과 미리보기 가짜 서버가 같은 규칙으로 쓴다
   W.canPass = (kind, t, o) => {
@@ -150,7 +162,7 @@
     { key: 'air_fly_over', role: 'air', order: 17, text: '공군을 다른 나라 병력 위로 날려 옮겨요', opens: 'now' },
     { key: 'air_transfer', role: 'air', order: 18, text: '공군 하나의 지휘권을 다른 참모총장에게 넘겨 봐요', opens: 'now' },
     { key: 'air_attack_preview', role: 'air', order: 19, text: '공격 미리보기를 확인해요', opens: 'E4' },
-    { key: 'air_build', role: 'air', order: 20, text: '전투기를 하나 만들어요', opens: 'E7' }
+    { key: 'air_build', role: 'air', order: 20, text: '전투 헬기를 하나 만들어요', opens: 'E7' }
   ];
 
   if (typeof module !== 'undefined' && module.exports) module.exports = W;

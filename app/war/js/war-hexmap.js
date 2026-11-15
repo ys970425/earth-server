@@ -17,7 +17,8 @@
     ...Object.keys(R.TERRAIN).map(t => load('t:' + t, '../trade/assets/small/terrain/' + t + '.png')),
     ...Object.keys(R.ITEMS).map(i => load('r:' + i, '../trade/assets/small/res/' + i + '.png')),
     ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'knight', 'archer', 'artillery', 'swordsman', 'infantry', 'tank', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].map(u => load('u:' + u, '../trade/assets/small/unit/' + u + '.png')),
-    ...['destroyer', 'fighter'].map(u => load('u:' + u, '../trade/assets/small/unit/' + u + '.png')),   // war: 전쟁 버전 새 병력(구축함·전투기)도 small/unit/에서 읽어요
+    ...['destroyer', 'fighter', 'helicopter', 'drone'].map(u => load('u:' + u, '../trade/assets/small/unit/' + u + '.png')),   // war: 전쟁 버전 새 병력도 small/unit/에서 읽어요
+    load('u:missile', '../trade/assets/small/unit/rocket.png'),   // 유도미사일은 로켓 그림을 써요
     // 나라 색 병력 (K는 원래 파랑)
     ...['worker', 'scout', 'spear', 'catapult', 'ballista', 'ship', 'artillery', 'knight', 'swordsman', 'cannon', 'trireme', 'frigate', 'warship', 'cruiser', 'boat'].flatMap(u => ['J', 'C', 'A', 'N', 'T'].map(t => load('u:' + u + '_' + t, '../trade/assets/small/unit/' + u + '_' + t + '.png'))),
     ...['K', 'J', 'C', 'A', 'N', 'T'].map(t => load('u:boss_' + t, '../trade/assets/small/unit/boss_' + t + '.png')),   // 특수 부대 (나라마다 하나)
@@ -303,7 +304,7 @@
     }
     function drawUnits(us, x, y, t, onCity, tint) {
       const sea = t.terrain === 'ocean' || t.terrain === 'coast';
-      const order = ['k_missile', 'j_patrol', 'c_jet', 'a_stealth', 'n_hyper', 't_marine', 'cruiser', 'battleship', 'tank', 'artillery', 'frigate', 'infantry', 'cannon', 'musket', 'knight', 'trireme', 'catapult', 'spear'];
+      const order = ['k_missile', 'j_patrol', 'c_jet', 'a_stealth', 'n_hyper', 't_marine', 'battleship', 'tank_modern', 'helicopter', 'destroyer', 'mech_inf', 'drone', 'catapult', 'spear', 'missile'];
       const mil = us.filter(u => u.kind !== 'worker' && u.kind !== 'scout');
       const others = us.filter(u => !mil.includes(u));
       const list = [];
@@ -312,7 +313,8 @@
       for (const u of others) list.push({ kind: u.kind, n: 1, anim: u.anim, country: u.country, hp: u.hp, sel: u.id === st.selUnit, done: u.done });
       const sx = onCity ? -38 : -18;
       list.slice(0, 3).forEach((u, i) => {
-        const img = (R.UNITS[u.kind] || {}).img || u.kind;
+        const def = (window.WAR_RULES?.UNITS || {})[u.kind] || R.UNITS[u.kind] || {};
+        const img = def.img || u.kind;
         let key = u.kind === 'scout' && sea ? 'u:boat' : 'u:' + img;   // 정찰병이 바다에 있으면 배로 (탑승)
         const tp = u.country ? (st.countries[u.country] || {}).type : st.myType;
         if (tp && IMG[key + '_' + tp]) key = key + '_' + tp;
@@ -322,7 +324,7 @@
         ctx.strokeStyle = tc; ctx.lineWidth = 3; ctx.stroke();
         if (tint) { ctx.globalAlpha = .9; ctx.strokeStyle = tint; ctx.lineWidth = 4; ctx.stroke(); }
         ctx.restore();
-        const big = (R.UNITS[u.kind] || {}).boss ? 86 : ['catapult', 'cannon', 'artillery', 'tank', 'trireme', 'frigate', 'battleship', 'cruiser'].includes(u.kind) ? 72 : 60;
+        const big = def.boss ? 86 : ['catapult', 'tank_modern', 'mech_inf', 'destroyer', 'battleship'].includes(u.kind) ? 72 : 60;
         if (u.sel) {   // 고른 병력: 금색으로 환하게 빛남
           const pl = 0.6 + 0.4 * Math.sin(performance.now() / 250);
           ctx.save(); ctx.strokeStyle = '#FFE07A'; ctx.lineWidth = 5; ctx.shadowColor = '#FFE07A'; ctx.shadowBlur = 18 * pl; ctx.beginPath(); ctx.ellipse(px, py, 30, 12, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();

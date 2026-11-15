@@ -9,13 +9,14 @@ let fails = 0;
 const ok = (c, m) => { console.log((c ? '  ✔ ' : '  ✘ ') + m); if (!c) fails++; };
 
 try {
-  // 병과 분류: 무역 앱 UNITS 전부 + 구축함·전투기. 상륙 기갑부대는 육군
-  const kinds = [...Object.keys(R.UNITS), 'destroyer', 'fighter'];
-  ok(kinds.every(k => W.BRANCH[k]), '모든 병력 종류(' + kinds.length + '개)가 병과 분류에 있음');
-  ok(W.BRANCH.t_marine === 'army', '상륙 기갑부대(t_marine)는 육군');
-  ok(W.BRANCH.destroyer === 'navy' && W.BRANCH.fighter === 'air', '구축함은 해군, 전투기는 공군');
-  ok(W.BRANCH.worker === 'civil' && W.BRANCH.scout === 'civil', '노동자·정찰병은 민간');
-  ok(['spear', 'tank', 'trireme', 'battleship', 'k_missile', 'n_hyper'].every(k => W.BRANCH[k] === (['trireme', 'battleship'].includes(k) ? 'navy' : ['k_missile', 'n_hyper'].includes(k) ? 'air' : 'army')),
+  // 병과 분류: 무역 앱 UNITS 전부 + 구축함·헬기. 상륙 기갑부대는 육군
+  const kinds = [...Object.keys(R.UNITS), 'destroyer', 'helicopter'];
+  ok(kinds.every(k => W.UNITS[W.KIND_MAP?.[k] || k]?.branch), '모든 병력 종류(' + kinds.length + '개)가 병과 분류에 있음');
+  ok(W.UNITS.t_marine?.branch === 'army', '상륙 기갑부대(t_marine)는 육군');
+  ok(W.UNITS.destroyer?.branch === 'navy' && W.UNITS.helicopter?.branch === 'air', '구축함은 해군, 헬기는 공군');
+  ok(W.UNITS.worker?.branch === 'civil' && W.UNITS.scout?.branch === 'civil', '노동자·정찰병은 민간');
+  ok(['spear', 'tank_modern', 'destroyer', 'battleship', 'k_missile', 'n_hyper'].every(k =>
+    W.UNITS[k]?.branch === (['destroyer', 'battleship'].includes(k) ? 'navy' : k === 'n_hyper' ? 'air' : 'army')),
     '일반 병력·특수 부대 분류 예시가 설계 4-1과 같음');
 
   // 건물 분류: 무역 앱의 모든 건물이 꼭 한 번 들어 있음
@@ -32,28 +33,28 @@ try {
   ok(W.TILE_IMP.destroy.join() === 'mine,oilwell,plantation' && W.TILE_IMP.keep.join() === 'farm,lumber,quarry',
     '파괴(광산·유정·농원)/그대로(농장·벌목장·채석장)가 설계 5-2와 같음');
 
-  // 특수 부대 힘 95 (미사일 순양함 90 + 5), 역할 5개
-  ok(W.BOSS.str() === 95, '특수 부대 힘 = ' + W.BOSS.str() + ' (일반 병력 최대 힘 90 + 5)');
-  ok(W.BOSS.damageMax === 60, '특수 부대 피해 상한 60');
+  // 특수 부대: W.UNITS에 boss 속성 + 최고 공격력 7, 역할 5개
+  const bosses = Object.values(W.UNITS).filter(u => u.boss);
+  ok(bosses.length > 0 && bosses.every(u => u.atk === 7), '특수 부대 ' + bosses.length + '개, 공격력 7');
   ok(W.ROLES.length === 5 && ['chief', 'engineer', 'army', 'navy', 'air'].every(k => W.ROLES.some(r => r.key === k)),
     '역할 5개 (합동참모의장·공병사령관·육해공 참모총장)');
   ok(W.ROLES.find(r => r.key === 'chief').menus4.length === 12, '4명 모둠 표시: 합동참모의장 메뉴에 공병 메뉴 6개가 더해짐');
 
-  // 새 병력 수치 (설계 4-1)
-  ok(W.EXTRA_UNITS.destroyer.str === 60 && W.EXTRA_UNITS.destroyer.move === 6 && W.EXTRA_UNITS.destroyer.sea,
-    '구축함: 힘 60·이동 6·바다');
-  ok(W.EXTRA_UNITS.fighter.str === 40 && W.EXTRA_UNITS.fighter.move === 6 && W.EXTRA_UNITS.fighter.range === 2,
-    '전투기: 힘 40·이동 6·사거리 2');
+  // 구축함·헬기 수치 (설계 4-1)
+  ok(W.UNITS.destroyer?.atk === 6 && W.UNITS.destroyer?.move === 4 && W.UNITS.destroyer?.sea,
+    '구축함: 공격 6·이동 4·바다');
+  ok(W.UNITS.helicopter?.atk === 6 && W.UNITS.helicopter?.move === 4 && W.UNITS.helicopter?.fly,
+    '헬기: 공격 6·이동 4·공중');
 
   // 기본 숫자 (설계 11장)
-  ok(W.MOVES.worker === 2 && W.MOVES.scout === 5, '노동자 이동력 2 (무역 앱은 0), 정찰병 이동력 5');
+  ok(W.MOVES_OF('worker') === 2 && W.MOVES_OF('scout') === 5, '노동자 이동력 2 (무역 앱은 0), 정찰병 이동력 5');
   ok(Array.isArray(W.MISSIONS) && W.MISSIONS.length === 20 && W.OPEN_STAGES.includes('now') &&
     W.MISSIONS.every(m => m.key && m.role && m.order && m.text && m.opens),
     '미션 목록 20개, now 단계 포함');
   ok(W.canPass('spear', { terrain: 'mountain' }, {}) === false && W.canPass('spear', { terrain: 'plains' }, {}) === true,
     'canPass: 땅 유닛은 산을 못 지나가고 평원은 지나감');
-  ok(W.canPass('fighter', { terrain: 'mountain' }, { enemyUnit: true }) === true &&
-    W.canStop('fighter', { terrain: 'ocean' }, {}) === false,
+  ok(W.canPass('helicopter', { terrain: 'mountain' }, { enemyUnit: true }) === true &&
+    W.canStop('helicopter', { terrain: 'ocean' }, {}) === false,
     'canPass/canStop: 공군은 병력 위를 지나가지만 바다 위에 못 멈춤');
   ok(W.TURN.seconds === 180 && W.TURN.min === 60 && W.TURN.max === 600 && W.POLL_MS === 4000,
     '턴 180초(1~10분 조절)·확인 주기 4초');

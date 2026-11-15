@@ -26,8 +26,8 @@ await test('kill',async()=>{await db.exec(`update war.units set hp=1 where id=90
 await test('attacker death',async()=>{await db.exec(`update war.units set hp=1 where id=9001`);const a=await atk();ok(a.attacker_killed&&!(await q(`select id from war.units where id=9001`)),'?? ?? 0 ?? ?? ??');});
 await test('terrain',async()=>{const a=await prev();await db.exec(`update war.tiles set terrain='hills' where id=401`);ok((await prev()).damage<a.damage,'언덕 방어');});
 await test('ranged',async()=>{await db.exec(`update war.units set kind='catapult' where id=9001`);const a=await prev();const far=await q(`select id from war.tiles where priv.tdist(id,401)=2 limit 1`);await db.query(`update war.units set tile_id=$1 where id=9001`,[far.id]);ok((await prev()).counter===Math.round(a.counter*.25),'원거리 반격 25%');});
-const boss=await q(`select key from jsonb_each(priv.cfg()->'UNITS') where value ? 'boss' limit 1`);
-await test('boss',async()=>{await db.query(`update war.units set kind=$1 where id=9001`,[boss.key]);await db.exec(`update war.units set hp=1 where id=9002`);ok((await atk()).damage<=60,'특수 부대 상한');});
+const boss=await q(`select key from jsonb_each(war.cfg()->'UNITS') where value ? 'boss' limit 1`);
+await test('boss',async()=>{await db.query(`update war.units set kind=$1 where id=9001`,[boss.key]);await db.exec(`update war.units set hp=1 where id=9002`);ok((await atk()).killed,'특수 부대 체력 1 상대 처치');});
 async function city(kind='city'){await db.exec(`delete from war.units where id=9002;
  insert into war.cities(id,tile_id,kind,type,name,def,sea,country,buildings,tier,hp,max_hp) values ('E4',401,'${kind}','K','시험',1,false,2,'{}',1,1,100);`);}
 await test('capital',async()=>{await city('capital');const a=await atk();ok(a.besieged&&!a.captured&&(await q(`select country from war.cities where id='E4'`)).country===2,'수도 포위, 점령 안 됨');});
@@ -38,8 +38,8 @@ await test('capture',async()=>{await city();await db.exec(`insert into war.city_
  ok((await q(`select count(*)::int n from war.tiles where priv.tdist(id,401)<=1 and owner=1`)).n===7,'주변 땅');
  ok((await q(`select count(*)::int n from war.tiles where imp in ('mine','oilwell','plantation') and imp_ruined`)).n===3,'광산·유정·농원 파괴');ok(!(await q(`select imp_ruined from war.tiles where imp='farm'`)).imp_ruined,'농장 유지');ok((await q(`select bool_and(ruined) r from war.city_facilities where city='E4'`)).r,'시설 파괴');const country=await q(`select * from war.countries where id=2`);ok(country.cities_lost===1&&country.shield_until===13,'상실 수·보호막 3턴');
  ok((await q(`select count(*)::int n from war.tiles where owner=1 and ver=0`)).n===0,'지도 ver 갱신');});
-for(const kind of ['catapult','fighter']) await test(kind,async()=>{await city();await db.query(`update war.units set kind=$1 where id=9001`,[kind]);const a=await atk();ok(!a.captured&&a.need_melee,kind+' 점령 안 됨');});
-for(const coastal of [false,true]) await test('ship',async()=>{await city();await db.exec(`update war.units set kind='trireme' where id=9001`);if(coastal)await db.exec(`update war.tiles set terrain='coast' where id=402`);const a=await atk();ok(a.captured===coastal,'배 점령 해안 여부 '+coastal);});
+for(const kind of ['catapult','helicopter']) await test(kind,async()=>{await city();await db.query(`update war.units set kind=$1 where id=9001`,[kind]);const a=await atk();ok(!a.captured&&a.need_melee,kind+' 점령 안 됨');});
+for(const coastal of [false,true]) await test('ship',async()=>{await city();await db.exec(`update war.units set kind='destroyer' where id=9001`);if(coastal)await db.exec(`update war.tiles set terrain='coast' where id=402`);const a=await atk();ok(a.captured===coastal,'배 점령 해안 여부 '+coastal);});
 await test('garrison',async()=>{await city();await db.exec(`insert into war.units(id,country,kind,tile_id,hp,commander) values(9002,2,'spear',401,100,'army')`);const a=await atk();ok(!a.captured&&a.defender_hp===0&&(await q(`select hp from war.units where id=9002`)).hp===100,'?? ?? ??, ?? ?? ??? ?? ??');});
 await test('unowned city',async()=>{await city();await db.exec(`update war.cities set country=null where id='E4'`);ok(await expected(atk,'NO_TARGET'),'?? ?? ???? ?? ??');});
 await test('market',async()=>{await db.exec(`insert into war.markets values(1,401,'test','??')`);ok(await expected(atk,'NO_TARGET'),'?? ?? ??');});

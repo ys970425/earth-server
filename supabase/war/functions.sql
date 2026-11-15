@@ -71,11 +71,9 @@ end $$;
 revoke all on function war.place_unit(int, int) from public;
 
 -- 병력의 남은 이동력 (설계 4-4): 노동자 2, 정찰병 5, 구축함·전투기는 전쟁 규칙, 나머지는 무역 규칙
-create or replace function war.moves_left_full(p_kind text, cfg jsonb, wcfg jsonb) returns int
-language sql stable as $$
-  select case when p_kind = 'worker' then (wcfg->'MOVES'->>'worker')::int
-    when p_kind = 'scout' then (wcfg->'MOVES'->>'scout')::int
-    else coalesce((wcfg->'EXTRA_UNITS'->p_kind->>'move')::int, (cfg->'UNITS'->p_kind->>'move')::int, 0) end
+create or replace function war.moves_left_full(p_kind text, cfg jsonb, wcfg jsonb) returns
+  int language sql stable as $$
+  select coalesce((wcfg->'UNITS'->p_kind->>'move')::int, 0)
 $$;
 
 -- 이동 (설계 4-4): 경로를 한 칸씩 검사하고 마지막 칸은 war.place_unit으로 놓는다 (한 칸 한 유닛은 DB가 최종 판정)
@@ -99,8 +97,8 @@ begin
   -- 역할·결석 대행·일시정지 검사와 나라 잠금 (병력의 조종 역할로)
   perform war.act_start(u.commander);
   select * into u from war.units where id = p_unit for update;
-  sea := coalesce((wcfg->'EXTRA_UNITS'->u.kind->>'sea')::boolean, (cfg->'UNITS'->u.kind->>'sea')::boolean, false);
-  air := coalesce(wcfg->'BRANCH'->>u.kind, '') = 'air';
+  sea := coalesce((wcfg->'UNITS'->u.kind->>'sea')::boolean, false);
+  air := coalesce(wcfg->'UNITS'->u.kind->>'branch', wcfg->'BRANCH'->>u.kind, '') = 'air';
   left_ := u.moves_left;
   if coalesce(array_length(p_path, 1), 0) = 0 then perform priv.err('BAD_PATH', '갈 칸을 골라 주세요.'); end if;
   if array_length(p_path, 1) > left_ then
@@ -318,12 +316,13 @@ begin
   insert into war.factories select country, kind from priv.factories;
   insert into war.advanced select country, kind from priv.advanced;
   -- 원래 칸의 첫 유닛만 제자리에, 나머지(겹친 것·맞지 않는 지형·다른 나라 도시 칸)는 칸을 비워서 넣는다.
-  -- (판정은 예전 「insert 뒤 update ... set tile_id = null」과 같음. 한 칸 한 유닛 유일 조건을 어기지 않게 하려고 순서만 바꿈)
+  -- 기존 종류 → 새 종류 매핑 (병과 개편: 학생 유닛 개수·위치 유지)
   insert into war.units(id, country, kind, tile_id, hp)
-  select s.id, s.country, s.kind,
+  select s.id, s.country,
+    coalesce(wcfg->'KIND_MAP'->>s.kind, s.kind),
     case when t.id is null then s.tile_id
          when x.n > 1 then null
-         when coalesce((cfg->'UNITS'->s.kind->>'sea')::boolean, false)
+         when coalesce((wcfg->'UNITS'->coalesce(wcfg->'KIND_MAP'->>s.kind,s.kind)->>'sea')::boolean, false)
            then case when t.terrain in ('ocean', 'coast') then s.tile_id else null end
          when t.terrain in ('ocean', 'coast', 'mountain') then null
          when exists (select 1 from war.cities c where c.tile_id = t.id and c.country is distinct from s.country) then null
@@ -356,7 +355,7 @@ begin
   -- 병력 조종 역할: 군사 유닛은 병과, 노동자·정찰병은 공병사령관 (설계 2장, H3-3)
   update war.units set commander = case
     when kind in ('worker', 'scout') then 'engineer'
-    else wcfg->'BRANCH'->>kind end
+    else coalesce(wcfg->'UNITS'->kind->>'branch', wcfg->'BRANCH'->>kind) end
    where commander is null;
 
   -- 공장·고등 건물을 도시에 배치 (설계 3-2): 수도가 아닌 도시들에 골고루, 결정적 순서로
@@ -374,11 +373,11 @@ begin
     end loop;
   end loop;
 
-  -- 병과 최소 지급 (설계 3-3): 육군→창병, 해군→삼단노선, 공군→전투기. 빈 칸 = 군사 유닛이 없는 칸
+  -- 병과 최소 지급 (설계 3-3): 육군→창병, 해군→구축함, 공군→전투 헬기. 빈 칸 = 군사 유닛이 없는 칸
   for co in select id from war.countries order by id loop
     foreach br in array array['army', 'navy', 'air'] loop
       continue when exists (
-        select 1 from war.units where country = co.id and coalesce(wcfg->'BRANCH'->>kind, '') = br);
+        select 1 from war.units where country = co.id and coalesce(wcfg->'UNITS'->kind->>'branch', wcfg->'BRANCH'->>kind, '') = br);
       dest_tile := null; reason := null; k := null;
       if br = 'army' then
         k := 'spear';
@@ -392,7 +391,7 @@ begin
           case when t.owner = co.id then 0 else 1 end, t.id limit 1;
         if dest_tile is null then reason := '빈 땅 칸이 없어요'; end if;
       elsif br = 'navy' then
-        k := 'trireme';
+        k := 'destroyer';
         cap_tile := (select c.tile_id from war.cities c where c.country = co.id and c.kind = 'capital');
         -- 해안 도시(수도 먼저, 그다음 도시 번호순) 옆의 빈 바다·해안 칸
         for cr in select c.id, c.tile_id from war.cities c
@@ -416,7 +415,7 @@ begin
         end if;
         if dest_tile is null then reason := '빈 바다 칸이 없어요'; end if;
       else
-        k := 'fighter';
+        k := 'helicopter';
         cap_tile := (select c.tile_id from war.cities c where c.country = co.id and c.kind = 'capital');
         -- 수도 옆 빈 땅 칸 (바다·산·다른 나라 도시 제외)
         select t.id into dest_tile from war.tiles t
@@ -883,16 +882,18 @@ begin
   select shield_until,cities_lost into shield,lost from war.countries where id=other;
   if shield>=turn_ then perform priv.err('SHIELD','보호막이 있어요 ('||(shield-turn_)||'턴 남음)'); end if;
   if u.attacked_turn=turn_ then perform priv.err('ATTACKED','이번 턴에는 이미 공격했어요'); end if;
-  ud:=coalesce(w->'EXTRA_UNITS'->u.kind,cfg->'UNITS'->u.kind);
-  vd:=coalesce(w->'EXTRA_UNITS'->v.kind,cfg->'UNITS'->v.kind);
+  ud:=coalesce(w->'UNITS'->u.kind,cfg->'UNITS'->u.kind);
+  vd:=coalesce(w->'UNITS'->v.kind,cfg->'UNITS'->v.kind);
   dist:=priv.tdist(u.tile_id,p_tile);
   if dist is null or dist<1 or dist>coalesce((ud->>'range')::int,1) then perform priv.err('TOO_FAR','공격하기에 너무 멀어요'); end if;
-  calc:=war.combat_calc(case when (ud ? 'boss') then (w->'BOSS'->>'str')::numeric else (ud->>'str')::numeric end,
-    u.hp,case when c.id is not null then c.def when (vd ? 'boss') then (w->'BOSS'->>'str')::numeric else (vd->>'str')::numeric end,
+  calc:=war.combat_calc(coalesce((ud->>'atk')::numeric,(ud->>'str')::numeric,1),
+    u.hp,case when c.id is not null then c.def else coalesce((vd->>'def')::numeric,(vd->>'str')::numeric,1) end,
     v.hp,(select terrain from war.tiles where id=p_tile),c.id is not null,(ud ? 'boss'),dist);
   if not p_apply then return calc||jsonb_build_object('can_attack',true,'reason',null); end if;
   damage:=(calc->>'damage')::int; counter:=(calc->>'counter')::int; ah:=greatest(0,u.hp-counter);
   dh:=greatest(case when c.id is not null and lost >= (w->>'MAX_CITY_LOSS')::int then 1 else 0 end,coalesce(c.hp,v.hp)-damage);
+  -- 유도미사일(oneTime): 쏘면 사라짐
+  if coalesce((ud->>'oneTime')::boolean,false) then ah:=0; end if;
   if ah=0 then delete from war.units where id=u.id;
   else update war.units set hp=ah,moves_left=0,attacked_turn=turn_ where id=u.id; end if;
   if c.id is null then
@@ -901,7 +902,7 @@ begin
     siege:=dh=0 and c.kind='capital';
     if dh=0 and c.kind<>'capital' then
       neighbor_ids:=war.neighbors(p_tile % (cfg->>'W')::int,p_tile / (cfg->>'W')::int,(cfg->>'W')::int);
-      cap:=ah>0 and dist=1 and coalesce((ud->>'range')::int,1)=1 and coalesce(w->'BRANCH'->>u.kind,'')<>'air'
+      cap:=ah>0 and dist=1 and coalesce((ud->>'range')::int,1)=1 and coalesce(w->'UNITS'->u.kind->>'branch', w->'BRANCH'->>u.kind,'')<>'air'
         and (not coalesce((ud->>'sea')::boolean,false) or exists(select 1 from war.tiles where id=any(neighbor_ids) and terrain in ('ocean','coast')))
         and v.id is null;
       need:=not cap;
@@ -1376,9 +1377,9 @@ begin
   select * into me from priv.students where uid=auth.uid();
   if not found then perform priv.err('NO_AUTH', '접속해 주세요'); end if;
   my_country := me.country_id;
-  def := coalesce(wcfg->'UNITS'->p_kind, cfg->'UNITS'->p_kind, wcfg->'EXTRA_UNITS'->p_kind);
-  if p_kind='worker' then def := '{}'::jsonb; end if;
-  branch := wcfg->'BRANCH'->>p_kind;
+  def := coalesce(wcfg->'UNITS'->p_kind, cfg->'UNITS'->p_kind);
+  if p_kind='worker' then def := wcfg->'UNITS'->'worker'; end if;
+  branch := coalesce(def->>'branch', wcfg->'BRANCH'->>p_kind);
   if def is null or branch is null or (branch='civil' and p_kind<>'worker') then
     perform priv.err('BAD_KIND', '이 병력은 만들 수 없어요'); end if;
   required_role := case when branch='civil' then 'engineer' else branch end;

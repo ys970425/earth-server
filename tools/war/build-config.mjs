@@ -12,9 +12,8 @@ const W = require('../../app/war/js/war-rules.js');
 const config = {
   ITEMS: R.ITEMS,
   ROLES: W.ROLES,
-  BRANCH: W.BRANCH,
-  EXTRA_UNITS: W.EXTRA_UNITS,
-  BOSS: { str: W.BOSS.str(), damageMax: W.BOSS.damageMax },
+  UNITS: W.UNITS,
+  KIND_MAP: W.KIND_MAP,
   BUILDING_CLASS: W.BUILDING_CLASS,
   SPECIALTY: W.SPECIALTY,
   TILE_IMP: W.TILE_IMP,
@@ -25,7 +24,6 @@ const config = {
     tariffNoSpecialtyMult: W.MARKET.tariffNoSpecialtyMult
   },
   SPECIALTY_ITEM: W.SPECIALTY_ITEM,
-  MOVES: W.MOVES,
   MISSIONS: W.MISSIONS,
   OPEN_STAGES: W.OPEN_STAGES,
   TURN: W.TURN,
@@ -36,8 +34,8 @@ const config = {
   MAX_CITY_LOSS: W.MAX_CITY_LOSS,
   PEACE_TURNS: W.PEACE_TURNS
 };
-if (config.BOSS.str !== 95) throw new Error(`특수 부대 힘이 95가 아니에요 (${config.BOSS.str})`);
 if (!Number.isInteger(config.TURN.seconds) || config.TURN.seconds !== 180) throw new Error('턴 기본값이 180초가 아니에요');
+if (!config.UNITS.spear || config.UNITS.spear.atk !== 4) throw new Error('창병 공격력이 4가 아니에요');
 
 const lines = [
   '-- 전쟁의 시간 규칙 숫자 (자동 생성): node tools/war/build-config.mjs',
@@ -53,4 +51,4 @@ const lines = [
 ];
 const out = lines.join('\n') + '\n';
 writeFileSync(new URL('../../supabase/war/config.sql', import.meta.url), out);
-console.log(`written supabase/war/config.sql ${(out.length / 1024).toFixed(1)}KB (특수 부대 힘 ${config.BOSS.str})`);
+console.log(`written supabase/war/config.sql ${(out.length / 1024).toFixed(1)}KB (유닛 ${Object.keys(config.UNITS).length}종)`);

@@ -34,19 +34,19 @@ try {
   ok(built.ok && unit.kind === 'spear' && unit.commander === 'army', '육군_생산_성공');
   ok(unit.moves_left === 1, '생산 직후 이동력 절반');
   ok((await q(`select qty from war.wallets where country=1 and role='army' and item='coin'`)).qty ===
-    before.qty - 20, '역할 지갑에서 비용 차감');
+    before.qty - 5, '역할 지갑에서 비용 차감');
   ok(await fail(ctx.rpc(army.uid, 'war_produce', other.id, 'spear'), 'CITY_BUSY'), '같은_도시_두번_거절');
   ok((await ctx.rpc(army.uid, 'war_produce', capital.id, 'spear')).ok, '다른_도시_생산_가능');
   await reset();
   await db.query(`update war.cities set buildings='{}' where id=$1`, [other.id]);
   ok(await fail(ctx.rpc(army.uid, 'war_produce', other.id, 'spear'), 'NO_BARRACKS'), '병영_없는_도시_거절');
-  ok(await fail(ctx.rpc(navy.uid, 'war_produce', other.id, 'trireme'), 'NO_HARBOR'), '항구_없는_도시_거절');
+  ok(await fail(ctx.rpc(navy.uid, 'war_produce', other.id, 'destroyer'), 'NO_HARBOR'), '항구_없는_도시_거절');
   await db.query(`update war.cities set buildings=array['harbor','barracks'],sea=false where id=$1`, [other.id]);
   await db.query('delete from war.units');
-  ok((await ctx.rpc(navy.uid, 'war_produce', other.id, 'trireme')).ok, '해군_생산_성공: sea 불필요');
-  ok((await ctx.rpc(air.uid, 'war_produce', capital.id, 'fighter')).ok, '공군_생산_성공');
+  ok((await ctx.rpc(navy.uid, 'war_produce', other.id, 'destroyer')).ok, '해군_생산_성공: sea 불필요');
+  ok((await ctx.rpc(air.uid, 'war_produce', capital.id, 'helicopter')).ok, '공군_생산_성공');
   await reset();
-  ok(await fail(ctx.rpc(air.uid, 'war_produce', other.id, 'fighter'), 'NOT_CAPITAL'), '수도_아닌_도시_거절');
+  ok(await fail(ctx.rpc(air.uid, 'war_produce', other.id, 'helicopter'), 'NOT_CAPITAL'), '수도_아닌_도시_거절');
   await db.exec(`update war.wallets set qty=0 where role='army'`);
   ok(await fail(ctx.rpc(army.uid, 'war_produce', other.id, 'spear'), 'NOT_ENOUGH'), '비용_부족_거절');
   ok(await fail(ctx.rpc(navy.uid, 'war_produce', other.id, 'spear'), 'ROLE_ONLY'), '역할_불일치_거절');
@@ -61,9 +61,8 @@ try {
   const worker = await ctx.rpc(engineer.uid, 'war_produce', other.id, 'worker');
   ok(worker.ok && (await q('select commander from war.units where id=$1', worker.unit_id)).commander === 'engineer', '노동자 생산');
   await reset();
-  ok(await fail(ctx.rpc(air.uid, 'war_produce', capital.id, 'j_patrol'), 'NO_BOSS'), '다른 나라 특수 부대 거절');
-  await db.exec(`update priv.countries set techs='{}' where id=1`);
-  ok(await fail(ctx.rpc(army.uid, 'war_produce', other.id, 'knight'), 'NEED_TECH'), '기술 부족 거절');
+  ok(await fail(ctx.rpc(navy.uid, 'war_produce', capital.id, 'j_patrol'), 'NO_BOSS'), '다른 나라 특수 부대 거절');
+  ok(await fail(ctx.rpc(army.uid, 'war_produce', other.id, 'knight'), 'BAD_KIND'), '없는 종류 거절');
   ok((await ctx.rpc(army.uid, 'war_mission_done', 'army_build')).ok, 'E7 서버 미션 열림');
   await db.query('delete from war.mission_done where student=$1', [army.id]);
   await reset();

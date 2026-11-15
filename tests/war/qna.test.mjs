@@ -18,12 +18,12 @@ ok(search(faq, '육군전용', 'army').found, '내 역할 질문 포함');
 ok(faq.length >= 60 && faq.length <= 80 && new Set(faq.map(x => x.id)).size === faq.length, 'FAQ 개수와 고유 번호');
 ok(faq.every(x => ['common', 'army', 'navy', 'air', 'engineer', 'chief'].includes(x.role) && x.keywords.length && x.variants.length && x.answer && x.question), 'FAQ 형식');
 for (const [query, role, values] of [
-  ['구축함', 'navy', [W.EXTRA_UNITS.destroyer.str, W.EXTRA_UNITS.destroyer.move]],
-  ['전투기', 'air', [W.EXTRA_UNITS.fighter.str, W.EXTRA_UNITS.fighter.move, W.EXTRA_UNITS.fighter.range]],
-  ['특수', 'common', [W.BOSS.str(), W.BOSS.damageMax]],
+  ['구축함', 'navy', [W.UNITS.destroyer.atk, W.UNITS.destroyer.def, W.UNITS.destroyer.move]],
+  ['헬기', 'air', [W.UNITS.helicopter.atk, W.UNITS.helicopter.def, W.UNITS.helicopter.move]],
+  ['특수', 'common', [W.UNITS.k_missile.atk, W.UNITS.k_missile.def]],
   ['멸망', 'common', [W.MAX_CITY_LOSS, W.SHIELD_TURNS]],
-  ['노동자', 'engineer', [W.MOVES.worker]],
-  ['정찰병', 'engineer', [W.MOVES.scout]]
+  ['노동자', 'engineer', [W.MOVES_OF('worker')]],
+  ['정찰병', 'engineer', [W.MOVES_OF('scout')]]
 ]) {
   const result = search(faq, query, role);
   ok(result.found && values.every(value => result.item.answer.includes(String(value))), query + ' 규칙 숫자');

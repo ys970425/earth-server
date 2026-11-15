@@ -21,11 +21,11 @@ try {
   }
 
   const u1 = await q1(`select id, country, tile_id from war.units where country = 1 and kind = 'spear' order by id limit 1`);
-  const fighter = await q1(`select id from war.units where country = 1 and kind = 'fighter' order by id limit 1`);
+  const fighter = await q1(`select id from war.units where country = 1 and kind = 'helicopter' order by id limit 1`);
   const worker1 = await q1(`select id from war.units where country = 1 and kind = 'worker' order by id limit 1`);
   const enemyU = await q1(`select u.id, u.country, u.tile_id from war.units u where u.country = 2 and u.kind not in ('worker', 'scout')
     and u.tile_id is not null and not exists (select 1 from war.cities c where c.tile_id = u.tile_id) order by u.id limit 1`);
-  ok(!!u1 && !!fighter && !!worker1 && !!enemyU, '준비: 육군 병력·전투기(지급)·노동자·다른 나라 병력(도시 밖)');
+  ok(!!u1 && !!fighter && !!worker1 && !!enemyU, '준비: 육군 병력·전투 헬기(지급)·노동자·다른 나라 병력(도시 밖)');
 
   // 산·바다·빈 땅이 모두 옆에 있는 칸으로 출발
   const X = await q1(`select t.id from war.tiles t
@@ -90,10 +90,11 @@ try {
   ok(await fail(ctx.rpc(army.uid, 'war_move', u1.id, [enemyU.tile_id, pastEnemy.id]), 'BLOCKED'),
     '다른 나라 병력이 있는 칸을 지나가는 땅 유닛 경로 거절');
   await db.query(`select war.place_unit($1, $2)`, [u1.id, X.id]);   // 자리 비우고 공군을 적군 옆에
+  await db.query(`update war.units set moves_left = 4 where id = $1`, [fighter.id]);
   await db.query(`select war.place_unit($1, $2)`, [fighter.id, nearEnemy.id]);
   const airMv = await ctx.rpc(air.uid, 'war_move', fighter.id, [enemyU.tile_id, pastEnemy.id]);
   ok(airMv.ok && airMv.tile === pastEnemy.id, '공군은 다른 나라 병력 위를 지나갈 수 있음');
-  ok((await q1(`select moves_left from war.units where id = $1`, fighter.id)).moves_left === 4, '공군 이동력도 줄어듦');
+  ok((await q1(`select moves_left from war.units where id = $1`, fighter.id)).moves_left === 2, '공군 이동력도 줄어듦');
 
   // 공군이 바다 위에 멈추면 거절
   const coastLand = await q1(`select t.id from war.tiles t where t.terrain not in ('ocean', 'coast', 'mountain')

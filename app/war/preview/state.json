@@ -10181,7 +10181,7 @@
   {
    "id": 85,
    "country": 1,
-   "kind": "trireme",
+   "kind": "destroyer",
    "tile": 422,
    "hp": 100,
    "commander": "navy",
@@ -10190,7 +10190,7 @@
   {
    "id": 86,
    "country": 1,
-   "kind": "fighter",
+   "kind": "helicopter",
    "tile": 459,
    "hp": 100,
    "commander": "air",
@@ -10199,7 +10199,7 @@
   {
    "id": 87,
    "country": 2,
-   "kind": "trireme",
+   "kind": "destroyer",
    "tile": 385,
    "hp": 100,
    "commander": "navy",
@@ -10208,7 +10208,7 @@
   {
    "id": 88,
    "country": 2,
-   "kind": "fighter",
+   "kind": "helicopter",
    "tile": 465,
    "hp": 100,
    "commander": "air",
@@ -10217,7 +10217,7 @@
   {
    "id": 89,
    "country": 3,
-   "kind": "trireme",
+   "kind": "destroyer",
    "tile": 287,
    "hp": 100,
    "commander": "navy",
@@ -10226,7 +10226,7 @@
   {
    "id": 90,
    "country": 3,
-   "kind": "fighter",
+   "kind": "helicopter",
    "tile": 529,
    "hp": 100,
    "commander": "air",
@@ -10235,7 +10235,7 @@
   {
    "id": 91,
    "country": 4,
-   "kind": "trireme",
+   "kind": "destroyer",
    "tile": 519,
    "hp": 100,
    "commander": "navy",
@@ -10244,7 +10244,7 @@
   {
    "id": 92,
    "country": 4,
-   "kind": "fighter",
+   "kind": "helicopter",
    "tile": 554,
    "hp": 100,
    "commander": "air",
@@ -10253,7 +10253,7 @@
   {
    "id": 93,
    "country": 5,
-   "kind": "trireme",
+   "kind": "destroyer",
    "tile": 258,
    "hp": 100,
    "commander": "navy",
@@ -10262,7 +10262,7 @@
   {
    "id": 94,
    "country": 5,
-   "kind": "fighter",
+   "kind": "helicopter",
    "tile": 95,
    "hp": 100,
    "commander": "air",
@@ -10271,7 +10271,7 @@
   {
    "id": 95,
    "country": 6,
-   "kind": "trireme",
+   "kind": "destroyer",
    "tile": 773,
    "hp": 100,
    "commander": "navy",
@@ -10280,7 +10280,7 @@
   {
    "id": 96,
    "country": 6,
-   "kind": "fighter",
+   "kind": "helicopter",
    "tile": 893,
    "hp": 100,
    "commander": "air",
@@ -10612,7 +10612,7 @@
   {
    "country": 1,
    "branch": "air",
-   "kind": "fighter",
+   "kind": "helicopter",
    "unit_id": 86,
    "result": "given",
    "reason": null
@@ -10620,7 +10620,7 @@
   {
    "country": 1,
    "branch": "navy",
-   "kind": "trireme",
+   "kind": "destroyer",
    "unit_id": 85,
    "result": "given",
    "reason": null
@@ -10628,7 +10628,7 @@
   {
    "country": 2,
    "branch": "air",
-   "kind": "fighter",
+   "kind": "helicopter",
    "unit_id": 88,
    "result": "given",
    "reason": null
@@ -10636,7 +10636,7 @@
   {
    "country": 2,
    "branch": "navy",
-   "kind": "trireme",
+   "kind": "destroyer",
    "unit_id": 87,
    "result": "given",
    "reason": null
@@ -10644,7 +10644,7 @@
   {
    "country": 3,
    "branch": "air",
-   "kind": "fighter",
+   "kind": "helicopter",
    "unit_id": 90,
    "result": "given",
    "reason": null
@@ -10652,7 +10652,7 @@
   {
    "country": 3,
    "branch": "navy",
-   "kind": "trireme",
+   "kind": "destroyer",
    "unit_id": 89,
    "result": "given",
    "reason": null
@@ -10660,7 +10660,7 @@
   {
    "country": 4,
    "branch": "air",
-   "kind": "fighter",
+   "kind": "helicopter",
    "unit_id": 92,
    "result": "given",
    "reason": null
@@ -10668,7 +10668,7 @@
   {
    "country": 4,
    "branch": "navy",
-   "kind": "trireme",
+   "kind": "destroyer",
    "unit_id": 91,
    "result": "given",
    "reason": null
@@ -10676,7 +10676,7 @@
   {
    "country": 5,
    "branch": "air",
-   "kind": "fighter",
+   "kind": "helicopter",
    "unit_id": 94,
    "result": "given",
    "reason": null
@@ -10684,7 +10684,7 @@
   {
    "country": 5,
    "branch": "navy",
-   "kind": "trireme",
+   "kind": "destroyer",
    "unit_id": 93,
    "result": "given",
    "reason": null
@@ -10692,7 +10692,7 @@
   {
    "country": 6,
    "branch": "air",
-   "kind": "fighter",
+   "kind": "helicopter",
    "unit_id": 96,
    "result": "given",
    "reason": null
@@ -10700,7 +10700,7 @@
   {
    "country": 6,
    "branch": "navy",
-   "kind": "trireme",
+   "kind": "destroyer",
    "unit_id": 95,
    "result": "given",
    "reason": null

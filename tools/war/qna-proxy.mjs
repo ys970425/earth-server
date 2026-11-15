@@ -26,10 +26,10 @@ const { search } = await import(pathToFileURL(enginePath).href);
 const rulesText = [
   `도시 최대 손실: ${W.MAX_CITY_LOSS}곳 → 협상 강요`,
   `보호막: 도시 잃으면 ${W.SHIELD_TURNS}턴 보호`,
-  `구축함: 힘 ${W.EXTRA_UNITS?.destroyer?.str ?? '?'}, 이동력 ${W.EXTRA_UNITS?.destroyer?.move ?? '?'}`,
-  `전투기: 힘 ${W.EXTRA_UNITS?.fighter?.str ?? '?'}, 이동력 ${W.EXTRA_UNITS?.fighter?.move ?? '?'}, 사거리 ${W.EXTRA_UNITS?.fighter?.range ?? '?'}`,
-  `특수 보스: 힘 ${W.BOSS?.str?.() ?? '?'}, 최대 피해 ${W.BOSS?.damageMax ?? '?'}`,
-  `노동자 이동력: ${W.MOVES?.worker ?? '?'}, 정찰병 이동력: ${W.MOVES?.scout ?? '?'}`,
+  `구축함: 공격 ${W.UNITS?.destroyer?.atk ?? '?'}, 방어 ${W.UNITS?.destroyer?.def ?? '?'}, 이동력 ${W.UNITS?.destroyer?.move ?? '?'}`,
+  `전투 헬기: 공격 ${W.UNITS?.helicopter?.atk ?? '?'}, 방어 ${W.UNITS?.helicopter?.def ?? '?'}, 이동력 ${W.UNITS?.helicopter?.move ?? '?'}`,
+  `특수 부대: 공격 ${W.UNITS?.k_missile?.atk ?? '?'}, 방어 ${W.UNITS?.k_missile?.def ?? '?'}`,
+  `노동자 이동력: ${W.MOVES_OF?.('worker') ?? '?'}, 정찰병 이동력: ${W.MOVES_OF?.('scout') ?? '?'}`,
 ].join('\n');
 
 // 시스템 프롬프트: 낱말 봇이 찾은 FAQ 항목을 AI가 쉽게 풀어 쓰게 함

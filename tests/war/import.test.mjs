@@ -17,7 +17,7 @@ try {
       and t.terrain not in ('ocean', 'coast', 'mountain') order by c.id limit 1)
     where id = (select id from priv.units where country = 1
       and kind not in ('worker', 'scout')
-      and not coalesce((priv.cfg()->'UNITS'->kind->>'sea')::boolean, false)
+      and not coalesce((war.cfg()->'UNITS'->kind->>'sea')::boolean, false)
       order by id limit 1)`);
   const before = await tradeFingerprint(db);
   const first = await rpc(seed.ADMIN, 'war_admin_import', '초기화');
@@ -48,11 +48,11 @@ try {
     `${civilian ? '민간' : '군사'} 유닛이 한 칸에 둘 이상인 곳이 없음`);
   }
   ok((await one(`select count(*)::int n from war.units u left join war.tiles t on t.id = u.tile_id
-    where t.id is null or case when coalesce((priv.cfg()->'UNITS'->u.kind->>'sea')::boolean, false)
+    where t.id is null or case when coalesce((war.cfg()->'UNITS'->u.kind->>'sea')::boolean, false)
       then t.terrain not in ('ocean','coast') else t.terrain in ('ocean','coast','mountain') end`)).n === 0,
   '모든 병력이 바다·땅·산 규칙에 맞는 칸에 있음');
   ok((await one(`select count(*)::int n from war.units u join war.cities c on c.tile_id = u.tile_id
-    where not coalesce((priv.cfg()->'UNITS'->u.kind->>'sea')::boolean, false)
+    where not coalesce((war.cfg()->'UNITS'->u.kind->>'sea')::boolean, false)
       and c.country is distinct from u.country`)).n === 0,
   '땅 유닛이 자기 나라가 아닌 도시 칸(주인 없는 도시 포함)에 있는 경우 0개');
   ok((await one('select count(*)::int n from war.units where hp <> 100')).n === 0, '모든 병력의 체력이 100임');

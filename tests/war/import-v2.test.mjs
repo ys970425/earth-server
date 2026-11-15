@@ -12,8 +12,9 @@ try {
   const sql = ['schema.sql', 'config.sql', 'functions.sql'].map(f => readFileSync(new URL(f, dir), 'utf8'));
   for (let i = 0; i < 2; i++) for (const s of sql) await db.exec(s);
   ok(true, 'schema → config → functions 순서로 두 번 설치해도 안전함');
-  ok((await one(`select war.cfg()->'BOSS'->>'str' s`)).s === '95' && (await one(`select war.cfg()->'TURN'->>'seconds' t`)).t === '180',
-    'war.cfg()에 규칙 숫자가 들어 있음 (특수 부대 힘 95, 턴 180초)');
+  ok((await one(`select war.cfg()->'TURN'->>'seconds' t`)).t === '180' &&
+    (await one(`select bool_and((val->>'atk')::int = 7) ok from jsonb_each(war.cfg()->'UNITS') u(key,val) where val->>'boss' is not null`)).ok,
+    'war.cfg()에 규칙 숫자가 들어 있음 (특수 부대 공격력 7, 턴 180초)');
 
   // ---------- 시험 준비 (지문 기준값을 만들기 전에 priv 표를 직접 고친다) ----------
   // 4번 나라(신대륙): 군사 유닛 모두 삭제 → 육·해·공 모두 지급 (수도 칸이 비어 수도 칸에 창병)
@@ -89,7 +90,8 @@ try {
   ok((await one(`select count(*)::int n from war.countries c
       cross join (values ('army'), ('navy'), ('air')) b(branch)
       where not exists (select 1 from war.units u where u.country = c.id
-          and coalesce(war.cfg()->'BRANCH'->>u.kind, '') = b.branch)
+          and coalesce(war.cfg()->'UNITS'->u.kind->>'branch',
+              war.cfg()->'UNITS'->(war.cfg()->'KIND_MAP'->>u.kind)->>'branch', '') = b.branch)
         and not exists (select 1 from war.grants g where g.country = c.id and g.branch = b.branch and g.result = 'skipped')`)).n === 0,
     '지급 뒤 모든 나라가 육·해·공 각 1부대 이상 (해안 도시가 없어 skipped인 경우 제외)');
   ok((await one(`select count(*)::int n from war.units where commander is null or hp <> 100`)).n === 0,
@@ -97,9 +99,24 @@ try {
   // 4번 나라: 세 병과 모두 given, 창병은 수도 칸 (수도에 군사 유닛이 없었음)
   const g4 = (await db.query(`select branch, kind, unit_id, result from war.grants where country = 4 order by branch`)).rows;
   ok(g4.length === 3 && g4.every(g => g.result === 'given') &&
-    g4.find(g => g.branch === 'army').kind === 'spear' && g4.find(g => g.branch === 'navy').kind === 'trireme' &&
-    g4.find(g => g.branch === 'air').kind === 'fighter',
-    '4번 나라는 육(창병)·해(삼단노선)·공(전투기) 모두 지급');
+    g4.find(g => g.branch === 'army').kind === 'spear' && g4.find(g => g.branch === 'navy').kind === 'destroyer' &&
+    g4.find(g => g.branch === 'air').kind === 'helicopter',
+    '4번 나라는 육(창병)·해(구축함)·공(전투 헬기) 모두 지급');
+  // 병과 개편: 이관한 유닛 개수·종류 대응·위치 보존 (지급분 제외)
+  const cnt = await one(`select (select count(*) from priv.units)::int p,
+    (select count(*) from war.units u where not exists (select 1 from war.grants g where g.unit_id = u.id))::int w`);
+  ok(cnt.p > 0 && cnt.p === cnt.w, `이관 유닛 개수 유지 (${cnt.p} → ${cnt.w})`);
+  ok((await one(`select count(*)::int n from priv.units s join war.units u on u.id = s.id
+    where u.kind is distinct from coalesce(war.cfg()->'KIND_MAP'->>s.kind, s.kind)`)).n === 0, '이관 유닛 종류가 대응표대로');
+  ok((await one(`select count(*)::int n from war.units where not (war.cfg()->'UNITS' ? kind)`)).n === 0,
+    '모든 유닛이 새 병과 종류');
+  ok((await one(`select count(*)::int n from priv.units s join war.units u on u.id = s.id
+    join war.tiles t on t.id = s.tile_id
+    where t.terrain not in ('ocean', 'coast', 'mountain')
+      and (select count(*) from priv.units s2 where s2.tile_id = s.tile_id
+        and (s2.kind in ('worker', 'scout')) = (s.kind in ('worker', 'scout'))) = 1
+      and not exists (select 1 from war.cities c where c.tile_id = t.id and c.country is distinct from s.country)
+      and u.tile_id is distinct from s.tile_id`)).n === 0, '겹치지 않는 땅 유닛은 원래 칸 그대로');
   ok((await one(`select u.tile_id = c.tile_id same from war.units u
       join war.grants g on g.unit_id = u.id and g.country = 4 and g.branch = 'army'
       join war.cities c on c.country = 4 and c.kind = 'capital'`)).same,
