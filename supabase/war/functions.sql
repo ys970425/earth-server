@@ -1677,6 +1677,11 @@ begin
   if role_ is null or role_ = 'chief' then
     perform priv.err('BAD_ROLE','합참의장은 요청하지 않아요. 역할이 없으면 요청할 수 없어요.');
   end if;
+  if exists (select 1 from war.roles
+    where war.roles.student = (select id from priv.students where uid=auth.uid())
+      and country = me and absent) then
+    perform priv.err('ROLE_ONLY','결석한 역할은 요청할 수 없어요.');
+  end if;
   if exists (select 1 from war.budget_requests where country=me and role=role_ and status='pending') then
     perform priv.err('ALREADY_PENDING','이미 대기 중인 요청이 있어요. 먼저 취소해 주세요.');
   end if;
