@@ -12,3 +12,6 @@ app/war/preview/state-real.json
 app/war/preview/db.tar.gz
 app/war/preview/db.json
 app/war/preview/*real*
+
+# 실행 때 만들어지는 설치 파일 (선생님 PC에만 있어요)
+dist/
