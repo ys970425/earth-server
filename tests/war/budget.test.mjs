@@ -15,16 +15,15 @@ try {
   for (const [student, role] of [[chief,'chief'],[army,'army'],[navy,'navy'],[air,'air']])
     await db.query('insert into war.roles(student,country,role) values($1,1,$2)', [student.id, role]);
 
-  // chief 지갑에 코인·자원 채워두기
-  await db.exec(`insert into war.wallets(country,role,item,qty) values(1,'chief','coin',200)
-    on conflict(country,role,item) do update set qty=200`);
-  await db.exec(`insert into war.wallets(country,role,item,qty) values(1,'chief','iron',50)
-    on conflict(country,role,item) do update set qty=50`);
+  // 국고에 코인·자원 채워두기 (요청 승인·분배는 국고 → 역할 지갑으로 옮겨요)
+  await db.exec(`update war.countries set coin=200 where id=1`);
+  await db.exec(`insert into war.inventory(country,item,qty) values(1,'iron',50) on conflict(country,item) do update set qty=50`);
 
   const rw = async (role, item) =>
-    (await q('select qty from war.role_wallets where country=1 and role=$1 and item=$2', role, item))?.qty ?? 0;
+    (await q('select qty from war.wallets where country=1 and role=$1 and item=$2', role, item))?.qty ?? 0;
   const cw = async (item) =>
-    (await q("select qty from war.wallets where country=1 and role='chief' and item=$1", item))?.qty ?? 0;
+    (item === 'coin' ? await q('select coin as qty from war.countries where id=1')
+      : await q('select qty from war.inventory where country=1 and item=$1', item))?.qty ?? 0;
 
   // --- 분배 ---
   const dist = await ctx.rpc(chief.uid, 'war_budget_distribute', 'army', { coin: 30, iron: 10 });
@@ -90,6 +89,26 @@ try {
 
   ok(await fail(ctx.rpc(chief.uid, 'war_budget_return', { coin: 1 }), 'BAD_ROLE'),
     '합참의장은_반납_못_함');
+
+  // --- 국고에 없는 자원은 승인해도 허공에서 생기지 않는다 (예전엔 승인이 성공하면서 자원이 생겼어요) ---
+  const reqNo = await ctx.rpc(navy.uid, 'war_budget_request', { steel: 3 });
+  const treasurySteel = await cw('steel'), navySteel = await rw('navy', 'steel');
+  ok(await fail(ctx.rpc(chief.uid, 'war_budget_approve', reqNo.id), 'NOT_ENOUGH'), '국고에_없는_자원_승인_막힘');
+  ok(await rw('navy', 'steel') === navySteel && await cw('steel') === treasurySteel, '막힌_승인은_창고_그대로');
+  ok((await q('select status from war.budget_requests where id=$1', reqNo.id)).status === 'pending', '막힌_승인은_요청이_대기로_남음');
+  await ctx.rpc(navy.uid, 'war_budget_request_cancel', reqNo.id);
+
+  // --- 승인한 자원으로 실제 생산이 된다 (요청 → 승인 → 생산 연결) ---
+  await db.exec(`update war.countries set coin=coin+100 where id=1`);
+  await db.exec(`insert into war.inventory(country,item,qty) values(1,'wood',20),(1,'iron',20) on conflict(country,item) do update set qty=war.inventory.qty+20`);
+  const cap = await q(`select id from war.cities where country=1 and kind='capital'`);
+  await db.exec(`update war.cities set buildings = array_append(buildings,'barracks') where id='${cap.id}' and not ('barracks'=any(buildings))`);
+  const spearCost = { coin: 5, wood: 2, iron: 1 };
+  const reqP = await ctx.rpc(army.uid, 'war_budget_request', spearCost, '유닛 생산');
+  const beforeUnits = (await q(`select count(*)::int n from war.units where country=1`)).n;
+  await ctx.rpc(chief.uid, 'war_budget_approve', reqP.id);
+  const made = await ctx.rpc(army.uid, 'war_produce', cap.id, 'spear');
+  ok(made.ok && (await q(`select count(*)::int n from war.units where country=1`)).n === beforeUnits + 1, '승인한_자원으로_창병_생산');
 
   // --- 조회 ---
   const state = await ctx.rpc(chief.uid, 'war_budget_state');

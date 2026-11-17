@@ -39,11 +39,47 @@ for (let c = 1; c <= 6; c++) {
       where t.terrain not in ('ocean','coast','mountain')
         and not exists (select 1 from war.cities ci where ci.tile_id = t.id and ci.country is distinct from ${c})
         and not exists (select 1 from war.units u where u.tile_id = t.id and u.kind not in ('worker','scout'))
+        and priv.tdist(t.id, ${capId}) >= 2   -- 수도 바로 옆 칸은 비워 둬요 (체험에서 새 병력이 놓일 자리)
       order by priv.tdist(t.id, ${capId}), case when t.owner = ${c} then 0 else 1 end, t.id limit 1`)).rows[0];
     if (landTile) {
       const nextId = (await db.query(`select coalesce(max(id),0)+1 as nid from war.units`)).rows[0].nid;
       await db.query(`insert into war.units(id,country,kind,tile_id,hp,commander) values (${nextId},${c},'${kind}',${landTile.id},100,'army')`);
     }
+  }
+}
+
+// 체험용 준비 (가짜 미리보기에만 넣어요. 실제 데이터 미리보기 make-real-preview.mjs는 건드리지 않아요):
+// 처음 온 사람이 「요청 → 승인 → 생산」까지 해 볼 수 있게
+//  ① 나라마다 수도에 병영·항구 1개씩 (육군·해군 생산 조건)
+//  ② 국고(창고)에 생산 재료를 넉넉히 (이미 더 많으면 그대로 둬요)
+//  ③ 역할 지갑에는 코인 3개·목재 1개만 (유닛 하나를 만들기엔 모자라서 요청이 필요해요)
+const TRY_ITEMS = { wood: 10, iron: 6, steel: 6, fuel: 6, tire: 3, engine: 3 };
+for (let c = 1; c <= 6; c++) {
+  for (const b of ['barracks', 'harbor']) {
+    await db.query(`update war.cities set buildings = array_append(buildings, '${b}')
+      where country = ${c} and kind = 'capital' and not ('${b}' = any(buildings))`);
+  }
+  await db.query(`update war.countries set coin = greatest(coin, 100) where id = ${c}`);
+  for (const [item, n] of Object.entries(TRY_ITEMS)) {
+    await db.query(`insert into war.inventory(country, item, qty)
+      select ${c}, '${item}', ${n} where priv.cfg()->'ITEMS' ? '${item}'
+      on conflict (country, item) do update set qty = greatest(war.inventory.qty, ${n})`);
+  }
+  for (const role of ['engineer', 'army', 'navy', 'air']) {
+    for (const [item, n] of [['coin', 3], ['wood', 1]]) {
+      await db.query(`insert into war.wallets(country, role, item, qty) values (${c}, '${role}', '${item}', ${n})
+        on conflict (country, role, item) do update set qty = ${n}`);
+    }
+  }
+}
+
+// ④ 혼자 와도 이어 볼 수 있게: 나라마다 공군이 전투 헬기 재료를 요청해 둔 상태 (합참의장이 승인 → 공군을 대신해 생산)
+{
+  const turn = (await db.query('select turn from war.game where id = 1')).rows[0].turn;
+  for (let c = 1; c <= 6; c++) {
+    await db.query(`insert into war.budget_requests(country, role, turn, status, items, note)
+      values ($1, 'air', $2, 'pending', $3::jsonb, '유닛 생산 (체험용 예시 요청)')`,
+      [c, turn, JSON.stringify({ coin: 16, engine: 1, fuel: 2 })]);
   }
 }
 

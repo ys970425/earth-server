@@ -582,7 +582,7 @@
               h('b', {}, roleName + ' → ' + itemsText + (req.note ? ' (' + req.note + ')' : '')),
               h('div', { class: 'row', style: { marginTop: '8px' } },
                 h('button', { class: 'primary small',
-                  onclick: () => economyAction('war_budget_approve', { p_id: req.id, p_items: req.items }, 'chief_budget')
+                  onclick: () => economyAction('war_budget_approve', { p_id: req.id }, 'chief_budget')
                 }, '승인'),
                 h('button', { class: 'small',
                   onclick: () => economyAction('war_budget_reject', { p_id: req.id, p_note: '거절' }, null)

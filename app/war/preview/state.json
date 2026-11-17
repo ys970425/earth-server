@@ -8975,7 +8975,10 @@
    "name": "수도",
    "art": "A",
    "country": 4,
-   "buildings": [],
+   "buildings": [
+    "barracks",
+    "harbor"
+   ],
    "def": 20,
    "hp": 200,
    "max_hp": 200,
@@ -9119,7 +9122,10 @@
    "name": "수도",
    "art": "C",
    "country": 3,
-   "buildings": [],
+   "buildings": [
+    "barracks",
+    "harbor"
+   ],
    "def": 20,
    "hp": 200,
    "max_hp": 200,
@@ -9263,7 +9269,10 @@
    "name": "수도",
    "art": "J",
    "country": 2,
-   "buildings": [],
+   "buildings": [
+    "barracks",
+    "harbor"
+   ],
    "def": 20,
    "hp": 200,
    "max_hp": 200,
@@ -9354,7 +9363,9 @@
    "art": "K",
    "country": 1,
    "buildings": [
-    "market"
+    "market",
+    "barracks",
+    "harbor"
    ],
    "def": 20,
    "hp": 200,
@@ -9445,7 +9456,10 @@
    "name": "수도",
    "art": "N",
    "country": 5,
-   "buildings": [],
+   "buildings": [
+    "barracks",
+    "harbor"
+   ],
    "def": 20,
    "hp": 200,
    "max_hp": 200,
@@ -9589,7 +9603,10 @@
    "name": "수도",
    "art": "T",
    "country": 6,
-   "buildings": [],
+   "buildings": [
+    "barracks",
+    "harbor"
+   ],
    "def": 20,
    "hp": 200,
    "max_hp": 200,
@@ -10299,7 +10316,7 @@
    "id": 98,
    "country": 1,
    "kind": "spear",
-   "tile": 461,
+   "tile": 379,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10308,7 +10325,7 @@
    "id": 99,
    "country": 1,
    "kind": "spear",
-   "tile": 500,
+   "tile": 380,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10317,7 +10334,7 @@
    "id": 100,
    "country": 1,
    "kind": "tank",
-   "tile": 501,
+   "tile": 419,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10335,7 +10352,7 @@
    "id": 102,
    "country": 2,
    "kind": "spear",
-   "tile": 467,
+   "tile": 387,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10344,7 +10361,7 @@
    "id": 103,
    "country": 2,
    "kind": "spear",
-   "tile": 506,
+   "tile": 425,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10353,7 +10370,7 @@
    "id": 104,
    "country": 2,
    "kind": "tank",
-   "tile": 387,
+   "tile": 428,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10371,7 +10388,7 @@
    "id": 106,
    "country": 3,
    "kind": "spear",
-   "tile": 570,
+   "tile": 451,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10380,7 +10397,7 @@
    "id": 107,
    "country": 3,
    "kind": "spear",
-   "tile": 571,
+   "tile": 492,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10389,7 +10406,7 @@
    "id": 108,
    "country": 3,
    "kind": "tank",
-   "tile": 451,
+   "tile": 532,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10407,7 +10424,7 @@
    "id": 110,
    "country": 4,
    "kind": "spear",
-   "tile": 556,
+   "tile": 476,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10416,7 +10433,7 @@
    "id": 111,
    "country": 4,
    "kind": "spear",
-   "tile": 595,
+   "tile": 517,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10425,7 +10442,7 @@
    "id": 112,
    "country": 4,
    "kind": "tank",
-   "tile": 596,
+   "tile": 553,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10443,7 +10460,7 @@
    "id": 114,
    "country": 5,
    "kind": "spear",
-   "tile": 97,
+   "tile": 16,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10452,7 +10469,7 @@
    "id": 115,
    "country": 5,
    "kind": "spear",
-   "tile": 135,
+   "tile": 17,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10461,7 +10478,7 @@
    "id": 116,
    "country": 5,
    "kind": "tank",
-   "tile": 136,
+   "tile": 57,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10479,7 +10496,7 @@
    "id": 118,
    "country": 6,
    "kind": "spear",
-   "tile": 895,
+   "tile": 814,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10488,7 +10505,7 @@
    "id": 119,
    "country": 6,
    "kind": "spear",
-   "tile": 933,
+   "tile": 815,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10497,7 +10514,7 @@
    "id": 120,
    "country": 6,
    "kind": "tank",
-   "tile": 934,
+   "tile": 855,
    "hp": 100,
    "commander": "army",
    "done": false
@@ -10514,8 +10531,12 @@
    "happy": 12,
    "inventory": {
     "clothes": 7,
+    "engine": 3,
     "food": 10,
-    "iron": 2,
+    "fuel": 6,
+    "iron": 6,
+    "steel": 6,
+    "tire": 3,
     "wood": 10
    },
    "units": 13,
@@ -10530,9 +10551,13 @@
    "coin": 234,
    "happy": 0,
    "inventory": {
+    "engine": 3,
     "food": 8,
-    "iron": 2,
+    "fuel": 6,
+    "iron": 6,
     "jewelry": 7,
+    "steel": 6,
+    "tire": 3,
     "wood": 10
    },
    "units": 13,
@@ -10548,9 +10573,13 @@
    "happy": 0,
    "inventory": {
     "cotton": 7,
+    "engine": 3,
     "food": 8,
-    "iron": 2,
-    "wood": 6
+    "fuel": 6,
+    "iron": 6,
+    "steel": 6,
+    "tire": 3,
+    "wood": 10
    },
    "units": 13,
    "cities": 1
@@ -10564,10 +10593,14 @@
    "coin": 234,
    "happy": 0,
    "inventory": {
+    "engine": 3,
     "food": 8,
-    "iron": 2,
+    "fuel": 6,
+    "iron": 6,
+    "steel": 6,
+    "tire": 3,
     "wine": 7,
-    "wood": 6
+    "wood": 10
    },
    "units": 13,
    "cities": 1
@@ -10581,10 +10614,14 @@
    "coin": 234,
    "happy": 0,
    "inventory": {
+    "engine": 3,
     "food": 8,
+    "fuel": 6,
     "gold": 7,
-    "iron": 2,
-    "wood": 6
+    "iron": 6,
+    "steel": 6,
+    "tire": 3,
+    "wood": 10
    },
    "units": 13,
    "cities": 1
@@ -10598,10 +10635,14 @@
    "coin": 234,
    "happy": 0,
    "inventory": {
+    "engine": 3,
     "food": 8,
-    "iron": 2,
+    "fuel": 6,
+    "iron": 6,
     "spice": 7,
-    "wood": 6
+    "steel": 6,
+    "tire": 3,
+    "wood": 10
    },
    "units": 13,
    "cities": 1

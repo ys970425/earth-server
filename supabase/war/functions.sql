@@ -1625,7 +1625,42 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
 -- E10: 역할별 창고·예산 요청·승인·회수·반납 (설계 2-3)
 -- ---------------------------------------------------------------------
 
--- 합참의장 → 역할 분배: chief 지갑에서 꺼내 role_wallets에 넣는다
+-- 국고(코인·창고)와 역할 지갑(war.wallets)을 오가는 작은 도우미. 부족하면 NOT_ENOUGH로 멈춘다.
+-- 생산·화면의 「내 재고」가 읽는 곳은 war.wallets(역할)이므로, 요청 승인·분배는 국고 → 역할 지갑으로 옮긴다.
+create or replace function war.treasury_take(c int, itm text, v int) returns void
+language plpgsql as $$
+begin
+  if itm <> 'coin' and not (priv.cfg()->'ITEMS' ? itm) then perform priv.err('BAD_ITEM','알 수 없는 항목이에요: '||itm); end if;
+  if itm = 'coin' then
+    update war.countries set coin = coin - v where id = c and coin >= v;
+  else
+    update war.inventory set qty = qty - v where country = c and item = itm and qty >= v;
+  end if;
+  if not found then perform priv.err('NOT_ENOUGH','국고에 '||itm||'이(가) 부족해요.'); end if;
+end $$;
+create or replace function war.treasury_put(c int, itm text, v int) returns void
+language plpgsql as $$
+begin
+  if itm = 'coin' then update war.countries set coin = coin + v where id = c;
+  else
+    insert into war.inventory(country, item, qty) values (c, itm, v)
+      on conflict (country, item) do update set qty = war.inventory.qty + excluded.qty;
+  end if;
+end $$;
+create or replace function war.wallet_take(c int, r text, itm text, v int) returns void
+language plpgsql as $$
+begin
+  update war.wallets set qty = qty - v where country = c and role = r and item = itm and qty >= v;
+  if not found then perform priv.err('NOT_ENOUGH',r||' 창고에 '||itm||'이(가) 부족해요.'); end if;
+end $$;
+create or replace function war.wallet_put(c int, r text, itm text, v int) returns void
+language plpgsql as $$
+begin
+  insert into war.wallets(country, role, item, qty) values (c, r, itm, v)
+    on conflict (country, role, item) do update set qty = war.wallets.qty + excluded.qty;
+end $$;
+
+-- 합참의장 → 역할 분배: 국고에서 꺼내 역할 지갑에 넣는다
 create or replace function public.war_budget_distribute(
   p_role text, p_items jsonb) returns jsonb
 language plpgsql security definer set search_path = war, priv, public as $$
@@ -1642,13 +1677,8 @@ begin
   end if;
   for itm, v in select key, (value::text)::int from jsonb_each_text(p_items) loop
     if v <= 0 then continue; end if;
-    update war.wallets set qty = qty - v where country = me and role = 'chief' and item = itm;
-    if not found then perform priv.err('NO_ITEM','chief 창고에 '||itm||'이(가) 없어요.'); end if;
-    if (select qty from war.wallets where country=me and role='chief' and item=itm) < 0 then
-      perform priv.err('NOT_ENOUGH','chief 창고에 '||itm||'이(가) 부족해요.');
-    end if;
-    insert into war.role_wallets(country, role, item, qty) values (me, p_role, itm, v)
-      on conflict (country, role, item) do update set qty = war.role_wallets.qty + excluded.qty;
+    perform war.treasury_take(me, itm, v);
+    perform war.wallet_put(me, p_role, itm, v);
   end loop;
   insert into war.budget_log(country, turn, kind, from_role, to_role, items)
     values (me, turn_, 'distribute', 'chief', p_role, p_items);
@@ -1741,15 +1771,11 @@ begin
   if req.country != me then perform priv.err('NO_AUTH','같은 나라 요청만 처리해요.'); end if;
   if req.status != 'pending' then perform priv.err('ALREADY_DONE','이미 처리된 요청이에요.'); end if;
   actual_items := coalesce(p_items, req.items);
-  -- chief 창고 → 역할 창고
+  -- 국고 → 역할 지갑 (국고가 모자라면 NOT_ENOUGH로 멈추고 요청은 그대로 남아요)
   for itm, v in select key, (value::text)::int from jsonb_each_text(actual_items) loop
     if v <= 0 then continue; end if;
-    update war.wallets set qty = qty - v where country=me and role='chief' and item=itm;
-    if (select qty from war.wallets where country=me and role='chief' and item=itm) < 0 then
-      perform priv.err('NOT_ENOUGH','chief 창고에 '||itm||'이(가) 부족해요.');
-    end if;
-    insert into war.role_wallets(country, role, item, qty) values (me, req.role, itm, v)
-      on conflict (country, role, item) do update set qty = war.role_wallets.qty + excluded.qty;
+    perform war.treasury_take(me, itm, v);
+    perform war.wallet_put(me, req.role, itm, v);
   end loop;
   update war.budget_requests set status = case when p_items is null then 'approved' else 'adjusted' end,
     items = actual_items where id = p_id;
@@ -1802,12 +1828,8 @@ begin
     from priv.students where uid = auth.uid();
   for itm, v in select key, (value::text)::int from jsonb_each_text(p_items) loop
     if v <= 0 then continue; end if;
-    if coalesce((select qty from war.role_wallets where country=me and role=p_role and item=itm), 0) < v then
-      perform priv.err('NOT_ENOUGH',p_role||' 창고에 '||itm||'이(가) 부족해요.');
-    end if;
-    update war.role_wallets set qty = qty - v where country=me and role=p_role and item=itm;
-    insert into war.wallets(country, role, item, qty) values (me, 'chief', itm, v)
-      on conflict (country, role, item) do update set qty = war.wallets.qty + excluded.qty;
+    perform war.wallet_take(me, p_role, itm, v);
+    perform war.treasury_put(me, itm, v);
   end loop;
   insert into war.budget_log(country, turn, kind, from_role, to_role, items)
     values (me, turn_, 'recall', p_role, 'chief', p_items);
@@ -1837,12 +1859,8 @@ begin
   end if;
   for itm, v in select key, (value::text)::int from jsonb_each_text(p_items) loop
     if v <= 0 then continue; end if;
-    if coalesce((select qty from war.role_wallets where country=me and role=role_ and item=itm), 0) < v then
-      perform priv.err('NOT_ENOUGH','내 창고에 '||itm||'이(가) 부족해요.');
-    end if;
-    update war.role_wallets set qty = qty - v where country=me and role=role_ and item=itm;
-    insert into war.wallets(country, role, item, qty) values (me, 'chief', itm, v)
-      on conflict (country, role, item) do update set qty = war.wallets.qty + excluded.qty;
+    perform war.wallet_take(me, role_, itm, v);
+    perform war.treasury_put(me, itm, v);
   end loop;
   insert into war.budget_log(country, turn, kind, from_role, to_role, items)
     values (me, turn_, 'return', role_, 'chief', p_items);
@@ -1868,7 +1886,7 @@ begin
     perform priv.err('NO_AUTH','자기 나라만 볼 수 있어요.');
   end if;
   return jsonb_build_object(
-    'role_wallets', (select jsonb_agg(row_to_json(rw)) from war.role_wallets rw where rw.country=c),
+    'role_wallets', (select jsonb_agg(row_to_json(rw)) from war.wallets rw where rw.country=c and rw.role <> 'chief' and rw.qty <> 0),
     'requests', (select jsonb_agg(row_to_json(r) order by r.id desc) from war.budget_requests r where r.country=c and r.status='pending'),
     'log', (select jsonb_agg(row_to_json(l) order by l.id desc) from war.budget_log l where l.country=c limit 50)
   );

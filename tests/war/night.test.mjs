@@ -27,13 +27,12 @@ try {
 
   // ================= 점검 2: 예산 요청 흐름 =================
   console.log('— 점검 2: 예산 요청 흐름');
-  // chief 지갑 채우기 (모든 역할 지갑도)
-  const fillWallets = () => db.query(`insert into war.wallets(country, role, item, qty)
-    select 1, r, i, 100 from unnest(array['chief','army','navy','air','engineer']) r, unnest(array['coin','wood','iron']) i
-    on conflict (country, role, item) do update set qty = 100`);
+  // 국고 채우기 (승인·분배는 국고 → 역할 지갑으로 옮겨요)
+  const fillWallets = () => db.query(`insert into war.inventory(country, item, qty) values (1,'wood',100),(1,'iron',100)
+    on conflict (country, item) do update set qty = 100`);
   await fillWallets();
-  const chiefWallet = async (item) => (await q1(`select qty from war.wallets where country=1 and role='chief' and item=$1`, item)).qty;
-  const roleWallet = async (role, item) => (await q1(`select coalesce((select qty from war.role_wallets where country=1 and role=$1 and item=$2),0) q`, role, item)).q;
+  const chiefWallet = async (item) => (await q1(`select qty from war.inventory where country=1 and item=$1`, item)).qty;
+  const roleWallet = async (role, item) => (await q1(`select coalesce((select qty from war.wallets where country=1 and role=$1 and item=$2),0) q`, role, item)).q;
 
   // 요청 → 승인
   const req1 = await rpc(engineerS.uid, 'war_budget_request', { wood: 5 }, '개발 자원');
