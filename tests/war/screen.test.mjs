@@ -74,7 +74,7 @@ try {
   
 
   // 미리보기 DB 준비는 몇 초 걸려요 (db-real.tar.gz를 브라우저 PGlite로 열어요)
-  await page.goto(`${BASE}/app/war/index.html?preview=real`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/app/war/index.html?preview=real&as=1`, { waitUntil: 'domcontentloaded' });
 
   // 1. 역할_전_지도: 역할 선택 없이 지도 canvas가 있으면 ✔
   const canvas1 = await until(() => page.$('canvas.hexmap'), 60000, 500);
@@ -170,7 +170,7 @@ try {
 
   // 6. 공격_미리보기_다이얼로그: 병력을 적 수도 옆까지 이동시켜 빨간 테두리 칸을 만들고, 클릭하면 dialog가 뜬다
   //    (미리보기 DB는 페이지를 열 때마다 새로 만들어져 상태가 초기화돼요)
-  await page.goto(`${BASE}/app/war/index.html?preview=real`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/app/war/index.html?preview=real&as=1`, { waitUntil: 'domcontentloaded' });
   await until(() => page.$('canvas.hexmap'), 60000, 500);
   await clickByText(page, '.war-role-btn', '공군');   // 전투기: 이동력 6이라 도착 뒤에도 이동력이 남아 공격 칸이 표시돼요
   await wait(1500);

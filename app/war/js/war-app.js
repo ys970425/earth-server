@@ -58,7 +58,24 @@
   }
 
   // ================= 시작 =================
+  // 체험(미리보기) 입구: 주소에 &as=나라번호가 없으면 나라부터 고르게 해요. 고르면 그 나라로 다시 열려요 (역할은 역할 바에서 골라요)
+  async function pickCountryFirst() {
+    root.textContent = '나라 목록을 불러오고 있어요';
+    let data;
+    try { data = await window.WarData.load(); } catch (e) { console.error(e); return showError(e.message); }
+    root.innerHTML = '';
+    root.append(h('div', { class: 'entry war-entry' },
+      h('h1', {}, '지구 서버: 전쟁의 시간'),
+      h('p', { class: 'muted' }, '체험 모드예요. 어느 나라를 볼까요? 고른 뒤에 역할을 골라요.'),
+      h('div', { class: 'war-pick-row' }, data.countries.map(c =>
+        h('button', {
+          class: 'primary big war-pick-btn', style: { '--gc': c.color },
+          onclick: () => { const u = new URL(location.href); u.searchParams.set('as', String(c.id)); location.href = u.toString(); }
+        }, c.id + '. ' + c.name)))));
+  }
   async function start() {
+    const qs = new URLSearchParams(location.search);
+    if (WarAPI.mode && !qs.has('as')) return pickCountryFirst();
     if (WarAPI.mode) root.textContent = '미리보기를 준비하고 있어요 (몇 초 걸려요)';
     try { S.me = await WarAPI.rpc('war_me'); }
     catch (e) {
