@@ -124,7 +124,7 @@ console.log('— 3. 교사 버튼: 다음 턴 · 일시정지 · 재개 · 턴 �
   // 시간이 지나도 서버가 혼자 턴을 넘기지 않는다 (넘기는 것은 교사의 「다음 턴」 버튼뿐)
   await db.query(`update war.game set turn_end = now() - interval '1 minute' where id = 1`);
   await rpc(army1.uid, 'war_poll', {});
-  ok((await gameRow()).turn === g2.turn, '타이머가 0이 돼도 서버는 혼자 턴을 넘기지 않음 → 교사가 「다음 턴」을 눌러야 해요');
+  ok((await gameRow()).turn === g2.turn, '타이머가 0이 돼도 서버는 혼자 턴을 넘기지 않음 → 관제실 화면이 열려 있어야 자동으로 넘어가요 (자동 넘김 켜짐일 때)');
 }
 
 // ================= 4. 전투 잠금 (연습 턴) — 실제 설치 폴더의 SQL 그대로 =================

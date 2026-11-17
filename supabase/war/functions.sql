@@ -141,6 +141,8 @@ begin
   perform war.place_unit(u.id, prev);
   update war.units set moves_left = left_ - array_length(p_path, 1) where id = u.id;
   perform war.bump('units');
+  -- E10: 정찰병이 이동해 도착하면 그 나라의 첩보를 갱신 (정찰병이 아니면 건너뜀). 첩보 쪽 오류가 나도 이동은 성공해야 하므로 격리해서 부른다
+  if u.kind = 'scout' then perform war.intel_refresh_safe(u.country); end if;
   return jsonb_build_object('ok', true, 'unit', u.id, 'kind', u.kind, 'tile', prev,
     'moves_left', left_ - array_length(p_path, 1));
 end $$;
@@ -293,7 +295,8 @@ begin
   truncate war.game, war.countries, war.inventory, war.tiles, war.cities,
     war.units, war.factories, war.advanced,
     war.roles, war.wallets, war.city_facilities, war.diplomacy, war.offers,
-    war.markets, war.market_stock, war.grants, war.versions, war.mission_done;
+    war.markets, war.market_stock, war.grants, war.versions, war.mission_done,
+    war.intel, war.reflections;
   insert into war.game(id, turn, imported_at)
     select id, turn, now() from public.game;
   insert into war.countries
@@ -624,8 +627,12 @@ declare
   v_game bigint; v_map bigint; v_units bigint; v_cities bigint; v_dip bigint; v_notice bigint; v_country bigint; v_markets bigint;
 begin
   if priv.is_admin() then
+    -- 교사: 외교·나라 목록 + 게임 상태(턴·타이머·일시정지·전투 잠금). game 이 없으면 관제실에 턴 패널(다음 턴·일시정지·자동 넘김·전투 잠금)이 안 떠요
     return jsonb_build_object('diplomacy', (select coalesce(jsonb_agg(d order by a,b), '[]'::jsonb) from war.diplomacy d),
-      'countries', (select coalesce(jsonb_agg(jsonb_build_object('id',id,'name',name) order by id), '[]'::jsonb) from war.countries));
+      'countries', (select coalesce(jsonb_agg(jsonb_build_object('id',id,'name',name) order by id), '[]'::jsonb) from war.countries),
+      'game', (select jsonb_build_object(
+        'turn', turn, 'turn_seconds', turn_seconds, 'turn_end', turn_end, 'paused', paused, 'combat_on', combat_on,
+        'reflect_open', coalesce(reflect_open, false)) from war.game where id = 1));
   end if;
   select * into s from priv.students where uid = auth.uid();
   if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
@@ -648,7 +655,8 @@ begin
   k := (known->>'game')::bigint;
   if k is null or k is distinct from v_game then
     out := out || jsonb_build_object('game', (select jsonb_build_object(
-      'turn', turn, 'turn_seconds', turn_seconds, 'turn_end', turn_end, 'paused', paused, 'combat_on', combat_on)
+      'turn', turn, 'turn_seconds', turn_seconds, 'turn_end', turn_end, 'paused', paused, 'combat_on', combat_on,
+      'reflect_open', coalesce(reflect_open, false))
       from war.game where id = 1));
   end if;
   -- map: 바뀐 칸만 [id, terrain, res, owner, imp, imp_ruined]. 처음엔 전체. 시장 칸(공개 정보)도 함께
@@ -705,6 +713,11 @@ begin
         'city', f.city, 'kind', f.kind, 'class', f.class, 'ruined', f.ruined, 'origin_country', f.origin_country)
         order by f.city, f.kind), '[]'::jsonb)
       from war.city_facilities f join war.cities c on c.id = f.city where c.country = my_country),
+      'intel', (select coalesce(jsonb_agg(jsonb_build_object(
+        'target', i.target, 'seen_turn', i.seen_turn, 'name', i.data->>'name', 'color', i.data->>'color',
+        'coin', i.data->>'coin', 'inventory', i.data->'inventory', 'wallets', i.data->'wallets',
+        'cities', i.data->'cities') order by i.target), '[]'::jsonb)
+      from war.intel i where i.observer = my_country),   -- E10: 우리 나라가 본 첩보만
       'roles', coalesce((select jsonb_agg(jsonb_build_object(
         'key', def.value->>'key', 'name', def.value->>'name',
         'nick', (select coalesce(s2.nickname, '학생') from war.roles rr
@@ -1113,14 +1126,17 @@ begin
     attacked_turn = -1;
   update war.cities set hp = 20, besieged = false where kind = 'capital' and besieged = true;
   perform war.merge_empty_tiles();
+  -- 일시정지 중에 다음 턴을 눌러도 시간은 흐르지 않는다: 새 턴의 시간을 통째로 맡아 두었다가(paused_left) 재개하면 그때부터 흘러요
   update war.game set
     turn = turn + 1,
-    turn_end = case when turn_seconds > 0 then now() + (turn_seconds || ' seconds')::interval else null end
+    turn_end = case when paused then null when turn_seconds > 0 then now() + (turn_seconds || ' seconds')::interval else null end,
+    paused_left = case when paused and turn_seconds > 0 then turn_seconds else null end
   where id = 1;
   perform war.bump('game');
   perform war.bump('map');
   perform war.bump('units');
   perform war.bump('cities');
+  perform war.intel_refresh_safe();   -- E10: 다음 턴 시작 — 가만히 서 있어도 첩보 스냅샷을 갱신 (오류가 나도 턴 넘김은 성공해야 하므로 격리)
   return jsonb_build_object('ok', true, 'turn', g.turn + 1);
 end $$;
 revoke all on function public.war_next_turn(int) from public;
@@ -1131,16 +1147,48 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
 
 create or replace function public.war_pause(p_pause boolean) returns jsonb
 language plpgsql security definer set search_path = war, priv, public as $$
+declare g war.game;
 begin
   perform priv.need_admin();
-  update war.game set paused = p_pause where id = 1;
+  select * into g from war.game where id = 1 for update;
+  if p_pause and not g.paused then
+    -- 멈추는 순간 남은 시간을 맡아 두고 타이머를 멈춘다 (자동 넘김이 멈춘 동안 시간이 흐른 것으로 착각하지 않게)
+    update war.game set paused = true, turn_end = null,
+      paused_left = case when g.turn_end is null then null
+        else greatest(0, ceil(extract(epoch from (g.turn_end - now())))::int) end
+    where id = 1;
+  elsif not p_pause and g.paused then
+    -- 재개하면 맡아 둔 남은 시간부터 다시 흐른다 (쉰 시간만큼 턴이 늘어나요)
+    update war.game set paused = false, paused_left = null,
+      turn_end = case when g.paused_left is null then g.turn_end else now() + (g.paused_left || ' seconds')::interval end
+    where id = 1;
+  else
+    update war.game set paused = coalesce(p_pause, false) where id = 1;
+  end if;
   perform war.bump('game');
-  return jsonb_build_object('ok', true, 'paused', p_pause);
+  return jsonb_build_object('ok', true, 'paused', coalesce(p_pause, false));
 end $$;
 revoke all on function public.war_pause(boolean) from public;
 do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
   if exists (select 1 from pg_roles where rolname = r) then
     execute format('grant execute on function public.war_pause(boolean) to %I', r);
+  end if; end loop; end $$;
+
+-- 교사: 전투 잠금 켜기/풀기 (false = 잠금: 공격·점령이 「싸울 수 없는 시간이에요」로 막혀요. 이동·생산·예산은 그대로)
+-- dist/war-install/ops/combat-off.sql · combat-on.sql 과 같은 효과예요.
+create or replace function public.war_admin_set_combat(p_on boolean) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  perform priv.need_admin();
+  if p_on is null then perform priv.err('BAD_ARGS', '켤지 끌지 알려 주세요'); end if;
+  update war.game set combat_on = p_on where id = 1;
+  perform war.bump('game');
+  return jsonb_build_object('ok', true, 'combat_on', p_on);
+end $$;
+revoke all on function public.war_admin_set_combat(boolean) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_admin_set_combat(boolean) to %I', r);
   end if; end loop; end $$;
 
 create or replace function public.war_set_turn_time(p_seconds int) returns jsonb
@@ -1895,6 +1943,251 @@ revoke all on function public.war_budget_state(int) from public;
 do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
   if exists(select 1 from pg_roles where rolname=r) then
     execute format('grant execute on function public.war_budget_state(int) to %I',r);
+  end if; end loop; end $$;
+
+-- E10 첩보: 정찰병이 적 도시 바로 옆 칸(거리 1)에 있으면 그 나라 정보 스냅샷을 저장한다 (설계 2-1)
+-- 동맹 나라는 대상이 아니고, 우리 나라도 아니다. 도시 칸 위에 서 있는 경우는 그 칸 자체를 보지 않는다(이웃 도시만).
+-- 스냅샷은 그때의 국고·역할 지갑·공장·고등 건물이 있는 도시 목록. 떠나도 남고, 다시 옆에 가면 새 스냅샷으로 바뀐다.
+create or replace function war.intel_snapshot(p_target int, p_turn int) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  return jsonb_build_object(
+    'target', p_target,
+    'seen_turn', p_turn,
+    'name', (select coalesce(c.name, (priv.cfg()->'TYPES'->c.type->>'name')) from war.countries c where c.id = p_target),
+    'color', (select priv.cfg()->'TYPES'->c.type->>'color' from war.countries c where c.id = p_target),
+    'coin', (select coin from war.countries where id = p_target),
+    'inventory', (select coalesce(jsonb_object_agg(item, qty), '{}'::jsonb)
+      from war.inventory where country = p_target and qty <> 0),
+    'wallets', (select coalesce(jsonb_object_agg(role, w), '{}'::jsonb)
+      from (select role, jsonb_object_agg(item, qty) w from war.wallets where country = p_target group by role) x),
+    'cities', (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', c.id, 'name', c.name, 'tile', c.tile_id, 'facilities', fac.f)), '[]'::jsonb)
+      from war.cities c
+      left join lateral (select coalesce(jsonb_agg(jsonb_build_object(
+        'kind', f.kind, 'class', f.class, 'ruined', f.ruined) order by f.kind), '[]'::jsonb) f
+        from war.city_facilities f where f.city = c.id) fac on true
+      where c.country = p_target and fac.f <> '[]'::jsonb));
+end $$;
+revoke all on function war.intel_snapshot(int, int) from public;
+
+create or replace function war.intel_refresh(p_country int default null) returns void
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  width int := (priv.cfg()->>'W')::int;
+  turn_ int;
+  row record;
+  snap jsonb;
+begin
+  select turn into turn_ from war.game where id = 1;
+  for row in
+    select distinct u.country observer, c.country target
+    from war.units u
+    join war.tiles ut on ut.id = u.tile_id
+    cross join lateral unnest(war.neighbors(ut.c, ut.r, width)) as nid
+    join war.tiles nt on nt.id = nid
+    join war.cities c on c.tile_id = nt.id
+    where u.kind = 'scout'
+      and (p_country is null or u.country = p_country)
+      and c.country is not null and c.country <> u.country
+      and not exists (select 1 from war.diplomacy d
+        where (d.a = u.country and d.b = c.country or d.a = c.country and d.b = u.country)
+          and d.status = 'ally')
+  loop
+    snap := war.intel_snapshot(row.target, turn_);
+    -- 같은 내용이면 다시 쓰지 않는다 (poll이 다시 내려가는 것을 막는다)
+    if not exists (select 1 from war.intel i
+      where i.observer = row.observer and i.target = row.target
+        and i.seen_turn = turn_ and i.data is not distinct from snap) then
+      insert into war.intel(observer, target, seen_turn, data)
+        values (row.observer, row.target, turn_, snap)
+        on conflict (observer, target) do update set seen_turn = excluded.seen_turn, data = excluded.data;
+      perform war.bump('country', row.observer);
+    end if;
+  end loop;
+end $$;
+revoke all on function war.intel_refresh(int) from public;
+
+-- 첩보 갱신을 이동·턴 넘김 안에서 안전하게 부르는 껍데기: 안에서 어떤 오류가 나도 삼키고(경고만 남김),
+-- 그 갱신이 한 일만 되돌려요(하위 트랜잭션). 이동·턴 넘김은 첩보와 상관없이 반드시 성공해야 해요.
+create or replace function war.intel_refresh_safe(p_country int default null) returns void
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  begin
+    perform war.intel_refresh(p_country);
+  exception when others then
+    raise warning 'intel_refresh 실패(무시하고 계속): %', sqlerrm;
+  end;
+end $$;
+revoke all on function war.intel_refresh_safe(int) from public;
+
+-- E11 성찰: 게임이 끝난 뒤 학생이 돌아보는 양식 (설계 12-6). 학생은 한 번만, 이름은 저장하지 않는다
+create or replace function public.war_reflect_submit(p_a1 int, p_a2 int, p_a3 int, p_text text) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  s priv.students; my_role text;
+begin
+  select * into s from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
+  if not (select coalesce(reflect_open, false) from war.game where id = 1) then
+    perform priv.err('REFLECT_CLOSED', '지금은 돌아보기 시간이 아니에요');
+  end if;
+  select role into my_role from war.roles where student = s.id;
+  if my_role is null then perform priv.err('NO_ROLE', '역할이 있는 학생만 보낼 수 있어요'); end if;
+  if exists (select 1 from war.reflections where student = s.id) then
+    perform priv.err('ALREADY_DONE', '이미 보냈어요. 고마워요!');
+  end if;
+  if p_a1 is null or p_a1 < 1 or p_a1 > 4 or p_a2 is null or p_a2 < 1 or p_a2 > 4
+    or p_a3 is null or p_a3 < 1 or p_a3 > 4 then
+    perform priv.err('BAD_ANSWER', '고른 답이 이상해요. 다시 골라 주세요');
+  end if;
+  if p_text is null or length(trim(p_text)) = 0 then
+    perform priv.err('BAD_TEXT', '글을 한 줄이라도 써 주세요');
+  end if;
+  if length(p_text) > 200 then
+    perform priv.err('BAD_TEXT', '글은 200자까지 쓸 수 있어요');
+  end if;
+  insert into war.reflections(student, country, role, a1, a2, a3, free_text)
+    values (s.id, s.country_id, my_role, p_a1, p_a2, p_a3, trim(p_text));
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.war_reflect_submit(int, int, int, text) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_reflect_submit(int,int,int,text) to %I',r);
+  end if; end loop; end $$;
+
+-- 학생: 지금 돌아보기가 열렸는지, 내가 이미 보냈는지
+create or replace function public.war_reflect_state() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  s priv.students;
+begin
+  select * into s from priv.students where uid = auth.uid();
+  if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
+  return jsonb_build_object(
+    'open', coalesce((select reflect_open from war.game where id = 1), false),
+    'submitted', exists (select 1 from war.reflections where student = s.id));
+end $$;
+revoke all on function public.war_reflect_state() from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_reflect_state() to %I',r);
+  end if; end loop; end $$;
+
+-- 교사: 성찰 열기 / 닫기 (기본은 닫힘)
+create or replace function public.war_admin_reflect_set(p_open boolean) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  perform priv.need_admin();
+  update war.game set reflect_open = coalesce(p_open, false) where id = 1;
+  perform war.bump('game');
+  return jsonb_build_object('ok', true, 'open', coalesce(p_open, false));
+end $$;
+revoke all on function public.war_admin_reflect_set(boolean) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_admin_reflect_set(boolean) to %I',r);
+  end if; end loop; end $$;
+
+-- 글 속의 학생 이름을 「○○」로 가린다. 아이들은 성을 빼고 이름만 쓰는 일이 많아서(예: 「민수가 도와줬어요」)
+-- 명단의 전체 이름뿐 아니라 「성을 뺀 이름」과 「뒤 두 글자」도 함께 가린다 (긴 것부터). 가끔 일반 낱말이 가려져도 이름 노출보다 나아요.
+create or replace function war.mask_names(p_text text) returns text
+language plpgsql stable security definer set search_path = war, priv, public as $$
+declare t text := coalesce(p_text, ''); nm record;
+begin
+  for nm in
+    select n from (
+      select distinct n from (
+        select btrim(name) n from priv.students where name is not null
+        union all select substring(btrim(name) from 2) from priv.students where name is not null and length(btrim(name)) >= 3
+        union all select right(btrim(name), 2) from priv.students where name is not null and length(btrim(name)) >= 3
+      ) a where length(n) >= 2) b
+    order by length(n) desc, n
+  loop
+    t := replace(t, nm.n, '○○');
+  end loop;
+  return t;
+end $$;
+revoke all on function war.mask_names(text) from public;
+
+-- 교사: 성찰 응답 목록 + 문항별 선택 수. 학생 이름·id는 돌려주지 않는다
+create or replace function public.war_admin_reflect_list() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  res jsonb;
+begin
+  perform priv.need_admin();
+  res := jsonb_build_object(
+    'ok', true,
+    'open', coalesce((select reflect_open from war.game where id = 1), false),
+    'submitted', (select count(*) from war.reflections),
+    'total', (select count(*) from war.roles),
+    'counts', jsonb_build_array(
+      (select coalesce(jsonb_object_agg(a1::text, n), '{}'::jsonb) from
+        (select a1, count(*) n from war.reflections group by a1) x),
+      (select coalesce(jsonb_object_agg(a2::text, n), '{}'::jsonb) from
+        (select a2, count(*) n from war.reflections group by a2) x),
+      (select coalesce(jsonb_object_agg(a3::text, n), '{}'::jsonb) from
+        (select a3, count(*) n from war.reflections group by a3) x)),
+      'responses', (select coalesce(jsonb_agg(jsonb_build_object(
+      'country', r.country, 'role', r.role, 'a1', r.a1, 'a2', r.a2, 'a3', r.a3,
+      'text', r.free_text, 'at', to_char(r.created_at, 'MM-DD HH24:MI')) order by r.created_at), '[]'::jsonb)
+      from war.reflections r));
+  -- 응답 글 속에 명단의 실명이 섞여 있으면 교사 화면에도 「○○」로 바꾼다 (학생 이름 노출 금지)
+  declare resp jsonb := '[]'::jsonb; itm jsonb; txt text; nm record;
+  begin
+    for itm in select * from jsonb_array_elements(res->'responses') loop
+      txt := war.mask_names(coalesce(itm->>'text', ''));
+      resp := resp || jsonb_set(itm, '{text}', to_jsonb(txt));
+    end loop;
+    res := jsonb_set(res, '{responses}', resp);
+  end;
+  return res;
+end $$;
+revoke all on function public.war_admin_reflect_list() from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_admin_reflect_list() to %I',r);
+  end if; end loop; end $$;
+
+-- 교사: AI에게 넘길 마크다운. 명단(priv.students)의 실명이 글에 섞여 있으면 「○○」로 바꾸고 바꾼 개수를 맨 위에 적는다
+-- 학생 이름·번호·id·기기 id는 애초에 표에 없고(학생 id만), 글 속의 실명만 여기서 지운다
+create or replace function public.war_admin_reflect_export() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare
+  body text; out text; rep int := 0; nm record; resp record; list text; n int; i int; cnt int;
+begin
+  perform priv.need_admin();
+  -- 문항별 선택 수
+  list := '';
+  for n in 1..3 loop
+    list := list || chr(10) || '- 문항 ' || n || ': ';
+    for i in 1..4 loop
+      select count(*) into cnt from war.reflections where
+        (n = 1 and a1 = i) or (n = 2 and a2 = i) or (n = 3 and a3 = i);
+      list := list || i || '번 ' || cnt || '명 · ';
+    end loop;
+    list := left(list, length(list) - 2);
+  end loop;
+  -- 응답 목록 (글 속의 실명은 「○○」로)
+  list := list || chr(10) || chr(10) || '## 응답';
+  for resp in select country, role, a1, a2, a3, free_text, created_at from war.reflections order by created_at loop
+    body := war.mask_names(coalesce(resp.free_text, ''));
+    if body is distinct from coalesce(resp.free_text, '') then rep := rep + 1; end if;
+    list := list || chr(10) || '- [' || resp.country || '번 나라 · ' || resp.role || '] 답 ' || resp.a1 || '-' || resp.a2 || '-' || resp.a3
+      || ' · ' || to_char(resp.created_at, 'MM-DD HH24:MI')
+      || chr(10) || '  > ' || body;
+  end loop;
+  out := '# 성찰 응답 (지구 서버: 전쟁의 시간)' || chr(10)
+    || '제출 ' || (select count(*) from war.reflections) || '건 · 글 속 실명 「○○」로 바꾼 곳 ' || rep || '곳' || chr(10)
+    || '## 문항별 선택 수' || list;
+  return jsonb_build_object('ok', true, 'markdown', out, 'replaced', rep);
+end $$;
+revoke all on function public.war_admin_reflect_export() from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists(select 1 from pg_roles where rolname=r) then
+    execute format('grant execute on function public.war_admin_reflect_export() to %I',r);
   end if; end loop; end $$;
 
 -- 기존 설치에도 role_wallets·budget_requests·budget_log grant 적용

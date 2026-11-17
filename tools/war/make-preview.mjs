@@ -83,6 +83,16 @@ for (let c = 1; c <= 6; c++) {
   }
 }
 
+// ⑤ 체험용 예시 첩보 1건: 1번 나라가 2번 나라를 본 상태 (처음 온 사람이 「첩보 정보」에 내용을 본다)
+{
+  const turn = (await db.query('select turn from war.game where id = 1')).rows[0].turn;
+  await db.query(`insert into war.intel(observer, target, seen_turn, data)
+    values (1, 2, $1, war.intel_snapshot(2, $1)) on conflict (observer, target) do nothing`, [turn]);
+}
+
+// ⑥ 체험용: 성찰 열기 (E11 「돌아보기」 화면을 바로 볼 수 있게. 학습에서는 교사가 관제실에서 연다)
+await db.query(`update war.game set reflect_open = true`);
+
 // war 표 → 학생 화면 「투명한 정찰병」(S.obs && S.world)이 지도에 넘기는 모양
 // (app/trade/js/student.js의 updateMap(): tiles는 [id, terrain, res, owner, imp],
 //  cities·units는 app/trade/js/hexmap.js가 그리는 필드 이름)

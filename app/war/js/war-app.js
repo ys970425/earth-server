@@ -42,6 +42,7 @@
     { key: 'request',   label: '요청',  roles: ['engineer', 'army', 'navy', 'air'] },
     { key: 'produce',   label: '생산',  roles: ['army', 'navy', 'air'] },
     { key: 'units',     label: '부대',  roles: ['army', 'navy', 'air'] },
+    { key: 'reflect',   label: '돌아보기', roles: null, onlyOpen: true },   // E11: 성찰이 열려 있을 때만
   ];
   const COMBAT_KINDS = Object.keys(W.UNITS || {}).filter(k => !W.unitIsCivil(k));
 
@@ -164,6 +165,7 @@
     const role = actingRole();
     const is4Group = (S.me?.country?.size || 5) <= 4;
     const tabs = NAV.filter(n => {
+      if (n.onlyOpen && !(S.game && S.game.reflect_open)) return false;
       if (!n.roles) return true;
       if (role && n.roles.includes(role)) return true;
       if (role === 'chief' && is4Group && (n.key === 'build' || n.key === 'repair')) return true;
@@ -188,6 +190,7 @@
     if (S.view === 'repair')    return renderRepairView(view);
     if (S.view === 'produce')   return renderProduceView(view);
     if (S.view === 'units')     return renderUnitsView(view);
+    if (S.view === 'reflect')   return renderReflectView(view);
     return mapView(view);
   }
 
@@ -686,6 +689,28 @@
     }
     wrap.append(body); appendMsg(wrap); view.append(wrap);
   }
+  // E11 성찰: 게임이 끝난 뒤 학생이 돌아보는 양식 (질문 글은 war-reflect.js에만 있어요)
+  async function renderReflectView(view) {
+    const wrap = h('div', { class: 'war-nation' }), body = h('div', { class: 'war-tab-body' });
+    wrap.append(body); view.append(wrap);
+    let st = null;
+    try { st = await WarAPI.rpc('war_reflect_state'); }
+    catch (e) { console.error(e); body.append(h('p', { class: 'bad' }, friendly(e))); return; }
+    if (st.submitted) {
+      body.append(h('div', { class: 'panel' },
+        h('div', { class: 'panel-title' }, '이미 보냈어요'),
+        h('p', { class: 'muted' }, '고마워요! 성찰은 한 번만 보낼 수 있어요.')));
+      return;
+    }
+    if (!st.open) {
+      body.append(h('div', { class: 'panel' },
+        h('div', { class: 'panel-title' }, '돌아보기'),
+        h('p', { class: 'muted' }, '지금은 돌아보기 시간이 아니에요. 선생님이 열어 주면 여기에 보여요.')));
+      return;
+    }
+    body.innerHTML = '';
+    window.WAR_REFLECT.render(body, {});
+  }
   async function doTransfer(u, to) {
     try { await WarAPI.rpc('war_transfer', { p_unit: u.id, p_to: to }); S.msg = null;
       if (actingRole() === 'army') mark('army_transfer');
@@ -718,8 +743,42 @@
             h('b', {}, r.nick ? (r.absent ? r.nick + ' (결석)' : r.nick) : '빈 자리'))))));
     }
     wrap.append(h('div', { class: 'panel' },
-      h('div', { class: 'panel-title' }, '첩보 정보'),
-      h('p', { class: 'muted' }, '정찰병이 다른 나라 도시 옆에서 본 정보는 다음 단계에서 열려요.')));
+      h('div', { class: 'panel-title' }, '첩보 정보',
+        h('small', {}, '정찰병이 적 도시 바로 옆 칸에 있으면 그 나라를 볼 수 있어요')),
+      intelBody()));
+  }
+  // E10 첩보: 우리 나라가 본 나라별 카드 (poll country 덩어리의 intel)
+  function intelBody() {
+    const wrap = h('div', { class: 'war-intel-list' });
+    const list = (S.country && S.country.intel) || [];
+    if (!list.length) {
+      wrap.append(h('p', { class: 'muted' },
+        '정찰병을 적 도시 바로 옆 칸에 보내면 볼 수 있어요. 동맹 나라는 보이지 않아요.'));
+      return wrap;
+    }
+    for (const it of list) {
+      const inv = Object.entries(it.inventory || {}).map(([k, v]) =>
+        h('span', { class: 'war-chip' }, (ITEM_ICONS[k] || '') + ' ' + k + ' ' + v));
+      const wallets = Object.entries(it.wallets || {}).map(([role, w]) => {
+        const name = (ALL_ROLES.find(r => r.key === role) || {}).name || role;
+        const items = Object.entries(w || {}).filter(([, v]) => +v !== 0)
+          .map(([k, v]) => (ITEM_ICONS[k] || '') + k + ' ' + v).join(' ');
+        return h('div', { class: 'war-row' }, h('small', { class: 'muted' }, name), h('span', {}, items || '—'));
+      });
+      const cityRows = (it.cities || []).map(c => h('button', { class: 'war-unit-row',
+        onclick: () => { goView('map'); setTimeout(() => S.map && S.map.centerOn(c.tile, 0.6), 60); } },
+        h('b', {}, c.name), h('span', { class: 'muted' },
+          (c.facilities || []).map(f => (f.class === 'advanced' ? '고등:' : '공장:') + f.kind + (f.ruined ? '(파괴)' : '')).join(' ') || '시설 없음')));
+      wrap.append(h('div', { class: 'panel' },
+        h('div', { class: 'panel-title' },
+          h('i', { class: 'war-dot', style: { background: it.color || '#888' } }), ' ' + (it.name || it.target + '번 나라') +
+          h('small', {}, ' ' + it.seen_turn + '턴에 본 정보')),
+        h('div', { class: 'war-row' }, h('small', { class: 'muted' }, '국고'),
+          h('span', {}, '🪙 ' + (it.coin ?? '-') + (inv.length ? ' · ' : '')), inv),
+        h('div', { class: 'war-row' }, h('small', { class: 'muted' }, '역할 지갑')), wallets,
+        h('div', { class: 'panel-title' }, '공장·고등 건물이 있는 도시'), cityRows.length ? cityRows : h('p', { class: 'muted' }, '시설이 있는 도시가 없어요')));
+    }
+    return wrap;
   }
   async function loadMissions() {
     try { S.missions = await WarAPI.rpc('war_missions'); }
@@ -930,7 +989,7 @@
     }
     if (data.cities) { S.cities = data.cities; if (S.map) S.map.setData({ cities: S.cities }); }
     if (!S.centered && S.cities.length) { S.centered = true; goCapital(); }
-    if (data.game) { S.game = data.game; renderRoleBar(); }
+    if (data.game) { S.game = data.game; renderRoleBar(); renderNav(); }
     if (data.market_stock || data.markets || data.diplomacy || data.offers || data.game) renderTabs();
     if (data.country) {
       if (data.country.roles) { S.meCountryRoles = data.country.roles; S.me.roles = data.country.roles; renderRoleBar(); }

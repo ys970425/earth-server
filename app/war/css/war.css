@@ -227,3 +227,21 @@ body.war .map-layout > .side > * { flex-shrink: 0; }
 .war-summary-items { flex: 1; color: #5A3E1B; font-size: 14px; }
 .war-reason-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
 .war-reason-btn.on { background: var(--gold) !important; color: #3A2600 !important; border-color: var(--gold-dark) !important; box-shadow: none !important; }
+
+/* E10 첩보 정보 카드 */
+.war-intel-list { display: flex; flex-direction: column; gap: 12px; }
+.war-intel-list .panel { padding: 10px 12px; }
+.war-chip { display: inline-block; border: 1.5px solid var(--line); border-radius: 8px; padding: 1px 8px; margin: 2px 4px 2px 0; font-size: 12px; white-space: nowrap; }
+
+/* E11 성찰 양식 (돌아보기) */
+.war-reflect-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; }
+.war-reflect-btn { flex: 1 1 160px; min-height: 52px; font-size: 15px; font-family: inherit; padding: 8px 10px;
+  border: 2px solid var(--line); border-radius: 10px; background: rgba(255,249,238,.95); cursor: pointer;
+  word-break: keep-all; }
+.war-reflect-btn.on { border-color: var(--gold-dark); background: var(--gold); color: #3A2600; font-weight: 700; }
+.war-reflect-text { width: 100%; min-height: 72px; padding: 8px; font-size: 14px; font-family: inherit;
+  border: 2px solid var(--line); border-radius: 10px; resize: vertical; }
+.war-reflect-warn { font-weight: 700; }
+.war-reflect-send[disabled] { opacity: .45; cursor: default; }
+.war-reflect-count .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.war-bar { height: 16px; min-width: 4px; border-radius: 8px; background: var(--gold); transition: width .3s; }

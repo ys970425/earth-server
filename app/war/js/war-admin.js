@@ -9,6 +9,36 @@
   let diplomacy = [];
   let turnTimer = 0;
   const countryNames = new Map();
+
+  // ---------- 자동 턴 넘김 (켜기/끄기 토글, 기본 켜짐) ----------
+  // 관제실이 켜져 있고 일시정지가 아닐 때 남은 시간이 0:00이 되면 「다음 턴」을 자동으로 눌러요.
+  // 중복 방지: ① 같은 턴 번호로는 한 번만 부르고 ② 부르는 동안은 다시 부르지 않고 ③ 서버도 같은 턴 번호로 두 번 오면 한 번만 처리해요.
+  // 교사 PC의 시계가 맞아야 해요 (남은 시간을 이 컴퓨터 시계로 재요).
+  const AUTO_KEY = 'war_admin_auto_turn';
+  let autoTurn = true;
+  try { autoTurn = localStorage.getItem(AUTO_KEY) !== 'off'; } catch (e) { /* 저장 못 해도 기본 켜짐 */ }
+  let autoLastTurn = null, autoBusy = false, autoBlockedUntil = 0, autoNote = '';
+  // 지금 자동으로 넘길 때인가? (순수 함수. 시험에서 직접 불러 봐요)
+  function shouldAutoAdvance(game, auto, nowMs, lastTurn, busy, blockedUntil) {
+    if (!auto || busy || !game || game.paused || !game.turn_end) return false;
+    if (lastTurn === game.turn) return false;
+    if (nowMs < (blockedUntil || 0)) return false;
+    return new Date(game.turn_end).getTime() <= nowMs;
+  }
+  window.WarAdminAuto = { shouldAutoAdvance };
+  async function autoAdvance(game, onNote) {
+    autoBusy = true; autoLastTurn = game.turn;
+    try {
+      const r = await WarAPI.rpc('war_next_turn', { p_turn: game.turn });
+      // ok:false 는 다른 곳(수동 클릭·다른 탭)에서 이미 넘긴 것이라 조용히 넘어가요
+      autoNote = r.ok === false ? '' : '자동으로 ' + r.turn + '턴을 시작했어요';
+      refreshDiplomacy().catch(() => {});
+    } catch (e) {
+      autoLastTurn = null; autoBlockedUntil = Date.now() + 5000;   // 실패하면 5초 뒤 다시 시도
+      autoNote = '자동 넘김 실패 (5초 뒤 다시): ' + e.message;
+    } finally { autoBusy = false; onNote && onNote(); }
+  }
+
   function applyPoll(data) {
     if (data.game) {
       clearInterval(turnTimer);
@@ -19,11 +49,21 @@
         $('.war-admin')?.prepend(panel);
       }
       const remaining = h('span', {}, '--:--');
+      const note = h('small', { class: 'muted', id: 'auto-note' }, autoNote);
       const tick = () => {
         const seconds = Math.max(0, Math.ceil((new Date(game.turn_end).getTime() - Date.now()) / 1000));
         remaining.textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+        if (shouldAutoAdvance(game, autoTurn, Date.now(), autoLastTurn, autoBusy, autoBlockedUntil))
+          autoAdvance(game, () => { note.textContent = autoNote; });
       };
       if (game.turn_end) { tick(); turnTimer = setInterval(tick, 1000); }
+      const autoBtn = h('button', { class: autoTurn ? 'primary' : '', id: 'auto-turn-btn', 'aria-pressed': String(autoTurn), onclick: () => {
+        autoTurn = !autoTurn;
+        try { localStorage.setItem(AUTO_KEY, autoTurn ? 'on' : 'off'); } catch (e) { /* 저장 못 해도 이번 화면에서는 적용돼요 */ }
+        autoBtn.textContent = '자동 넘김: ' + (autoTurn ? '켜짐' : '꺼짐');
+        autoBtn.className = autoTurn ? 'primary' : ''; autoBtn.setAttribute('aria-pressed', String(autoTurn));
+        if (autoTurn) autoLastTurn = null;   // 다시 켜면 이 턴도 시간이 지났다면 바로 넘겨요
+      } }, '자동 넘김: ' + (autoTurn ? '켜짐' : '꺼짐'));
       const call = async (name, args) => {
         try {
           const result = await WarAPI.rpc(name, args);
@@ -31,14 +71,21 @@
           await refreshDiplomacy();
         } catch (e) { alert(e.message); }
       };
+      const combatOn = game.combat_on !== false;
       panel.replaceChildren(h('div', { class: 'row' },
         h('b', {}, '턴 ' + currentTurn), h('span', {}, '남은 시간 ', remaining),
+        paused ? h('b', { class: 'bad', id: 'paused-note' }, '⏸ 일시정지 중') : null,
         h('button', { onclick: () => call('war_next_turn', { p_turn: currentTurn }) }, '다음 턴'),
         h('button', { onclick: () => call('war_pause', { p_pause: !paused }) }, paused ? '다시시작' : '일시정지'),
+        autoBtn,
+        h('span', { id: 'combat-state' }, combatOn ? '⚔ 전투 가능' : '🔒 전투 잠금 중'),
+        h('button', { id: 'combat-btn', class: combatOn ? '' : 'primary', onclick: () => call('war_admin_set_combat', { p_on: !combatOn }) },
+          combatOn ? '전투 잠금' : '전투 풀기'),
         h('select', { 'aria-label': '시간 조절', onchange: e => call('war_set_turn_time', { p_seconds: Number(e.target.value) }) },
           [60, 90, 120, 180, 240, 300].map((seconds, i) => h('option', {
             value: seconds, selected: game.turn_seconds === seconds ? '' : null
-          }, ['1분', '1분30초', '2분', '3분', '4분', '5분'][i])))));
+          }, ['1분', '1분30초', '2분', '3분', '4분', '5분'][i]))),
+        note));
     }
     if (!data.diplomacy) return;
     diplomacy = data.diplomacy;
@@ -158,8 +205,74 @@
       h('tr', {}, h('th', {}, '나라'), h('th', {}, '닉네임'), h('th', {}, '역할'), h('th', {}, '완료 / 열림'), h('th', {}, '완료한 미션')),
       missionRows)));
     page.append(h('div', { class: 'panel', id: 'admin-diplomacy' }));
+    renderReflect(page);
     root.append(page);
     applyPoll({ diplomacy });
+  }
+  // E11 성찰 모아 보기: 열기/닫기, 제출 수, 문항별 막대, 응답 목록, AI에게 넘기기
+  // 목록·내보내기 글에는 학생 이름·번호·id가 없다(서버가 지워서 준다)
+  const REFLECT_LABELS = (window.WAR_REFLECT || {}).QUESTIONS || [];
+  function renderReflect(page) {
+    const box = h('div', { class: 'panel', id: 'admin-reflect' });
+    page.append(box);
+    loadReflect(box, null);
+  }
+  async function loadReflect(box, list) {
+    try {
+      if (!list) list = await WarAPI.rpc('war_admin_reflect_list');
+    } catch (e) { box.append(h('p', { class: 'bad' }, e.message)); return; }
+    const toggle = h('button', { class: 'primary', onclick: async () => {
+      try {
+        await WarAPI.rpc('war_admin_reflect_set', { p_open: !list.open });
+        box.innerHTML = '';
+        loadReflect(box, null);
+      } catch (e) { box.append(h('p', { class: 'bad' }, e.message)); }
+    } }, list.open ? '성찰 닫기' : '성찰 열기');
+    box.replaceChildren(h('div', { class: 'panel-title' }, '성찰 모아 보기',
+      h('small', {}, '게임이 끝난 뒤 학생이 돌아보는 답이에요 (이름은 저장하지 않아요)'), toggle),
+      h('p', {}, '제출 ' + list.submitted + ' / ' + list.total + '명'));
+    // 문항별 막대 (버튼별 몇 명)
+    const counts = list.counts || [];
+    const bars = REFLECT_LABELS.map((q, qi) => {
+      const c = counts[qi] || {};
+      const max = Math.max(1, ...Object.values(c).map(v => +v));
+      return h('div', { class: 'war-reflect-count' },
+        h('b', {}, (qi + 1) + '. ' + q.text),
+        q.answers.map((a, ai) => h('div', { class: 'row' },
+          h('span', { class: 'muted', style: { minWidth: '160px' } }, a),
+          h('div', { class: 'war-bar', style: { width: Math.round(200 * (+((c[String(ai + 1)] || 0)) / max)) + 'px' } }),
+          h('span', {}, String(c[String(ai + 1)] || 0) + '명'))));
+    });
+    box.append(h('div', { class: 'panel-title' }, '문항별 선택 수'), ...bars);
+    // 응답 목록 (나라·역할·번호 답·글·시각만)
+    box.append(h('div', { class: 'panel-title' }, '응답 목록'));
+    if (!(list.responses || []).length) box.append(h('p', { class: 'muted' }, '아직 응답이 없어요.'));
+    for (const r of list.responses || []) {
+      box.append(h('div', { class: 'war-row' },
+        h('small', { class: 'muted' }, r.country + '번 나라 · ' + (ROLE_NAME[r.role] || r.role) + ' · ' + r.at),
+        h('span', {}, '답 ' + r.a1 + '-' + r.a2 + '-' + r.a3),
+        h('span', {}, r.text ? '「' + r.text + '」' : '')));
+    }
+    // AI에게 넘기기: 복사 또는 .md 내려받기 (이름은 서버가 ○○로 바꾼 글만 내려온다)
+    box.append(h('div', { class: 'panel-title' }, 'AI에게 넘기기',
+      h('small', {}, '학생 이름·번호·id는 들어가지 않아요')));
+    box.append(h('div', { class: 'row' },
+      h('button', { class: 'primary', onclick: async () => {
+        try {
+          const ex = await WarAPI.rpc('war_admin_reflect_export');
+          await navigator.clipboard.writeText(ex.markdown);
+          alert('복사했어요. 글 속 실명 「○○」로 바꾼 곳 ' + ex.replaced + '곳');
+        } catch (e) { alert(e.message); }
+      } }, '복사하기'),
+      h('button', { class: 'primary', onclick: async () => {
+        try {
+          const ex = await WarAPI.rpc('war_admin_reflect_export');
+          const blob = new Blob([ex.markdown], { type: 'text/markdown;charset=utf-8' });
+          const a = h('a', { href: URL.createObjectURL(blob), download: '성찰응답.md' });
+          document.body.append(a); a.click(); a.remove();
+          alert('내려받았어요. 글 속 실명 「○○」로 바꾼 곳 ' + ex.replaced + '곳');
+        } catch (e) { alert(e.message); }
+      } }, '.md로 내려받기')));
   }
   async function doImport() {
     const word = prompt('가져오면 전쟁 데이터를 새로 시작해요. 확인하려면 「초기화」라고 입력해 주세요.');

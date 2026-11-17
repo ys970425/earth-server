@@ -39,6 +39,8 @@ for (const m of stripped.matchAll(/\btruncate\s+(?:table\s+)?([^;]*);/gi))
 if (problems.length) { console.error('❌ 설치 SQL에 위험한 문장이 있어요: ' + problems.join(', ')); process.exit(1); }
 
 const fnNames = [...new Set([...all.matchAll(/create\s+or\s+replace\s+function\s+public\.(war_[a-z0-9_]+)/gi)].map(m => m[1]))].sort();
+// 묶음이 만드는 war 표 이름 전부 (설치 뒤 점검에서 하나씩 있는지 봐요: 예 war.intel · war.reflections)
+const tableNames = [...new Set([...all.matchAll(/create\s+table\s+if\s+not\s+exists\s+war\.([a-z0-9_]+)/gi)].map(m => m[1]))].sort();
 const sha = createHash('sha256').update(all).digest('hex').slice(0, 12);
 const header = `-- ============================================================================
 -- 지구 서버: 전쟁의 시간 — 실제 설치 (war 스키마 전용)
@@ -107,7 +109,10 @@ from missing;
 const postcheck = `-- 설치 뒤 점검 (읽기만 해요)
 -- ✅ 한 줄이면 성공이에요. ❌ 이면 problems 칸을 복사해서 알려 주세요.
 with expected(fn) as (values ${fnNames.map(f => `(${q(f)})`).join(', ')}),
+expected_t(t) as (values ${tableNames.map(t => `(${q(t)})`).join(', ')}),
 probs as (
+  select 'war 표 없음: ' || et.t as p from expected_t et where to_regclass('war.' || et.t) is null
+  union all
   select 'war 스키마 없음' as p where not exists (select 1 from information_schema.schemata where schema_name = 'war')
   union all select 'war.config 비어 있음' where not exists (select 1 from information_schema.tables where table_schema = 'war' and table_name = 'config')
      or (select count(*) from war.config) <> 1
@@ -119,7 +124,7 @@ probs as (
   union all select 'war 표를 일반 사용자가 직접 읽을 수 있음: ' || c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'war' and c.relkind = 'r' and exists (select 1 from pg_roles where rolname = 'anon') and has_table_privilege('anon', c.oid, 'select')
 )
-select case when count(*) = 0 then '✅ 설치 성공 — war 함수 ${fnNames.length}개, 권한 정상' else '❌ 문제 ' || count(*) || '개' end as result,
+select case when count(*) = 0 then '✅ 설치 성공 — war 표 ${tableNames.length}개 · 함수 ${fnNames.length}개, 권한 정상' else '❌ 문제 ' || count(*) || '개' end as result,
        coalesce(string_agg(p, ' / '), '') as problems from probs;
 `;
 const ops = {

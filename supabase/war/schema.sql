@@ -59,6 +59,7 @@ alter table war.game add column if not exists turn_seconds int not null default 
 alter table war.game add column if not exists turn_end timestamptz;
 alter table war.game add column if not exists paused boolean not null default false;
 alter table war.game add column if not exists combat_on boolean not null default true;
+alter table war.game add column if not exists paused_left int;   -- 일시정지 동안 맡아 둔 이번 턴의 남은 초 (재개하면 거기서부터 흘러요)
 
 -- 역할: 학생 한 명이 하나. 한 나라에서 한 역할은 한 명 (결석 대행은 합동참모의장, 설계 2장)
 create table if not exists war.roles (
@@ -217,3 +218,48 @@ begin
 end $$;
 -- E7: 도시별 턴당 한 부대 생산
 alter table war.cities add column if not exists produced_turn int not null default -1;
+
+-- ---------------------------------------------------------------------
+-- E10 첩보: 정찰병이 적 도시 바로 옆 칸에서 본 나라 정보 스냅샷 (설계 2-1)
+-- data: {name, color, coin, inventory, wallets, cities:[{id, name, tile, facilities:[{kind, class, ruined}]}]}
+create table if not exists war.intel (
+  observer  int not null,      -- 본 나라 (우리)
+  target    int not null,      -- 보인 나라
+  seen_turn int not null,      -- ○턴에 본 정보
+  data      jsonb not null default '{}',
+  primary key (observer, target)
+);
+revoke all on war.intel from public;
+do $$
+declare role_name text;
+begin
+  foreach role_name in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = role_name) then
+      execute format('revoke all on war.intel from %I', role_name);
+    end if;
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- E11 성찰 양식: 게임이 끝난 뒤 학생이 돌아보는 답 (설계 12-6). 이름은 저장하지 않는다
+alter table war.game add column if not exists reflect_open boolean not null default false;
+create table if not exists war.reflections (
+  student    int primary key,           -- 학생 id만 (실명·기기 id 저장 금지)
+  country    int not null,
+  role       text not null,
+  a1         int not null,              -- 문항 1 고른 버튼 번호 (1~4)
+  a2         int not null,
+  a3         int not null,
+  free_text  text not null,
+  created_at timestamptz not null default now()
+);
+revoke all on war.reflections, war.game from public;
+do $$
+declare role_name text;
+begin
+  foreach role_name in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = role_name) then
+      execute format('revoke all on war.reflections, war.game from %I', role_name);
+    end if;
+  end loop;
+end $$;
