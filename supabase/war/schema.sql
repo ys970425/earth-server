@@ -230,6 +230,14 @@ create table if not exists war.intel (
   primary key (observer, target)
 );
 revoke all on war.intel from public;
+
+-- 이번 전쟁에서 뺀 학생 (예: 시험용 계정). 무역 표(priv.students)는 그대로 두고, 전쟁판만 이 학생을 없는 사람으로 쳐요.
+-- 모둠 인원 수(4명 모둠 규칙)·역할 고르기·교사 목록·접속 모두 이 표를 따라요. 다시 가져와도(초기화) 이 표는 지워지지 않아요.
+create table if not exists war.excluded_students (
+  student     int primary key,
+  excluded_at timestamptz not null default now()
+);
+revoke all on war.excluded_students from public;
 do $$
 declare role_name text;
 begin

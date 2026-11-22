@@ -245,3 +245,11 @@ body.war .map-layout > .side > * { flex-shrink: 0; }
 .war-reflect-send[disabled] { opacity: .45; cursor: default; }
 .war-reflect-count .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .war-bar { height: 16px; min-width: 4px; border-radius: 8px; background: var(--gold); transition: width .3s; }
+
+/* 관제실: 가져올 학생 고르기 (모둠별 체크 목록) */
+.war-exclude-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin: 8px 0 12px; }
+.war-exclude-group { border: 2px solid var(--line, #2A1C10); border-radius: 6px; padding: 6px 10px 8px; margin: 0; }
+.war-exclude-group legend { font-weight: 700; padding: 0 6px; }
+.war-exclude-item { display: flex; align-items: center; gap: 6px; min-height: 36px; cursor: pointer; }
+.war-exclude-item input { width: 20px; height: 20px; flex: none; }
+.war-exclude-summary { font-weight: 700; }

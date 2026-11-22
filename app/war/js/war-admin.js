@@ -121,11 +121,12 @@
 
   async function start() {
     if (WarAPI.mode) root.textContent = '미리보기를 준비하고 있어요 (몇 초 걸려요)';
-    let grants, roles, missions;
+    let grants, roles, missions, students = [];
     try {
       grants = (await WarAPI.rpc('war_admin_grants')).grants;
       roles = (await WarAPI.rpc('war_admin_roles')).roles;
       missions = (await WarAPI.rpc('war_admin_missions')).missions;
+      students = await loadStudents();
     } catch (e) {
       if (e.code === 'NOT_ADMIN') {
         root.innerHTML = '';
@@ -138,7 +139,7 @@
       console.error(e);
       return showError(/^[A-Za-z0-9 .,:;'"()\-_[\]]+$/.test(e.message || '') ? '문제가 생겼어요. 새로고침해 주세요.' : e.message);
     }
-    render(grants, roles, missions);
+    render(grants, roles, missions, students);
     try { await refreshDiplomacy(); } catch (e) { $('#admin-diplomacy').append(h('p', {}, e.message)); }
     WarAPI.startPoll(applyPoll);
   }
@@ -147,7 +148,7 @@
     root.append(h('div', { class: 'entry' }, h('p', {}, msg)));
   }
 
-  function render(grants, roles, missions) {
+  function render(grants, roles, missions, students = []) {
     root.innerHTML = '';
     if (WarAPI.mode) root.append(h('div', { class: 'war-banner' + (WarAPI.mode === 'real' ? ' real' : '') },
       WarAPI.mode === 'real' ? '실제 데이터 미리보기: 우리 반 무역 게임 기록이에요 (여기서 바꿔도 저장되지 않아요)' : '미리보기 모드: 가짜 데이터예요'));
@@ -158,6 +159,7 @@
     const result = h('div', { class: 'muted', id: 'import-result' }, '아직 가져오지 않았어요.');
     page.append(h('div', { class: 'panel' }, h('div', { class: 'panel-title' }, '무역 게임에서 가져오기',
       h('small', {}, '다시 누르면 전쟁 데이터를 지우고 새로 가져와요')),
+      studentPicker(students),
       h('div', { class: 'row' },
         h('button', { class: 'primary big', onclick: doImport }, '무역 게임에서 가져오기'),
         result)));
@@ -274,15 +276,54 @@
         } catch (e) { alert(e.message); }
       } }, '.md로 내려받기')));
   }
+  // ---------- 가져올 학생 고르기 (모둠별 체크 목록) ----------
+  // 무역 데이터에 시험용 계정 같은 학생이 더 있을 때, 체크를 해제하면 그 학생은 전쟁판에 가져오지 않아요 (무역 데이터는 안 바뀌어요).
+  // 이름은 이 교사 화면에만 보이고, 어디에도 따로 저장하거나 보내지 않아요.
+  async function loadStudents() {
+    try { return (await WarAPI.rpc('war_admin_students')).students || []; }
+    catch (e) { console.error(e); return []; }
+  }
+  const unchecked = () => [...document.querySelectorAll('#import-students input[type=checkbox]')].filter(i => !i.checked).map(i => Number(i.value));
+  function studentPicker(students) {
+    if (!students.length) return null;
+    const summary = h('div', { class: 'war-exclude-summary', id: 'import-summary' });
+    const byCountry = new Map();
+    for (const st of students) { if (!byCountry.has(st.country)) byCountry.set(st.country, []); byCountry.get(st.country).push(st); }
+    const update = () => {
+      const boxes = [...document.querySelectorAll('#import-students input[type=checkbox]')];
+      const on = boxes.filter(b => b.checked).length;
+      summary.textContent = '가져올 학생 ' + on + '명 / 무역 데이터 ' + boxes.length + '명' + (on === boxes.length ? '' : ' · 뺄 학생 ' + (boxes.length - on) + '명');
+      for (const [c] of byCountry) {
+        const n = boxes.filter(b => b.dataset.country === String(c) && b.checked).length;
+        const note = document.getElementById('grp-note-' + c);
+        if (note) note.textContent = n + '명' + (n <= 4 ? ' · 4명 모둠 규칙 (합동참모의장이 공병 일도 함께 해요)' : '');
+      }
+    };
+    const groups = [...byCountry].map(([c, list]) => h('fieldset', { class: 'war-exclude-group' },
+      h('legend', {}, c + '번 나라 · 가져올 ', h('b', { id: 'grp-note-' + c }, '')),
+      list.map(st => h('label', { class: 'war-exclude-item' },
+        h('input', { type: 'checkbox', value: String(st.id), 'data-country': String(c), checked: st.excluded ? null : '', onchange: update }),
+        ' ' + (st.name || '학생') + (st.nick ? ' (' + st.nick + ')' : '')))));
+    const box = h('div', { class: 'war-exclude', id: 'import-students' },
+      h('p', { class: 'muted' }, '가져오지 않을 학생은 체크를 풀어 주세요 (시험용 계정 등). 기본은 모두 체크예요. 이름은 이 화면에만 보여요.'),
+      h('div', { class: 'row' }, h('button', { class: 'small', onclick: () => { document.querySelectorAll('#import-students input[type=checkbox]').forEach(b => { b.checked = true; }); update(); } }, '모두 선택'), summary),
+      h('div', { class: 'war-exclude-grid' }, groups));
+    setTimeout(update, 0);
+    return box;
+  }
   async function doImport() {
-    const word = prompt('가져오면 전쟁 데이터를 새로 시작해요. 확인하려면 「초기화」라고 입력해 주세요.');
+    const skip = unchecked();
+    const word = prompt('가져오면 전쟁 데이터를 새로 시작해요.' + (skip.length ? ' (이번 전쟁에서 뺄 학생 ' + skip.length + '명)' : '') + ' 확인하려면 「초기화」라고 입력해 주세요.');
     if (word !== '초기화') { $('#import-result').textContent = '취소했어요. 정확히 「초기화」라고 입력해야 해요.'; return; }
+    let msg = '';
     try {
+      if ($('#import-students')) await WarAPI.rpc('war_admin_set_excluded', { p_students: skip });   // 뺄 학생을 먼저 저장 (무역 데이터는 안 바뀌어요)
       const r = await WarAPI.rpc('war_admin_import', { p_confirm: '초기화' });
-      $('#import-result').textContent = '가져왔어요: 나라 ' + r.countries + ' · 칸 ' + r.tiles + ' · 병력 ' + r.units +
-        ' · 지급 ' + r.grants + ' · 시설 배치 ' + r.facilities;
-    } catch (e) { $('#import-result').textContent = e.message; }
-    await refresh();
+      msg = '가져왔어요: 나라 ' + r.countries + ' · 칸 ' + r.tiles + ' · 병력 ' + r.units +
+        ' · 지급 ' + r.grants + ' · 시설 배치 ' + r.facilities + (skip.length ? ' · 뺀 학생 ' + skip.length + '명' : '');
+    } catch (e) { msg = e.message; }
+    await refresh();   // 화면을 다시 그리면 결과 문구가 지워지니까, 다시 그린 뒤에 문구를 넣어요
+    const el = $('#import-result'); if (el) el.textContent = msg;
   }
   async function setAbsent(r, absent) {
     try { await WarAPI.rpc('war_admin_set_absent', { p_student: r.student, p_absent: absent }); }
@@ -297,7 +338,7 @@
       const grants = (await WarAPI.rpc('war_admin_grants')).grants;
       const roles = (await WarAPI.rpc('war_admin_roles')).roles;
       const missions = (await WarAPI.rpc('war_admin_missions')).missions;
-      render(grants, roles, missions);
+      render(grants, roles, missions, await loadStudents());
       await refreshDiplomacy();
     } catch (e) { showError(e.message); }
   }

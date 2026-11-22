@@ -2,6 +2,27 @@
 -- Actions involving two countries must lock both only through act_start p_other.
 drop function if exists war.act_start(text, boolean);
 drop function if exists war.lock_countries(int, int);
+
+-- 이번 전쟁에서 뺀 학생(war.excluded_students)을 다루는 공통 함수.
+-- 무역 표(priv.students)는 그대로 두고, 전쟁판에서만 그 학생을 「없는 사람」으로 쳐요.
+create or replace function war.is_excluded(p_student int) returns boolean
+language sql stable as $$ select exists (select 1 from war.excluded_students where student = p_student) $$;
+-- 모둠 인원: 뺀 학생은 세지 않아요 (4명 모둠 규칙 = 이 수가 4 이하일 때)
+create or replace function war.group_size(p_country int) returns int
+language sql stable as $$
+  select count(*)::int from priv.students s
+  where s.country_id = p_country and not exists (select 1 from war.excluded_students x where x.student = s.id) $$;
+create or replace function war.need_in_war(p_student int) returns void
+language plpgsql stable as $$
+begin
+  if war.is_excluded(p_student) then
+    perform priv.err('NOT_IN_WAR', '이 자리는 이번 전쟁에 참여하지 않아요. 선생님께 물어보세요.');
+  end if;
+end $$;
+revoke all on function war.is_excluded(int) from public;
+revoke all on function war.group_size(int) from public;
+revoke all on function war.need_in_war(int) from public;
+
 create or replace function war.act_start(p_role text, p_combat boolean default false, p_other int default null) returns jsonb
 language plpgsql as $$
 declare
@@ -14,6 +35,7 @@ begin
   if not found then
     perform priv.err('NO_AUTH', '접속 정보가 없어요. 새로고침해 주세요.');
   end if;
+  perform war.need_in_war(student.id);
 
   select * into g from war.game where id = 1 for share;
   perform 1 from war.countries
@@ -28,7 +50,7 @@ begin
       not exists (select 1 from war.roles where country = student.country_id
         and role = p_role and not absent)
       or (p_role = 'engineer' and
-        (select count(*) from priv.students where country_id = student.country_id) <= 4)
+        war.group_size(student.country_id) <= 4)
     )), false) then
     perform priv.err('ROLE_ONLY', '이 일은 ' || coalesce(role_name, p_role, '담당 역할') || '이(가) 해요');
   end if;
@@ -259,7 +281,8 @@ begin
         where (mi->>'opens') = any(array(select jsonb_array_elements_text(war.cfg()->'OPEN_STAGES')))
           and (mi->>'role') = r.role)
     ) order by s.country_id, s.no, s.id), '[]'::jsonb)
-  from priv.students s left join war.roles r on r.student = s.id));
+  from priv.students s left join war.roles r on r.student = s.id
+  where not war.is_excluded(s.id)));
 end $$;
 revoke all on function public.war_admin_missions() from public;
 
@@ -543,8 +566,9 @@ declare
 begin
   select * into s from priv.students where uid = auth.uid();
   if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
+  perform war.need_in_war(s.id);
   select * into co from war.countries where id = s.country_id;
-  select count(*) into size from priv.students where country_id = co.id;
+  size := war.group_size(co.id);   -- 이번 전쟁에서 뺀 학생은 세지 않아요 (4명 모둠 규칙)
   select role into my_role from war.roles where student = s.id;
   -- 우리 나라 역할 현황 (역할별 닉네임만)
   roles := coalesce((select jsonb_agg(jsonb_build_object(
@@ -593,13 +617,14 @@ declare
 begin
   select * into s from priv.students where uid = auth.uid();
   if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
+  perform war.need_in_war(s.id);
   if exists (select 1 from war.roles where student = s.id) then
     perform priv.err('HAS_ROLE', '이미 고른 역할이 있어요. 바꾸는 것은 선생님만 할 수 있어요.');
   end if;
   if not exists (select 1 from jsonb_array_elements(war.cfg()->'ROLES') r where r->>'key' = p_role) then
     perform priv.err('BAD_ROLE', '없는 역할이에요');
   end if;
-  select count(*) into size from priv.students where country_id = s.country_id;
+  size := war.group_size(s.country_id);
   if p_role = 'engineer' and size <= 4 then
     perform priv.err('FOUR_GROUP', '4명 모둠은 공병사령관이 없어요. 합동참모의장이 함께 해요.');
   end if;
@@ -636,6 +661,7 @@ begin
   end if;
   select * into s from priv.students where uid = auth.uid();
   if not found then perform priv.err('NO_AUTH', '무역 앱에서 먼저 접속해 주세요'); end if;
+  perform war.need_in_war(s.id);
   my_country := s.country_id;
   select coalesce(max(ver),0) into v_markets from war.versions where area='markets' and country=0;
   select coalesce(max(ver), 0) into v_game from war.versions where area = 'game' and country = 0;
@@ -744,9 +770,50 @@ begin
   return jsonb_build_object('roles', (select coalesce(jsonb_agg(jsonb_build_object(
     'student', s.id, 'country', s.country_id, 'nick', coalesce(s.nickname, '학생'),
     'role', r.role, 'absent', coalesce(r.absent, false)) order by s.country_id, s.no, s.id), '[]'::jsonb)
-  from priv.students s left join war.roles r on r.student = s.id));
+  from priv.students s left join war.roles r on r.student = s.id
+  where not war.is_excluded(s.id)));   -- 이번 전쟁에서 뺀 학생은 목록에 안 나와요
 end $$;
 revoke all on function public.war_admin_roles() from public;
+
+-- 교사 전용: 「무역 게임에서 가져오기」 때 뺄 학생을 고르는 목록 (모둠별 · 실명은 교사 브라우저 화면에만 보여 줘요)
+-- 주의: 이 함수만 실명(name)을 돌려줘요. 학생 쪽 어디에도, 성찰 내보내기·AI 전달에도 쓰지 않아요.
+create or replace function public.war_admin_students() returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+begin
+  perform priv.need_admin();
+  return jsonb_build_object('students', (select coalesce(jsonb_agg(jsonb_build_object(
+    'id', s.id, 'country', s.country_id, 'no', s.no, 'name', s.name, 'nick', s.nickname,
+    'excluded', war.is_excluded(s.id)) order by s.country_id, s.no, s.id), '[]'::jsonb)
+  from priv.students s));
+end $$;
+revoke all on function public.war_admin_students() from public;
+
+-- 교사 전용: 이번 전쟁에서 뺄 학생 목록을 통째로 저장 (빈 목록이면 모두 포함). 무역 표는 건드리지 않고 war.excluded_students 만 바꿔요.
+-- 뺀 학생의 역할·미션 기록은 지워요. 모둠 인원이 줄어드는 모둠은 바뀐 인원으로 4명 모둠 규칙이 적용돼요. 가져오기(초기화) 전에 불러요.
+create or replace function public.war_admin_set_excluded(p_students int[]) returns jsonb
+language plpgsql security definer set search_path = war, priv, public as $$
+declare c int; sizes jsonb; affected int[];
+begin
+  perform priv.need_admin();
+  -- 바뀌는 모둠(이전에 뺀 학생의 모둠 + 새로 뺄 학생의 모둠)은 화면에 다시 알려요
+  affected := array(select distinct s.country_id from priv.students s
+    where s.id = any(coalesce(p_students, '{}')) or war.is_excluded(s.id));
+  delete from war.excluded_students;
+  insert into war.excluded_students(student)
+    select s.id from priv.students s where s.id = any(coalesce(p_students, '{}'));   -- 없는 번호는 조용히 무시
+  delete from war.mission_done where student in (select student from war.excluded_students);
+  delete from war.roles where student in (select student from war.excluded_students);
+  foreach c in array affected loop perform war.bump('country', c); end loop;
+  perform war.bump('game');
+  select coalesce(jsonb_object_agg(co.id::text, war.group_size(co.id)), '{}'::jsonb) into sizes from priv.countries co;
+  return jsonb_build_object('ok', true, 'excluded', (select count(*) from war.excluded_students), 'sizes', sizes);
+end $$;
+revoke all on function public.war_admin_set_excluded(int[]) from public;
+do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
+  if exists (select 1 from pg_roles where rolname = r) then
+    execute format('grant execute on function public.war_admin_students() to %I', r);
+    execute format('grant execute on function public.war_admin_set_excluded(int[]) to %I', r);
+  end if; end loop; end $$;
 
 create or replace function public.war_admin_set_absent(p_student int, p_absent boolean) returns jsonb
 language plpgsql security definer set search_path = war, priv, public as $$
@@ -773,7 +840,10 @@ begin
     end if;
     select country_id into c from priv.students where id = p_student;
     if c is null then perform priv.err('NO_STUDENT', '학생을 찾을 수 없어요'); end if;
-    select count(*) into n from priv.students where country_id = c;
+    if war.is_excluded(p_student) then
+      perform priv.err('EXCLUDED', '이번 전쟁에서 뺀 학생이에요. 먼저 가져오기 목록에서 다시 넣어 주세요.');
+    end if;
+    n := war.group_size(c);
     if p_role = 'engineer' and n <= 4 then
       perform priv.err('FOUR_GROUP', '4명 모둠은 공병사령관이 없어요. 합동참모의장이 함께 해요.');
     end if;

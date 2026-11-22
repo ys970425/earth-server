@@ -45,10 +45,12 @@ if (data.exported_at) {
 if (missing.length) { console.error('\n❌ 점검 실패: 무역 관제실에서 다시 받아 주세요.'); process.exit(1); }
 
 ok(data.countries.length === 6, `나라 ${data.countries.length}개 (6개여야 해요)`);
-ok(data.students.length === 25, `학생 ${data.students.length}명 (25명이어야 해요 — 다르면 명단을 확인하세요)`);
 const perCountry = {};
 for (const s of data.students) perCountry[s.country_id] = (perCountry[s.country_id] || 0) + 1;
 console.log('  모둠별 인원:', Object.entries(perCountry).map(([c, n]) => c + '모둠 ' + n + '명').join(' · '));
+// 학생 수가 반 인원(25명)과 다른 것은 실패가 아니에요. 시험용 계정이 섞여 있을 수 있어서, 가져오기 때 뺄 학생을 고르면 돼요 (무역 데이터는 안 바뀌어요).
+if (data.students.length === 25) ok(true, '학생 25명');
+else note(false, `학생이 ${data.students.length}명이에요 (반은 25명). 가져오기 때 뺄 학생을 고르세요 — 전쟁 관제실 「무역 게임에서 가져오기」 위쪽 모둠별 체크 목록에서 시험용 계정 등의 체크를 풀면 그 학생은 전쟁판에 안 들어가요. 무역 데이터는 바뀌지 않아요.`);
 ok(!data.students.some(s => s.uid), '백업에 로그인 정보(uid)가 없음 (내보낼 때 빠져 있어요)');
 const joined = data.students.filter(s => s.nickname || s.nick).length;
 note(joined >= 20, `닉네임이 있는 학생 ${joined}명 (수업 전에 다 접속해 봤다면 25명에 가까워요)`);
