@@ -122,10 +122,32 @@ probs as (
     join pg_proc p on p.proname = e.fn join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
     where exists (select 1 from pg_roles where rolname = 'authenticated') and not has_function_privilege('authenticated', p.oid, 'execute')
   union all select 'war 표를 일반 사용자가 직접 읽을 수 있음: ' || c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'war' and c.relkind = 'r' and exists (select 1 from pg_roles where rolname = 'anon') and has_table_privilege('anon', c.oid, 'select')
+    where n.nspname = 'war' and c.relkind = 'r' and exists (select 1 from pg_roles where rolname = 'anon')
+      and (has_table_privilege('anon', c.oid, 'select, insert, update, delete') or has_table_privilege('authenticated', c.oid, 'select, insert, update, delete'))
 )
 select case when count(*) = 0 then '✅ 설치 성공 — war 표 ${tableNames.length}개 · 함수 ${fnNames.length}개, 권한 정상' else '❌ 문제 ' || count(*) || '개' end as result,
        coalesce(string_agg(p, ' / '), '') as problems from probs;
+`;
+// 이미 01 을 실행한 DB에서 war 표 권한만 바로잡는 짧은 파일 (01 을 다시 실행해도 같은 효과예요). 무역 표는 건드리지 않아요.
+const fixGrants = `-- war 표 권한 바로잡기: 학생(anon·authenticated)이 war 표를 직접 읽거나 쓰지 못하게 모두 회수해요.
+-- 게임 함수는 전부 security definer 라서 회수해도 그대로 동작해요 (학생은 함수만 호출해요).
+-- 여러 번 실행해도 안전해요. 무역(priv·public 표)은 건드리지 않아요.
+do $$
+declare r text;
+begin
+  foreach r in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = r) then
+      execute format('revoke all on all tables in schema war from %I', r);
+      execute format('revoke all on all sequences in schema war from %I', r);
+      execute format('revoke all on schema war from %I', r);
+    end if;
+  end loop;
+end $$;
+-- 결과: ✅ 이면 끝. 이어서 02-postcheck.sql 을 다시 실행하세요.
+select case when count(*) = 0 then '✅ 권한 회수 완료 — 직접 읽을 수 있는 war 표 없음' else '❌ 아직 남음: ' || string_agg(c.relname, ', ') end as result
+from pg_class c join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'war' and c.relkind = 'r' and exists (select 1 from pg_roles where rolname = 'anon')
+  and (has_table_privilege('anon', c.oid, 'select, insert, update, delete') or has_table_privilege('authenticated', c.oid, 'select, insert, update, delete'));
 `;
 const ops = {
   'status.sql': `-- 지금 게임 상태 (읽기만): 턴·타이머·일시정지·전투 잠금·역할 배정 수
@@ -155,6 +177,7 @@ mkdirSync(new URL('ops/', OUT), { recursive: true });
 writeFileSync(new URL('00-preflight.sql', OUT), preflight);
 writeFileSync(new URL('01-war-install.sql', OUT), bundle);
 writeFileSync(new URL('02-postcheck.sql', OUT), postcheck);
+writeFileSync(new URL('03-fix-grants.sql', OUT), fixGrants);
 for (const [name, sql] of Object.entries(ops)) writeFileSync(new URL('ops/' + name, OUT), sql);
 console.log(`dist/war-install/ 저장: 01-war-install.sql ${(bundle.length / 1024).toFixed(0)}KB · war_ 함수 ${fnNames.length}개 · 점검 대상 표 ${tables.length}·열 ${cols.length}·함수 ${funcs.length}${unknown.length ? ' · 분류 못 한 이름 ' + unknown.join(',') : ''}`);
 for (const w of warnings) console.warn('⚠ ' + w);
@@ -194,6 +217,11 @@ function diff(a, b) {
 if (verify) {
   let fails = 0;
   const ok = (c, m) => { console.log((c ? '  ✔ ' : '  ✘ ') + m); if (!c) fails++; };
+  // 실제 Supabase처럼 anon·authenticated 역할이 있는 상태로 증명해요 (역할이 없으면 권한 점검이 건너뛰어져서 이번 문제를 못 잡아요)
+  await db.exec(`do $$ begin
+    if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
+    if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+  end $$;`);
   const seed = await seedTradeState(ctx);
   const rpc = ctx.rpc;
   console.log('— 증명: 무역 스키마 무변경 · 반복 설치 안전');
@@ -235,6 +263,51 @@ if (verify) {
   const tradeBeforeImport = await tradeSnapshot();
   await rpc(seed.ADMIN, 'war_admin_import', '초기화');
   ok(diff(tradeBeforeImport, await tradeSnapshot()).length === 0, '「무역 게임에서 가져오기」도 무역 표를 바꾸지 않음');
+
+  // 권한 회수 증명: 옛 설치에서 남은 grant(role_wallets·budget_requests·budget_log 에 select/insert/update)를 흉내 내서
+  // 점검이 ❌ 를 내고, 03 이 고치고, 01 을 다시 실행해도 같은 결과이며, 회수 뒤에도 게임 함수는 학생 권한으로 동작하는지 봐요.
+  console.log('— 증명: war 표 직접 권한 회수 (03-fix-grants · 01 재실행)');
+  const legacy = () => db.exec(`grant usage on schema war to anon, authenticated;
+    grant select, insert, update on war.role_wallets, war.budget_requests, war.budget_log to anon, authenticated;`);
+  const bad = async () => (await db.query(postcheck)).rows[0];
+  const direct = async role => (await db.query(`select count(*)::int n from pg_class c join pg_namespace s on s.oid = c.relnamespace
+    where s.nspname = 'war' and c.relkind = 'r' and has_table_privilege('${role}', c.oid, 'select, insert, update, delete')`)).rows[0].n;
+  ok((await bad()).result.startsWith('✅') && await direct('anon') === 0 && await direct('authenticated') === 0, '새로 설치한 DB: anon·authenticated 가 직접 쓸 수 있는 war 표 0개');
+  await legacy();
+  const b1 = await bad();
+  ok(b1.result.startsWith('❌') && /role_wallets/.test(b1.problems) && /budget_requests/.test(b1.problems) && /budget_log/.test(b1.problems), '옛 권한이 남은 상태를 점검 SQL이 ❌ 로 잡아냄: ' + b1.problems);
+  const warBeforeFix = await warSnapshot();
+  const f1 = (await db.exec(fixGrants)).at(-1).rows[0];
+  ok(f1.result.startsWith('✅') && (await bad()).result.startsWith('✅'), '03-fix-grants 실행 → 02 점검 ✅');
+  const f2 = (await db.exec(fixGrants)).at(-1).rows[0];
+  ok(f2.result.startsWith('✅'), '03 을 한 번 더 실행해도 안전');
+  const mid2 = await warSnapshot();
+  ok(diff(warBeforeFix, mid2).length === 0, '03 은 war 데이터·함수를 바꾸지 않음');
+  ok(diff(tradeMid, await tradeSnapshot()).length === 0, '03 뒤에도 무역은 그대로');
+  await legacy();
+  await db.exec(bundle);
+  ok((await bad()).result.startsWith('✅') && await direct('anon') === 0 && await direct('authenticated') === 0, '옛 권한이 남은 DB에 01 을 다시 실행해도 권한이 회수됨 (다음 설치부터 안 생김)');
+  // 학생(authenticated) 권한으로 직접 읽기는 막히고, 게임 함수(security definer)는 그대로 동작
+  // (역할 전환은 트랜잭션 하나 안에서 해서, 어떤 경우에도 역할이 남지 않게 해요)
+  const asRole = async (uid, sql, params = []) => {
+    try {
+      return await db.transaction(async tx => {
+        await tx.query(`select set_config('request.uid', $1, true)`, [uid]);
+        await tx.exec(`set local role authenticated`);
+        return { r: (await tx.query(sql, params)).rows[0] };
+      });
+    } catch (e) { return { err: e.message }; }
+  };
+  const denied = x => x.err && /permission denied/i.test(x.err);
+  const sUid = seed.students[0].uid;
+  ok(denied(await asRole(sUid, `select * from war.units limit 1`)), '학생 권한으로 war 표를 직접 읽으면 막힘');
+  ok(denied(await asRole(sUid, `update war.game set turn = 99`)), '학생 권한으로 war 표를 직접 고치면 막힘');
+  const imp = await asRole(seed.ADMIN, `select public.war_admin_import('초기화') as r`);
+  ok(!imp.err && imp.r.r.countries === 6 && imp.r.r.units > 0, '교사 계정(authenticated 권한)의 「가져오기」가 권한 회수 뒤에도 성공' + (imp.err ? ' — ' + imp.err.slice(0, 300) : ''));
+  const me = await asRole(sUid, `select public.war_me() as r`);
+  ok(!denied(me), '학생 권한으로 war_me 를 불러도 표 권한 때문에 막히지 않음' + (me.err ? ' (응답: ' + me.err.slice(0, 40) + ')' : ''));
+  const rec = await asRole(seed.ADMIN, `select public.war_admin_roles() as r`);
+  ok(!rec.err, '교사 계정으로 역할 현황 함수도 동작' + (rec.err ? ' — ' + rec.err.slice(0, 100) : ''));
 
   console.log(fails ? `실패 ${fails}개` : '전체 통과');
   await db.close();

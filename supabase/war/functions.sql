@@ -2260,8 +2260,12 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
     execute format('grant execute on function public.war_admin_reflect_export() to %I',r);
   end if; end loop; end $$;
 
--- 기존 설치에도 role_wallets·budget_requests·budget_log grant 적용
+-- war 표는 학생(anon·authenticated)이 직접 읽거나 쓰지 못해요. 모든 게임 함수가 security definer 라서 함수만 통해 접근해요.
+-- (예전에는 여기서 role_wallets·budget_requests·budget_log 에 grant 를 줬는데, 그게 남아 점검에 걸렸어요. 이제는 반대로 모두 회수해요.)
+-- 파일 맨 끝에 있어야 해요: 뒤에 어떤 grant 가 와도 마지막에 전부 회수해요. 여러 번 실행해도 안전해요.
 do $$ declare r text; begin foreach r in array array['anon','authenticated'] loop
   if exists(select 1 from pg_roles where rolname=r) then
-    execute format('grant select,insert,update on war.role_wallets, war.budget_requests, war.budget_log to %I',r);
+    execute format('revoke all on all tables in schema war from %I', r);
+    execute format('revoke all on all sequences in schema war from %I', r);
+    execute format('revoke all on schema war from %I', r);
   end if; end loop; end $$;

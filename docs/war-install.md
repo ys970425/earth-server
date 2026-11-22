@@ -27,7 +27,7 @@
 | 6 | 푸시 | `C:\projects\earth-war` 에서 푸시 (아래 4단계). 낮에 미리 해 둬도 돼요 | |
 
 만들어지는 파일(`dist/war-install/`)은 깃허브에 올라가지 않아요. 선생님 PC에만 있어요.
-- `00-preflight.sql` 설치 전 점검(읽기만) · `01-war-install.sql` 설치 본체 · `02-postcheck.sql` 설치 뒤 점검(읽기만)
+- `00-preflight.sql` 설치 전 점검(읽기만) · `01-war-install.sql` 설치 본체 · `02-postcheck.sql` 설치 뒤 점검(읽기만) · `03-fix-grants.sql` (02가 「war 표를 일반 사용자가 직접 읽을 수 있음」 ❌ 를 낼 때만) war 표 권한 회수
 - `ops/` 수업 중 쓰는 한 줄 도구: `status.sql`, `combat-off.sql`, `combat-on.sql`, `turn-seconds.sql`
 
 ---
@@ -61,7 +61,7 @@
 |---|---|---|
 | ① | `00-preflight.sql` | 표 한 줄: `result` 칸이 **✅ 준비 완료 — 설치해도 돼요** |
 | ② | `01-war-install.sql` (크기 133KB쯤, 붙여넣기에 몇 초) | 아래 「Success. No rows returned」 |
-| ③ | `02-postcheck.sql` | `result` 칸이 **✅ 설치 성공 — war 함수 43개, 권한 정상** |
+| ③ | `02-postcheck.sql` | `result` 칸이 **✅ 설치 성공 — war 표 25개 · 함수 46개, 권한 정상**. ❌ 에 「직접 읽을 수 있음」이 있으면 `03-fix-grants.sql` 실행 → 02 다시 |
 
 - ①이 **❌** 이면: 아직 설치하지 말고 `missing` 칸을 복사해서 Claude에게 보내요.
 - ②를 누르면 「destructive operations(되돌릴 수 없는 작업)」 경고 창이 뜰 수 있어요. 설치 파일에 「옛 war 함수 지우기」 줄이 있어서예요. **무역 데이터와는 상관없으니 「Run this query」** 를 눌러요.
