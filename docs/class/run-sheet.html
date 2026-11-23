@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>교사 진행표 — 지구 서버: 전쟁의 시간</title>
+<style>
+  @page { size: A4; margin: 7mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; color: #1a1a1a; }
+  .sheet { width: 196mm; height: 286mm; padding: 3mm; display: flex; flex-direction: column; gap: 2.5mm; }
+  h1 { font-size: 8mm; text-align: center; }
+  .sub { font-size: 4.2mm; text-align: center; color: #555; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1.5px solid #999; padding: 1.4mm 2mm; font-size: 3.9mm; vertical-align: top; }
+  th { background: #EEE; font-size: 3.9mm; }
+  td.t { white-space: nowrap; font-weight: 700; width: 20mm; }
+  td.speech { width: 84mm; }
+  td.btn { width: 62mm; }
+  td.btn b { color: #0B5394; }
+  .ver { font-size: 5mm; font-weight: 900; border-left: 5px solid #B8860B; padding-left: 2mm; margin-top: 1mm; }
+  .note { font-size: 3.8mm; background: #FFF3CD; border: 1.5px solid #B8860B; border-radius: 2mm; padding: 1.5mm 2.5mm; line-height: 1.5; }
+  .foot { text-align: right; font-size: 3.6mm; color: #777; margin-top: auto; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <h1>📋 교사 진행표 — 지구 서버: 전쟁의 시간</h1>
+  <p class="sub">수업 중 열어 둘 것: ① 전쟁 관제실 ② docs/war-emergency.md (비상 대응표) — 막히면 먼저 <b>「일시정지」</b></p>
+  <p class="note" style="margin-bottom:0">🔑 <b>관제실은 무역 관제실에 먼저 로그인한 뒤 같은 브라우저에서 열기.</b> 전쟁 관제실에 「무역 관제실로」 버튼이 보이면 그 버튼은 누르지 않기 — 무역 관제실에서 직접 로그인하고, 주소창에 전쟁 관제실 주소를 다시 입력해서 여세요.</p>
+
+  <div class="ver">🅐 2시간 버전 (본 게임 약 25턴)</div>
+  <table>
+    <tr><th>시간</th><th>교사가 할 말</th><th>누를 버튼</th></tr>
+    <tr><td class="t">0–10분</td><td class="speech">“역할을 고르세요. 한 역할은 한 명이에요. 화면 아래 「myoLab」이 보이면 준비 완료!”</td><td class="btn">무역 관제실 <b>「무역 게임에서 가져오기」</b>(초기화 입력)</td></tr>
+    <tr><td class="t">10–25분</td><td class="speech">“연습 3턴이에요. 미션 탭을 따라 하세요. 예산은 요청 → 승인 순서로. 아직 공격은 잠겨 있어요.”</td><td class="btn">턴 시간 <b>5분</b> · 공격 잠금(전투 끄기) · <b>「다음 턴」</b>×3</td></tr>
+    <tr><td class="t">25–28분</td><td class="speech">“요청 → 승인 → 생산을 한 번 전체에서 해 봤어요. 이제 본 게임! 외교도 시작해요.”</td><td class="btn">턴 시간 <b>3분</b> · <b>「전투 풀기」</b>(공격 열기)</td></tr>
+    <tr><td class="t">28–105분</td><td class="speech">2~3턴마다: “우리 나라 목표를 모둠에서 정해요.” 중간 점검: 요청 대기가 쌓이면 합참의장에게 “요청함 → 승인” 알려 주기</td><td class="btn">관제실을 켜 둠(<b>0:00에 자동 다음 턴</b>) · 필요 시 <b>「일시정지」/「다시시작」</b></td></tr>
+    <tr><td class="t">105–112분</td><td class="speech">“이제 종합 점수를 발표해요: <b>도시 수 + 코인÷10 + 동맹×3 + 완료 미션 수</b>. 관제실 숫자를 보고 나라마다 점수를 읽어 주세요. <b>정복만이 아니라 경제·외교로도 이길 수 있어요!</b>”</td><td class="btn">전쟁 관제실에서 나라별 <b>도시 수·코인·동맹·미션</b> 확인 · 칠판에 점수 기록</td></tr>
+    <tr><td class="t">112–120분</td><td class="speech">“돌아보기 버튼이 생겼어요. 모두 답하고 전자칠판에서 우리 나라를 함께 봐요.” 수업 끝나면 <b>「성찰 닫기」</b>도 누르기</td><td class="btn"><b>「성찰 열기」</b> → 모두 제출 후 <b>「성찰 닫기」</b> · 「성찰 모아 보기」에서 막대·응답 확인 · 필요 시 <b>「AI에게 넘기기」</b></td></tr>
+  </table>
+
+  <div class="ver">🅑 3시간 버전 (본 게임 약 45턴)</div>
+  <table>
+    <tr><th>시간</th><th>교사가 할 말</th><th>누를 버튼</th></tr>
+    <tr><td class="t">0–10분</td><td class="speech">“역할을 고르세요. 역할 카드를 나눠 줄게요. 내 임무 3줄을 큰 소리로 읽어요.”</td><td class="btn">무역 관제실 <b>「무역 게임에서 가져오기」</b>(초기화 입력)</td></tr>
+    <tr><td class="t">10–25분</td><td class="speech">“연습 3턴: 이동·요청·승인을 익혀요. 공격은 잠겨 있어요. 모르면 「물어보기」 버튼!”</td><td class="btn">턴 시간 <b>5분</b> · 공격 잠금 · <b>「다음 턴」</b>×3</td></tr>
+    <tr><td class="t">25–30분</td><td class="speech">“연습에서 가장 어려웠던 것 하나를 모둠마다 발표해요.”</td><td class="btn">— (수업용 토론, 게임 일시정지 유지)</td></tr>
+    <tr><td class="t">30–35분</td><td class="speech">“이제 본 게임. 첩보·외교·시장을 써도 돼요. 도시를 뺏기면 3턴 보호막이 생겨요.”</td><td class="btn">턴 시간 <b>3분</b> · <b>「전투 풀기」</b></td></tr>
+    <tr><td class="t">35–150분</td><td class="speech">5턴마다 중간 브리핑: “어느 나라가 동맹을 맺었나요?” · 시장 개방 안내: “합참의장은 특산물로 물물교환해요.”</td><td class="btn">관제실 자동 다음 턴 · 필요 시 <b>「일시정지」</b> · 장애면 <b>docs/war-emergency.md 4번(무역 전환)</b></td></tr>
+    <tr><td class="t">150–157분</td><td class="speech">“이제 종합 점수를 발표해요: <b>도시 수 + 코인÷10 + 동맹×3 + 완료 미션 수</b>. 나라마다 점수를 읽어 주세요. <b>정복만이 아니라 경제·외교로도 이길 수 있어요!</b>”</td><td class="btn">전쟁 관제실에서 나라별 <b>도시 수·코인·동맹·미션</b> 확인 · 칠판에 점수 기록</td></tr>
+    <tr><td class="t">157–165분</td><td class="speech">“마지막 15분의 성찰! 돌아보기에 답해요. 친구 이름은 쓰지 않아요.” 수업 끝나면 <b>「성찰 닫기」</b>도 누르기</td><td class="btn"><b>「성찰 열기」</b> → 모두 제출 후 <b>「성찰 닫기」</b> · 「성찰 모아 보기」로 막대·응답 확인</td></tr>
+    <tr><td class="t">165–180분</td><td class="speech">“전자칠판의 행복도·군사력·코인을 보고, 오늘 제일 잘한 선택은 무엇이었나요?”</td><td class="btn"><b>「AI에게 넘기기」</b>(복사·.md) · 무역 관제실 <b>「백업 파일 받기」</b>(선택)</td></tr>
+  </table>
+
+  <p class="note">🚨 비상: 학생 화면이 안 열리면 F5 → 안 되면 무역 관제실 「연결 초기화」 · 한 나라만 멈추면 빨간 안내 글 확인(잠깐 멈춘 시간=일시정지, 싸울 수 없는 시간=전투 풀기) · 전체 실패면 전쟁 앱 닫고 무역 앱으로 전환 — 자세한 것은 <b>docs/war-emergency.md</b></p>
+
+  <div class="foot">제작: myoLab(산쌤)</div>
+</div>
+</body>
+</html>

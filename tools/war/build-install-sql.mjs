@@ -166,6 +166,37 @@ update war.game set combat_on = true where id = 1;
 select war.bump('game');
 select combat_on as 전투_가능 from war.game where id = 1;   -- true 이면 풀린 거예요
 `,
+  'next-turn.sql': `-- 비상: 다음 턴 넘기기 (관제실 「다음 턴」 버튼과 같은 함수를 그대로 불러요 → 효과가 똑같아요)
+-- 맨 아래 숫자 한 칸만 고치세요: 「지금 턴」 숫자 (status.sql 의 턴 칸). 숫자가 지금 턴과 다르면 아무 일도 안 일어나요
+--   → 실수로 두 번 Run 해도 턴이 두 번 넘어가지 않아요.
+-- 교사 로그인 없이(Supabase SQL Editor, postgres 권한) 실행돼요. 무역 표는 읽기만 해요.
+begin;
+select set_config('request.jwt.claim.sub', (select uid::text from priv.admins order by at limit 1), true);
+select public.war_next_turn(12) as 결과;   -- ← 12 를 지금 턴 숫자로 고치세요. 결과 ok=true 이면 넘어간 거예요
+commit;
+`,
+  'pause.sql': `-- 비상: 일시정지 (관제실 「일시정지」 버튼과 같은 함수예요. 남은 턴 시간을 맡아 두고 타이머를 멈춰요)
+-- 여러 번 Run 해도 안전해요 (이미 멈춰 있으면 그대로예요). 교사 로그인 없이 실행돼요.
+begin;
+select set_config('request.jwt.claim.sub', (select uid::text from priv.admins order by at limit 1), true);
+select public.war_pause(true) as 결과;   -- paused=true 이면 멈춘 거예요
+commit;
+`,
+  'resume.sql': `-- 비상: 다시 시작 (관제실 「다시시작」 버튼과 같은 함수예요. 맡아 둔 남은 시간부터 타이머가 다시 흘러요)
+-- 여러 번 Run 해도 안전해요 (이미 진행 중이면 그대로예요). 교사 로그인 없이 실행돼요.
+begin;
+select set_config('request.jwt.claim.sub', (select uid::text from priv.admins order by at limit 1), true);
+select public.war_pause(false) as 결과;   -- paused=false 이면 다시 흐르는 거예요
+commit;
+`,
+  'reset-student-link.sql': `-- 비상: 학생 기기 연결 초기화 (무역 관제실 「연결 초기화」 버튼과 같은 함수예요)
+-- 맨 아래 숫자 한 칸만 고치세요: 학생 번호 (무역 관제실 명단의 번호). 그 학생이 다시 접속해서 이름을 고르면 돼요.
+-- 역할·병력·예산은 학생 번호에 붙어 있어서 그대로 남아요. 여러 번 Run 해도 안전해요. 교사 로그인 없이 실행돼요.
+begin;
+select set_config('request.jwt.claim.sub', (select uid::text from priv.admins order by at limit 1), true);
+select public.admin_reset_binding(7) as 결과;   -- ← 7 을 학생 번호로 고치세요. ok=true 이면 연결이 풀린 거예요
+commit;
+`,
   'turn-seconds.sql': `-- 턴 시간 바꾸기: 아래 숫자(초)만 고쳐서 실행. 다음에 「다음 턴」을 누를 때부터 적용돼요. (60~600)
 --   연습 턴 5분 = 300, 본 게임 3분 = 180, 4분 = 240
 update war.game set turn_seconds = 180 where id = 1;

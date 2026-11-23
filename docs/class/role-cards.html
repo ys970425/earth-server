@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>역할 카드 5장 — 지구 서버: 전쟁의 시간</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; color: #222; }
+  .page { width: 190mm; height: 277mm; page-break-after: always; display: flex; flex-direction: column; gap: 6mm; padding: 4mm 2mm; }
+  .page:last-child { page-break-after: auto; }
+  .card { border: 3px solid var(--c); border-radius: 10mm; padding: 6mm 7mm; flex: 1; display: flex; flex-direction: column; gap: 3mm; }
+  .head { display: flex; align-items: center; gap: 4mm; border-bottom: 2px dashed var(--c); padding-bottom: 2mm; }
+  .ico { font-size: 15mm; line-height: 1; }
+  .name { font-size: 9mm; font-weight: 900; color: var(--c); }
+  .tag { font-size: 4.5mm; background: var(--c); color: #fff; border-radius: 5mm; padding: 0.5mm 3mm; }
+  h3 { font-size: 5.5mm; color: var(--c); margin-top: 1mm; }
+  ul, ol { margin-left: 7mm; }
+  li { font-size: 5.5mm; line-height: 1.55; margin: 0.8mm 0; }
+  .btns span { display: inline-block; font-size: 5mm; border: 2px solid var(--c); border-radius: 3mm; padding: 1mm 2.5mm; margin: 0.7mm 0.7mm 0.7mm 0; font-weight: 700; }
+  .say { background: #FFF8E1; border-radius: 3mm; padding: 2mm 3mm; }
+  .say p { font-size: 5.5mm; line-height: 1.6; }
+  .foot { margin-top: auto; text-align: right; font-size: 4mm; color: #777; }
+  .good::before { content: '⭐ '; }
+  .duty::before { content: ''; }
+</style>
+</head>
+<body>
+
+<!-- ===== 1페이지: 합동참모의장 · 공병사령관 ===== -->
+<div class="page">
+
+  <div class="card" style="--c:#B8860B">
+    <div class="head"><span class="ico">⭐</span><span class="name">합동참모의장</span><span class="tag">나라의 지휘소</span></div>
+    <h3>🎯 내 임무</h3>
+    <ol>
+      <li>국고를 지키고 친구들의 요청을 승인해요.</li>
+      <li>다른 나라와 외교·무역을 해요.</li>
+      <li>친구가 없는 역할을 대신 맡아요.</li>
+    </ol>
+    <h3>🔘 내가 누르는 버튼</h3>
+    <div class="btns"><span>🗺 지도</span><span>🚩 미션</span><span>🏦 예산</span><span>📬 요청함</span><span>🤝 외교</span><span>📦 무역</span><span>⛺ 시장</span></div>
+    <h3>⭐ 이렇게 하면 잘해요</h3>
+    <ul>
+      <li class="good">요청이 오면 「왜 필요해요?」를 먼저 물어봐요.</li>
+      <li class="good">돈은 나눠 주고, 쓰고 남으면 회수해요.</li>
+    </ul>
+    <h3>💬 친구에게 이렇게 말해요</h3>
+    <div class="say">
+      <p>“이번 턴에 코인 10개를 육군에게 줄까요?”</p>
+      <p>“우리 나라가 목재를 많이 가져요. 현대 전차와 바꿔요?”</p>
+    </div>
+    <div class="foot">제작: myoLab(산쌤)</div>
+  </div>
+
+  <div class="card" style="--c:#3A6B2F">
+    <div class="head"><span class="ico">🏗</span><span class="name">공병사령관</span><span class="tag">나라의 손과 눈</span></div>
+    <h3>🎯 내 임무</h3>
+    <ol>
+      <li>노동자를 움직여 타일을 개발해요.</li>
+      <li>건물을 짓고 부서진 시설을 고쳐요.</li>
+      <li>정찰병을 적 도시 옆에 보내 정보를 봐요.</li>
+    </ol>
+    <h3>🔘 내가 누르는 버튼</h3>
+    <div class="btns"><span>🗺 지도</span><span>🚩 미션</span><span>🏗 건설</span><span>🔧 수리</span><span>✉ 요청</span><span>🔎 첩보 정보</span></div>
+    <h3>⭐ 이렇게 하면 잘해요</h3>
+    <ul>
+      <li class="good">정찰병을 적 도시 바로 옆 칸(1칸)에 세워요.</li>
+      <li class="good">개발 전에 「우리 나라에 무엇이 부족해요?」부터 봐요.</li>
+    </ul>
+    <h3>💬 친구에게 이렇게 말해요</h3>
+    <div class="say">
+      <p>“건물을 지을 코인 5개를 요청할게요. 좋아요?”</p>
+      <p>“정찰병이 3번 나라 창고를 봤어요. 목재가 6개 있대요.”</p>
+    </div>
+    <div class="foot">제작: myoLab(산쌤)</div>
+  </div>
+
+</div>
+
+<!-- ===== 2페이지: 육군 · 해군 참모총장 ===== -->
+<div class="page">
+
+  <div class="card" style="--c:#7A1A1A">
+    <div class="head"><span class="ico">⚔</span><span class="name">육군 참모총장</span><span class="tag">땅에서 싸워요</span></div>
+    <h3>🎯 내 임무</h3>
+    <ol>
+      <li>육군 병력을 만들고 움직여요.</li>
+      <li>공격 전에 예상 피해를 꼭 확인해요.</li>
+      <li>필요하면 지휘권을 다른 총장에게 넘겨요.</li>
+    </ol>
+    <h3>🔘 내가 누르는 버튼</h3>
+    <div class="btns"><span>🗺 지도</span><span>🚩 미션</span><span>✉ 요청</span><span>🔨 생산</span><span>🛡 부대</span><span>🔎 첩보 정보</span></div>
+    <h3>⭐ 이렇게 하면 잘해요</h3>
+    <ul>
+      <li class="good">공격 전에 빨간 화면(예상 피해)을 읽어요.</li>
+      <li class="good">적 도시는 가까이서(옆 칸) 공격해야 점령해요.</li>
+    </ul>
+    <h3>💬 친구에게 이렇게 말해요</h3>
+    <div class="say">
+      <p>“창병을 만들 코인 5개·철 1개를 요청해요.”</p>
+      <p>“2번 나라 도시 옆에 있어요. 투석기 한 대 빌려줄래요?”</p>
+    </div>
+    <div class="foot">제작: myoLab(산쌤)</div>
+  </div>
+
+  <div class="card" style="--c:#1A4F7A">
+    <div class="head"><span class="ico">⚓</span><span class="name">해군 참모총장</span><span class="tag">바다에서 싸워요</span></div>
+    <h3>🎯 내 임무</h3>
+    <ol>
+      <li>배를 만들고 바다로 움직여요.</li>
+      <li>해안 도시를 지키고 점령을 도와요.</li>
+      <li>필요하면 지휘권을 다른 총장에게 넘겨요.</li>
+    </ol>
+    <h3>🔘 내가 누르는 버튼</h3>
+    <div class="btns"><span>🗺 지도</span><span>🚩 미션</span><span>✉ 요청</span><span>🔨 생산</span><span>🛡 부대</span><span>🔎 첩보 정보</span></div>
+    <h3>⭐ 이렇게 하면 잘해요</h3>
+    <ul>
+      <li class="good">배는 바다와 해안 칸으로만 다녀요.</li>
+      <li class="good">해안 도시는 가까이서 공격하는 배도 점령할 수 있어요.</li>
+    </ul>
+    <h3>💬 친구에게 이렇게 말해요</h3>
+    <div class="say">
+      <p>“구축함을 만들 연료 2개를 요청할게요.”</p>
+      <p>“우리 항구가 위험해요. 공군이 도와주면 힘세요.”</p>
+    </div>
+    <div class="foot">제작: myoLab(산쌤)</div>
+  </div>
+
+</div>
+
+<!-- ===== 3페이지: 공군 참모총장 ===== -->
+<div class="page">
+
+  <div class="card" style="--c:#283593">
+    <div class="head"><span class="ico">✈</span><span class="name">공군 참모총장</span><span class="tag">하늘에서 싸워요</span></div>
+    <h3>🎯 내 임무</h3>
+    <ol>
+      <li>공군 병력을 만들고 하늘로 날아가요.</li>
+      <li>다른 나라 병력 위를 지나 갈 수 있어요.</li>
+      <li>필요하면 지휘권을 다른 총장에게 넘겨요.</li>
+    </ol>
+    <h3>🔘 내가 누르는 버튼</h3>
+    <div class="btns"><span>🗺 지도</span><span>🚩 미션</span><span>✉ 요청</span><span>🔨 생산</span><span>🛡 부대</span><span>🔎 첩보 정보</span></div>
+    <h3>⭐ 이렇게 하면 잘해요</h3>
+    <ul>
+      <li class="good">바다 위에는 멈추지 못해요. 땅에 내려놓아요.</li>
+      <li class="good">공군은 도시를 점령하지 못해요. 도시 체력만 깎아요.</li>
+    </ul>
+    <h3>💬 친구에게 이렇게 말해요</h3>
+    <div class="say">
+      <p>“전투 헬기를 만들 코인 16개를 요청할게요.”</p>
+      <p>“적 병력 위로 날아갈게요. 육군은 뒤에 따라와요.”</p>
+    </div>
+    <div class="foot">제작: myoLab(산쌤)</div>
+  </div>
+
+  <div class="card" style="--c:#555; border-style: dashed;">
+    <div class="head"><span class="ico">📌</span><span class="name">모두가 알아요</span><span class="tag">공용 규칙</span></div>
+    <ul>
+      <li>🚩 미션 탭에서 내 미션을 확인해요.</li>
+      <li>✉ 요청은 한 번에 한 건만! (대기 중이면 수정만 돼요)</li>
+      <li>🔎 첩보 정보는 우리 나라 모두가 함께 봐요.</li>
+      <li>✉💬 화면이 이상하면 「물어보기」 버튼을 눌러요.</li>
+      <li>같은 칸을 동시에 누르면 먼저 누른 사람이 이겨요.</li>
+      <li>🕒 성찰 시간이 되면 위쪽 메뉴에 「돌아보기」가 생겨요.</li>
+    </ul>
+    <div class="foot">제작: myoLab(산쌤)</div>
+  </div>
+
+</div>
+
+</body>
+</html>

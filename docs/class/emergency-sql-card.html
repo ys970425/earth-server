@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>비상 SQL 카드 (교사용) — 지구 서버: 전쟁의 시간</title>
+<style>
+  @page { size: A4; margin: 8mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; color: #1a1a1a; }
+  .sheet { width: 194mm; height: 281mm; padding: 4mm; display: flex; flex-direction: column; gap: 2.5mm; }
+  h1 { font-size: 7.5mm; text-align: center; }
+  .sub { font-size: 4.2mm; text-align: center; color: #555; }
+  .box { border: 2.5px solid #B8860B; border-radius: 4mm; padding: 2.5mm 3.5mm; }
+  .box h2 { font-size: 4.7mm; border-bottom: 2px dashed #B8860B; padding-bottom: 1mm; margin-bottom: 1.5mm; }
+  .box li { font-size: 3.7mm; line-height: 1.4; margin: 0.8mm 0 0.8mm 5.5mm; }
+  .code { font-family: Consolas, monospace; font-size: 3.7mm; background: #F4F4F4; border: 1.5px solid #bbb; border-radius: 2mm; padding: 1.5mm 2.5mm; margin: 1mm 0; white-space: pre; }
+  .miss { border-color: #B71C1C; }
+  .miss h2 { border-color: #B71C1C; color: #B71C1C; }
+  .foot { text-align: right; font-size: 4mm; color: #777; margin-top: auto; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <h1>🚨 비상 SQL 카드 (교사용)</h1>
+  <p class="sub">언제: 관제실 버튼이 안 눌릴 때만. 어떻게: Supabase 대시보드 → <b>SQL Editor</b> → <b>+ New query</b> → 아래 파일 내용 붙여넣기 → <b>Run</b></p>
+
+  <div class="box">
+    <h2>📂 파일이 있는 곳: 선생님 PC의 <span style="font-family:Consolas,monospace">C:\projects\earth-server\dist\war-install\ops\</span></h2>
+    <ul>
+      <li>이 폴더는 설치 준비 때 <span style="font-family:Consolas,monospace">node tools/war/build-install-sql.mjs</span>가 만들어요 (깃허브에는 없어요).</li>
+      <li>VS Code에서 파일을 열어 <b>내용 전체를 복사</b>해 SQL Editor에 붙여 넣어요.</li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h2>1️⃣ 언제: 연습 턴을 잠가 둘 때 · 풀 때 (관제실 「전투 잠금」「전투 풀기」 버튼이 안 될 때)</h2>
+    <ul>
+      <li><b>combat-off.sql</b> = 전투 잠금 (공격·점령이 「싸울 수 없는 시간이에요」로 막혀요. 이동·생산·예산은 그대로)</li>
+      <li><b>combat-on.sql</b> = 전투 풀기 (본 게임 시작 전에)</li>
+    </ul>
+    <div class="code">-- combat-off.sql / combat-on.sql 안에 한 줄이 들어 있어요
+update war.game set combat_on = false where id = 1;   -- 잠금
+update war.game set combat_on = true  where id = 1;   -- 풀기</div>
+  </div>
+
+  <div class="box">
+    <h2>2️⃣ 언제: 지금 상태가 궁금할 때 (읽기만 해요, 안전해요)</h2>
+    <ul><li><b>status.sql</b> = 턴·타이머·일시정지·전투 잠금·역할 수를 한눈에 봐요.</li></ul>
+  </div>
+
+  <div class="box">
+    <h2>3️⃣ 언제: 턴 시간을 6~10분으로 바꿀 때 (관제실 선택칸은 1~5분까지)</h2>
+    <ul>
+      <li><b>turn-seconds.sql</b> — 파일 안 숫자(초)만 고쳐서 Run. 다음 「다음 턴」부터 적용돼요.</li>
+    </ul>
+    <div class="code">update war.game set turn_seconds = 180 where id = 1;   -- 180 = 3분</div>
+  </div>
+
+  <div class="box miss">
+    <h2>4️⃣ 비상: 관제실 버튼이 아예 안 눌릴 때 (로그인 없이 SQL Editor에서 돼요)</h2>
+    <ul>
+      <li><b>next-turn.sql</b> = 「다음 턴」. 파일 아래쪽 <span style="font-family:Consolas,monospace">war_next_turn(<b>12</b>)</span>의 숫자를 <b>지금 턴</b>(status.sql의 턴 칸)으로 고친 뒤 Run. 숫자가 다르면 아무 일 없어서 두 번 눌러도 한 번만 넘어가요.</li>
+      <li><b>pause.sql</b> = 「일시정지」 · <b>resume.sql</b> = 「다시시작」 — 고칠 것 없이 붙여넣고 Run. 여러 번 해도 안전해요. 쉰 시간은 빠지지 않고 남은 시간부터 다시 흘러요.</li>
+      <li><b>reset-student-link.sql</b> = 학생 기기 「연결 초기화」. <span style="font-family:Consolas,monospace">admin_reset_binding(<b>7</b>)</span>의 숫자를 <b>학생 번호</b>로 고치고 Run. 그 학생이 다시 이름을 고르면 돼요. 역할·병력·예산은 그대로예요.</li>
+      <li>결과 칸에 <b>ok = true</b>가 보이면 성공이에요. 빨간 오류가 나오면 다시 누르지 말고 Claude에게 알려 주세요.</li>
+    </ul>
+  </div>
+
+  <div class="foot">제작: myoLab(산쌤)</div>
+</div>
+</body>
+</html>
