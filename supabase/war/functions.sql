@@ -499,7 +499,7 @@ begin
   update war.game set turn_seconds = (wcfg->'TURN'->>'seconds')::int,
     paused = false, combat_on = true, turn_end = null where id = 1;
   -- 모든 병력의 이동력을 채운다 (설계 4-4: 노동자 2, 정찰병 5, 나머지는 무역·전쟁 규칙). 턴마다 채우기는 E5
-  update war.units set moves_left = war.moves_left_full(kind, cfg, wcfg);
+  update war.units set moves_left = war.moves_left_full(kind, cfg, wcfg) where true;
   -- 지도 영역 번호를 1로 시작 (칸 ver은 전부 0. 칸을 바꾸는 함수는 bump('map') 뒤 그 칸 ver을 새 번호로)
   perform war.bump('map');
 
@@ -798,7 +798,7 @@ begin
   -- 바뀌는 모둠(이전에 뺀 학생의 모둠 + 새로 뺄 학생의 모둠)은 화면에 다시 알려요
   affected := array(select distinct s.country_id from priv.students s
     where s.id = any(coalesce(p_students, '{}')) or war.is_excluded(s.id));
-  delete from war.excluded_students;
+  delete from war.excluded_students where true;
   insert into war.excluded_students(student)
     select s.id from priv.students s where s.id = any(coalesce(p_students, '{}'));   -- 없는 번호는 조용히 무시
   delete from war.mission_done where student in (select student from war.excluded_students);
@@ -1193,7 +1193,8 @@ begin
   cfg := priv.cfg(); wcfg := war.cfg();
   update war.units set
     moves_left = war.moves_left_full(kind, cfg, wcfg),
-    attacked_turn = -1;
+    attacked_turn = -1
+  where true;
   update war.cities set hp = 20, besieged = false where kind = 'capital' and besieged = true;
   perform war.merge_empty_tiles();
   -- 일시정지 중에 다음 턴을 눌러도 시간은 흐르지 않는다: 새 턴의 시간을 통째로 맡아 두었다가(paused_left) 재개하면 그때부터 흘러요
@@ -1639,9 +1640,9 @@ do $$ declare r text; begin foreach r in array array['anon','authenticated'] loo
 end loop; end $$;
 
 -- 기존 설치에도 E9와 품목 가격을 반영한다.
-update war.config set data=jsonb_set(data,'{ITEMS}',priv.cfg()->'ITEMS');
+update war.config set data=jsonb_set(data,'{ITEMS}',priv.cfg()->'ITEMS') where true;
 update war.config set data=jsonb_set(data,'{SPECIALTY_ITEM}',
-  (select jsonb_object_agg(id::text, priv.cfg()->'STRAT_OF'->type) from priv.countries));
+  (select jsonb_object_agg(id::text, priv.cfg()->'STRAT_OF'->type) from priv.countries)) where true;
 update war.config set data=jsonb_set(data,'{OPEN_STAGES}',coalesce(data->'OPEN_STAGES','[]'::jsonb) || '["E9"]'::jsonb)
 where not coalesce(data->'OPEN_STAGES' ? 'E9',false);
 

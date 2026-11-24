@@ -5,6 +5,7 @@
 import { readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createDb, seedTradeState } from '../../tests/war/helpers.mjs';
+import { findUnsafeDml } from './find-unsafe-dml.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const OUT = new URL('dist/war-install/', ROOT);
@@ -36,6 +37,8 @@ const problems = BAD.filter(([re]) => re.test(stripped)).map(([, why]) => why);
 // truncate는 war. 표만 허용 (문장 하나씩 잘라서 모든 대상이 war. 로 시작하는지 봐요)
 for (const m of stripped.matchAll(/\btruncate\s+(?:table\s+)?([^;]*);/gi))
   if (m[1].split(',').some(t => !/^\s*(only\s+)?war\./i.test(t))) problems.push('war 밖의 표 truncate');
+// Supabase pg_safeupdate: API로 부른 함수 안의 WHERE 없는 DELETE/UPDATE 는 오류가 나요 (「where true」 를 붙여야 해요)
+for (const x of sources.flatMap(z => findUnsafeDml(z.sql, z.f))) problems.push(`WHERE 없는 ${x.kind} (${x.file}:${x.line})`);
 if (problems.length) { console.error('❌ 설치 SQL에 위험한 문장이 있어요: ' + problems.join(', ')); process.exit(1); }
 
 const fnNames = [...new Set([...all.matchAll(/create\s+or\s+replace\s+function\s+public\.(war_[a-z0-9_]+)/gi)].map(m => m[1]))].sort();
